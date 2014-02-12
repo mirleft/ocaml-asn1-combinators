@@ -1,17 +1,17 @@
 OASISFormat: 0.4
-Name:        asn.1-combinators
+Name:        asn1-combinators
 Version:     0.0.1
 Synopsis:    Combinators for expressing ASN.1 grammars in OCaml
 Authors:     David Kaloper <david@numm.org>
 Maintainers: David Kaloper <david@numm.org>
 License:     BSD3
-Homepage:    https://github.com/pqwy/ocaml-asn.1-combinators
+Homepage:    https://github.com/pqwy/ocaml-asn1-combinators
 Plugins:     META (0.4)
 Description:
   Express ASN.1 grammars directly in OCaml, combinator-style, then use them to
   parse or encode.
 
-Library "asn-combinators"
+Library "asn1-combinators"
   Path:            src/
   BuildTools:      ocamlbuild
   Modules:         Asn
@@ -23,7 +23,7 @@ Library "asn-combinators"
 #   BuildTools:   ocamlbuild
 #   Install:      false
 #   MainIs:       burp.ml
-#   BuildDepends: asn-combinators
+#   BuildDepends: asn1-combinators
 
 # Test the_things
 #   Command: false

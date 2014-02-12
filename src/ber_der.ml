@@ -428,9 +428,10 @@ module W = struct
             (fun e r -> encode None e asn <> r)
             a Wr.empty
 
-    | Set asns -> assert false (* DER sort *)
-(*           e_constructed (tag @? Universal 0x11)
-                      (e_seq a asns) *)
+    | Set asns ->
+(*         assert false |+ DER sort +| *)
+          e_constructed (tag @? Universal 0x11)
+                      (e_seq a asns)
 
     | Set_of asns -> assert false (* DER sort *)
 

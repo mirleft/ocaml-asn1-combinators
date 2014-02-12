@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 17278bc0da1cd07b95acba8f9a672110)
+version = "0.0.1"
+description = "Combinators for expressing ASN.1 grammars in OCaml"
+requires = "bigarray num"
+archive(byte) = "asn1-combinators.cma"
+archive(byte, plugin) = "asn1-combinators.cma"
+archive(native) = "asn1-combinators.cmxa"
+archive(native, plugin) = "asn1-combinators.cmxs"
+exists_if = "asn1-combinators.cma"
+# OASIS_STOP
+

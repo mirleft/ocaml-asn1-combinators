@@ -1,15 +1,16 @@
 
+open Bigarray
+type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
+
 type 'a t        = 'a Core.asn
 type 'a element  = 'a Core.element
 type 'a sequence = 'a Core.sequence
 
 include Combinators
 
-module B = Bytekit
-
 type encoding = {
-  mk_decoder : 'a. 'a t -> B.bytes -> 'a * B.bytes;
-  mk_encoder : 'a. 'a t -> 'a -> B.bytes
+  mk_decoder : 'a. 'a t -> bytes -> 'a * bytes;
+  mk_encoder : 'a. 'a t -> 'a -> bytes
 }
 
 let ber_der = {
@@ -17,7 +18,7 @@ let ber_der = {
   mk_decoder = Ber_der.R.parser
 }
 
-type 'a codec = Codec of (B.bytes -> ('a * B.bytes)) * ('a -> B.bytes)
+type 'a codec = Codec of (bytes -> ('a * bytes)) * ('a -> bytes)
 
 let codec { mk_encoder ; mk_decoder } asn =
   let () = validate asn in

@@ -15,7 +15,7 @@ Library "asn1-combinators"
   Path:            src/
   BuildTools:      ocamlbuild
   Modules:         Asn
-  InternalModules: Common, Bytekit, Prim, Core, Combinators, Ber_der
+  InternalModules: Bytekit, Prim, Core, Combinators, Ber_der
   BuildDepends:    bigarray, num
   
 # Executable "burp"

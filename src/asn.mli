@@ -1,3 +1,7 @@
+
+open Bigarray
+type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
+
 type 'a t
 type 'a sequence
 type 'a element
@@ -104,6 +108,7 @@ val ber_der : encoding
 
 type 'a codec
 val codec : encoding -> 'a t -> 'a codec
-val encode : 'a codec -> 'a -> Bytekit.bytes
-val decode_exn : 'a codec -> Bytekit.bytes -> 'a * Bytekit.bytes
-val decode : 'a codec -> Bytekit.bytes -> ('a * Bytekit.bytes) option
+val encode : 'a codec -> 'a -> bytes
+val decode_exn : 'a codec -> bytes -> 'a * bytes
+val decode : 'a codec -> bytes -> ('a * bytes) option
+

@@ -1,6 +1,12 @@
-open Common
+
 open Core
 open Bytekit
+
+type 'a endo = 'a -> 'a
+let id x       = x
+let const x _  = x
+let comp f g x = f (g x)
+
 
 module RichMap (M : Map.OrderedType) = struct
   module Impl = Map.Make (M)

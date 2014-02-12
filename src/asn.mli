@@ -112,3 +112,4 @@ val encode : 'a codec -> 'a -> bytes
 val decode_exn : 'a codec -> bytes -> 'a * bytes
 val decode : 'a codec -> bytes -> ('a * bytes) option
 
+val random : 'a t -> 'a

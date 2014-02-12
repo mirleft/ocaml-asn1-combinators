@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 2c04cb3c7eddad1fdd0a67717f88d0cc)
+version = "0.0.1"
+description = "Combinators for expressing ASN.1 grammars in OCaml"
+requires = "asn1-combinators oUnit"
+archive(byte) = "testlib.cma"
+archive(byte, plugin) = "testlib.cma"
+archive(native) = "testlib.cmxa"
+archive(native, plugin) = "testlib.cmxs"
+exists_if = "testlib.cma"
+# OASIS_STOP
+

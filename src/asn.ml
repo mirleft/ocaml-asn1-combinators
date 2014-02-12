@@ -32,3 +32,5 @@ and decode (Codec (dec, _)) b =
   try Some (dec b) with
   ( Core.End_of_input | Core.Invalid_encoding ) -> None
 
+
+let random = Asn_random.r_asn

@@ -15,16 +15,25 @@ Library "asn1-combinators"
   Path:            src/
   BuildTools:      ocamlbuild
   Modules:         Asn
-  InternalModules: Bytekit, Prim, Core, Combinators, Ber_der
+  InternalModules: Bytekit, Prim, Core, Asn_random, Combinators, Ber_der
   BuildDepends:    bigarray, num
   
-# Executable "burp"
-#   Path:         .
-#   BuildTools:   ocamlbuild
-#   Install:      false
-#   MainIs:       burp.ml
-#   BuildDepends: asn1-combinators
+Library "testlib"
+  Path:         tests/
+  BuildTools:   ocamlbuild
+  Modules:      Dumpkit, Testlib
+  Install:      false
+  BuildDepends: asn1-combinators, oUnit
 
-# Test the_things
-#   Command: false
+Executable "test_runner"
+  Path:           tests/
+  BuildTools:     ocamlbuild
+  Install:        false
+  CompiledObject: best
+  MainIs:         testrunner.ml
+  BuildDepends:   testlib
+
+Test the_things
+  Command:   $test_runner
+  TestTools: test_runner
   

@@ -1,9 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: ed7373e7caf051146e888c4a3ccf491b)
+# DO NOT EDIT (digest: eb385305220da07955a348b87c4690db)
 Asn
 Bytekit
 Prim
 Core
+Asn_random
 Combinators
 Ber_der
 # OASIS_STOP

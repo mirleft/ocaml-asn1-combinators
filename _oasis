@@ -23,6 +23,7 @@ Library "testlib"
   BuildTools:   ocamlbuild
   Modules:      Dumpkit, Testlib
   Install:      false
+  Build$:       flag(tests)
   BuildDepends: asn1-combinators, oUnit
 
 Executable "test_runner"
@@ -31,9 +32,11 @@ Executable "test_runner"
   Install:        false
   CompiledObject: best
   MainIs:         testrunner.ml
+  Build$:         flag(tests)
   BuildDepends:   testlib
 
 Test the_things
   Command:   $test_runner
   TestTools: test_runner
+  Run$:      flag(tests)
   

@@ -216,8 +216,7 @@ module R = struct
 
     | Null -> primitive_n 0 @@ fun _ -> ()
 
-    | IA5String ->
-        string_like String.(concat "") Prim.String.ascii_of_bytes
+    | IA5String -> string_like String.(concat "") Prim.ASCII.of_bytes
 
 
   module Cache = Combinators.Fix_cache (struct type 'a t = 'a parser end)
@@ -493,7 +492,7 @@ module W = struct
     | Null as prim -> e_primitive prim tag Wr.empty
 
     | IA5String as prim ->
-        e_primitive prim tag @@ Prim.String.ascii_to_bytes a
+        e_primitive prim tag @@ Prim.ASCII.to_bytes a
 
 
   let encode_ber_to_bytes asn a =

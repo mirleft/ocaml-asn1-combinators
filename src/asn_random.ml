@@ -7,22 +7,11 @@ let replicate n f =
       loop (f () :: acc) (pred n) in
   loop [] n
 
-let r_int_r a b = a + Random.int (b - a + 1)
-
-let r_string () =
-  let n = Random.int 30 in
-  let s = String.create n in
-  for i = 0 to n - 1 do s.[i] <- Char.chr (r_int_r 32 126) done;
-  s
-
 let r_prim : type a. a Core.prim -> a = function
-  | Bool -> Random.bool ()
-  | Int  ->
-      let n = Random.int 11 in
-      if n <> 10 then `I n
-      else `I (Random.int ((1 lsl 30) - 1))
-  | Null -> ()
-  | IA5String -> r_string ()
+  | Bool      -> Random.bool ()
+  | Int       -> Prim.Integer.random ()
+  | Null      -> ()
+  | IA5String -> Prim.ASCII.random ()
 
 let rec r_element : type a. a element -> a = function
   | Required asn -> r_asn asn

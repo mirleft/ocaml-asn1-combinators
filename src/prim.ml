@@ -1,7 +1,21 @@
 
 open Bytekit
 
-module Integer = struct
+module type Prim = sig
+
+  type t
+
+  val of_bytes : int -> bytes -> t
+  val to_bytes : t -> Wr.t
+  val random   : unit -> t
+end
+
+let random_int_r a b = a + Random.int (b - a + 1)
+
+module Integer :
+  Prim with type t = [ `B of Big_int.big_int | `I of int ]
+= struct
+
   open Big_int
 
   type t = [ `B of big_int | `I of int ]
@@ -73,18 +87,33 @@ module Integer = struct
     | `I n -> Wr.list (int_to_byte_list n)
     | `B n -> Wr.list (big_to_byte_list n)
 
+  let random =
+    let max_r, big_odds = (1 lsl 30) - 1, 10 in
+    fun () ->
+      let x = Random.int (big_odds + 1) in
+      if x <> big_odds then `I (x - x / 2)
+      else `I (Random.int max_r - max_r / 2)
+
 end
 
-module String = struct
+module ASCII : Prim with type t = string = struct
 
-  let ascii_of_bytes n buf =
+  type t = string
+
+  let of_bytes n buf =
     let string = String.create n in
     for i = 0 to n - 1 do
       string.[i] <- char_of_int (buf.{i} land 0x7f)
     done;
     string
 
-  let ascii_to_bytes = Wr.string ~f:(fun b -> b land 0x7f)
+  let to_bytes = Wr.string ~f:(fun b -> b land 0x7f)
+
+  let random () =
+    let n = Random.int 40 in
+    let s = String.create n in
+    for i = 0 to n - 1 do s.[i] <- Char.chr (random_int_r 32 126) done;
+    s
 end
 
 module Bit_string = struct

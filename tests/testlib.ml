@@ -22,13 +22,13 @@ let assert_decode
       else assert_equal a x
 
 let test_decode (TC (_, asn, examples)) _ =
-  let codec = Asn.(codec ber_der asn) in
+  let codec = Asn.(codec ber asn) in
   examples |> List.iter @@ fun (a, bytes) ->
     let arr = Dumpkit.bytes_of_list bytes in
     assert_decode codec arr a
 
 let test_loop_decode (TC (_, asn, _)) _ =
-  let codec = Asn.(codec ber_der asn) in
+  let codec = Asn.(codec ber asn) in
   for i = 1 to 1000 do
     let a = Asn.random asn in
     assert_decode codec (Asn.encode codec a) a
@@ -409,7 +409,7 @@ let suite =
       List.map
         (fun (TC (name, _, _) as tc) -> name >:: test_decode tc)
         cases ;
-    "BER/DER encode->decode" >:::
+    "BER encode->decode" >:::
       List.map
         (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode tc)
         cases

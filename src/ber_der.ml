@@ -29,6 +29,25 @@ module RichMap (M : Map.OrderedType) = struct
   let unions ms = List.fold_left union empty ms
 end
 
+module Seq = struct
+
+  type 'r f = { f : 'a. 'a -> 'a asn -> 'r -> 'r }
+
+  let rec fold_with_value : type a. 'r f -> 'r -> a -> a sequence -> 'r
+  = fun f r a -> function
+    | Last (Required asn) -> f.f a asn r
+    | Last (Optional asn) ->
+      ( match a with None -> r | Some a' -> f.f a' asn r )
+    | Pair (Required asn, asns) ->
+        let (a1, a2) = a in f.f a1 asn (fold_with_value f r a2 asns)
+    | Pair (Optional asn, asns) ->
+        let (a1, a2) = a in
+        match a1 with
+        | None     -> fold_with_value f r a2 asns
+        | Some a1' -> f.f a1' asn (fold_with_value f r a2 asns)
+end
+
+
 module R = struct
 
   type coding =
@@ -174,7 +193,6 @@ module R = struct
   let primitive_n n f = primitive @@ fun n' b ->
     if n = n' then f b else halt ()
 
-
   let sequence_of_parser prs =
     constructed @@ fun eof buf0 ->
       let rec scan acc buf =
@@ -184,13 +202,11 @@ module R = struct
           scan (a :: acc) buf' in
       scan [] buf0
 
-
   let string_like combine atom =
     let rec prs = function
       | { coding = Primitive n ; buf } -> (atom n buf, Rd.drop n buf)
       | h -> (sequence_of_parser prs >|= combine) h in
     prs
-
 
   let parser_of_prim : type a. a prim -> a parser = function
 
@@ -215,7 +231,6 @@ module R = struct
         Cache.add fasn @@
           let lprs = lazy (parser_of_asn (fasn fix)) in
           fun header -> Lazy.force lprs header )
-
 
     | Sequence asns ->
 
@@ -324,7 +339,6 @@ module R = struct
 
     | Set_of asn -> sequence_of_parser @@ parser_of_asn asn
 
-
     | Choice (asn1, asn2) ->
 
         let (prs1, prs2) = (parser_of_asn asn1, parser_of_asn asn2) in
@@ -400,6 +414,8 @@ module W = struct
         Wr.byte (0x80 lor Wr.size body) <> body )
 
 
+  type conf = { der : bool }
+
   let (@?) o def =
     match o with | None -> def | Some x -> x
 
@@ -411,43 +427,58 @@ module W = struct
       match mtag with Some x -> x | None -> tag_of_p prim in
     e_header tag `Primitive (Wr.size body) <> body
 
-  let rec encode : type a. tag option -> a -> a asn -> Wr.t
-  = fun tag a -> function
+  let rec encode : type a. conf -> tag option -> a -> a asn -> Wr.t
+  = fun conf tag a -> function
 
-    | Iso (_, g, asn) -> encode tag (g a) asn
+    | Iso (_, g, asn) -> encode conf tag (g a) asn
 
-    | Fix asn as fix -> encode tag a (asn fix)
+    | Fix asn as fix -> encode conf tag a (asn fix)
 
     | Sequence asns ->
-        e_constructed (tag @? Universal 0x10)
-                      (e_seq a asns)
+        e_constructed (tag @? sequence_tag) (e_seq conf a asns)
 
     | Sequence_of asn -> (* size/stack? *)
-        e_constructed (tag @? Universal 0x10) @@
-          List.fold_right
-            (fun e r -> encode None e asn <> r)
-            a Wr.empty
+        e_constructed (tag @? sequence_tag) @@
+          Wr.concat (List.map (fun e -> encode conf None e asn) a)
 
     | Set asns ->
-(*         assert false |+ DER sort +| *)
-          e_constructed (tag @? Universal 0x11)
-                      (e_seq a asns)
+        let h_sorted conf a asns =
+          let fn = { Seq.f = fun a asn xs ->
+                      ( Core.tag a asn, encode conf None a asn ) :: xs } in
+          Wr.concat @@
+            List.( map snd @@
+              sort (fun (t1, _) (t2, _) -> compare t1 t2) @@
+                Seq.fold_with_value fn [] a asns )
+        in
+        e_constructed (tag @? set_tag) @@
+          if conf.der then h_sorted conf a asns else e_seq conf a asns
 
-    | Set_of asns -> assert false (* DER sort *)
+    | Set_of asn ->
+        let ws = List.map (fun e -> encode conf None e asn) a in
+        let body =
+          Wr.concat @@
+            if conf.der then
+              List.(map Wr.bytes @@ sort compare_b @@ map Wr.to_bytes ws)
+            else ws
+        in
+        e_constructed (tag @? set_tag) body
 
     | Choice (asn1, asn2) ->
       ( match a with
-        | L a' -> encode tag a' asn1
-        | R b' -> encode tag b' asn2 )
+        | L a' -> encode conf tag a' asn1
+        | R b' -> encode conf tag b' asn2 )
 
     | Implicit (t, asn) ->
-        encode (Some (tag @? t)) a asn
+        encode conf (Some (tag @? t)) a asn
 
     | Explicit (t, asn) ->
-        e_constructed (tag @? t) (encode None a asn)
+        e_constructed (tag @? t) (encode conf None a asn)
 
     | Prim p -> e_prim tag a p
 
+  and e_seq : type a. conf -> a -> a sequence -> Wr.t = fun conf ->
+    let f = { Seq.f = fun e asn w -> encode conf None e asn <> w } in
+    Seq.fold_with_value f Wr.empty
 
   and e_prim : type a. tag option -> a -> a prim -> Wr.t
   = fun tag a -> function
@@ -465,23 +496,11 @@ module W = struct
         e_primitive prim tag @@ Prim.String.ascii_to_bytes a
 
 
-  and e_elt : type a. a -> a element -> Wr.t
-  = fun a -> function
-    | Required asn -> encode None a asn
-    | Optional asn ->
-      ( match a with
-        | None    -> Wr.empty
-        | Some a' -> encode None a' asn)
+  let encode_ber_to_bytes asn a =
+    Wr.to_bytes @@ encode { der = false } None a asn
 
-  and e_seq : type a. a -> a sequence -> Wr.t
-  = fun a -> function
-    | Last  elt      -> e_elt a elt
-    | Pair (elt, tl) ->
-        let (a1, a2) = a in
-        e_elt a1 elt <> e_seq a2 tl
-
-  let encode_to_bytes asn a =
-    Wr.to_bytes @@ encode None a asn
+  let encode_der_to_bytes asn a =
+    Wr.to_bytes @@ encode { der = true } None a asn
 
 end
 

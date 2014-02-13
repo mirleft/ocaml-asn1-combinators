@@ -104,7 +104,8 @@ val null : unit t
 val ia5_string : string t
 
 type encoding
-val ber_der : encoding
+val ber : encoding
+val der : encoding
 
 type 'a codec
 val codec : encoding -> 'a t -> 'a codec

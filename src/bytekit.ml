@@ -3,6 +3,18 @@ open Bigarray
 
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 
+let compare_b arr1 arr2 =
+  let s1, s2 = Array1.(dim arr1, dim arr2) in
+  let rec go i lim =
+    if i = lim then
+      compare s1 s2
+    else
+      match compare arr1.{i} arr2.{i} with
+      | 0 -> go (succ i) lim
+      | n -> n in
+  go 0 (min s1 s2)
+
+
 module Rd = struct
 
   let drop off buffer = Array1.(
@@ -29,6 +41,12 @@ module Wr = struct
     let w off bytes =
       ( w1 off bytes ; w2 (off + l1) bytes ) in
     (l1 + l2, w)
+
+  let append = (<>)
+
+  let rec concat = function
+    | []    -> empty
+    | w::ws -> w <> concat ws
 
   let list lst =
     let open List in

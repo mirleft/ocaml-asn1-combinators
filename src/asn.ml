@@ -13,8 +13,13 @@ type encoding = {
   mk_encoder : 'a. 'a t -> 'a -> bytes
 }
 
-let ber_der = {
-  mk_encoder = Ber_der.W.encode_to_bytes ;
+let ber = {
+  mk_encoder = Ber_der.W.encode_ber_to_bytes ;
+  mk_decoder = Ber_der.R.parser
+}
+
+let der = {
+  mk_encoder = Ber_der.W.encode_der_to_bytes ;
   mk_decoder = Ber_der.R.parser
 }
 

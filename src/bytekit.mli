@@ -3,6 +3,8 @@ open Bigarray
 
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 
+val compare_b : bytes -> bytes -> int
+
 module Rd : sig
   val drop : int -> bytes -> bytes
   val isolate : int -> bytes -> bytes * bytes
@@ -12,9 +14,13 @@ end
 
 module Wr : sig
   type t
+
   val size : t -> int
   val empty : t
   val (<>) : t -> t -> t
+  val append : t -> t -> t
+  val concat : t list -> t
+
   val list : int list -> t
   val array : int array -> t
   val string : ?f:(int -> int) -> string -> t

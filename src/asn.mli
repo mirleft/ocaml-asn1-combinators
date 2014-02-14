@@ -98,11 +98,14 @@ val choice6 :
   'f t ->
   [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
 
-val bool       : bool t
-val int        : Prim.Integer.t t
-val bit_string : Prim.Bits.t t
-val null       : unit t
-val ia5_string : Prim.ASCII.t t
+open Prim
+
+val bool       : bool      t
+val int        : Integer.t t
+val bit_string : Bits.t    t
+val null       : unit      t
+val oid        : OID.t     t
+val ia5_string : ASCII.t   t
 
 type encoding
 val ber : encoding

@@ -218,6 +218,8 @@ module R = struct
 
     | Null -> primitive_n 0 @@ fun _ -> ()
 
+    | OID  -> primitive Prim.OID.of_bytes
+
     | IA5String -> string_like String.(concat "") Prim.ASCII.of_bytes
 
 
@@ -495,6 +497,8 @@ module W = struct
         e_primitive prim tag @@ Prim.Bits.to_bytes a
 
     | Null as prim -> e_primitive prim tag Wr.empty
+
+    | OID as prim -> e_primitive prim tag @@ Prim.OID.to_bytes a
 
     | IA5String as prim ->
         e_primitive prim tag @@ Prim.ASCII.to_bytes a

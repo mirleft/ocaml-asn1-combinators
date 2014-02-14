@@ -1,4 +1,5 @@
 
+open Prim
 open Core
 
 let replicate n f =
@@ -9,10 +10,11 @@ let replicate n f =
 
 let r_prim : type a. a Core.prim -> a = function
   | Bool      -> Random.bool ()
-  | Int       -> Prim.Integer.random ()
-  | Bits      -> Prim.Bits.random ()
+  | Int       -> Integer.random ()
+  | Bits      -> Bits.random ()
   | Null      -> ()
-  | IA5String -> Prim.ASCII.random ()
+  | OID       -> OID.random ()
+  | IA5String -> ASCII.random ()
 
 let rec r_element : type a. a element -> a = function
   | Required asn -> r_asn asn

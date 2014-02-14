@@ -10,6 +10,13 @@ module type Prim = sig
   val random   : unit -> t
 end
 
+let rec replicate_l n f =
+  if n < 1 then [] else f () :: replicate_l (pred n) f
+
+let max_r_int = (1 lsl 30) - 1
+
+let random_int () = Random.int max_r_int
+
 let random_int_r a b = a + Random.int (b - a + 1)
 
 module Integer :
@@ -88,11 +95,10 @@ module Integer :
     | `B n -> Wr.list (big_to_byte_list n)
 
   let random =
-    let max_r, big_odds = (1 lsl 30) - 1, 10 in
-    fun () ->
+    let big_odds = 10 in fun () ->
       let x = Random.int (big_odds + 1) in
       if x <> big_odds then `I (x - x / 2)
-      else `I (Random.int max_r - max_r / 2)
+      else `I (Random.int max_r_int - max_r_int / 2)
 
 end
 
@@ -147,3 +153,43 @@ module Bits : Prim with type t = bool array = struct
     Array.init (Random.int 40) (fun _ -> Random.bool ())
 
 end
+
+module OID : Prim with type t = int list = struct
+
+  type t = int list
+
+  let of_bytes n buf =
+
+    let rec values i =
+      if i = n then [] else
+        let (i', v) = component 0 i in v :: values i'
+
+    and component acc i =
+      let byte = buf.{i} in
+      let acc' = acc lor (byte land 0x7f) in
+      match byte land 0x80 with
+      | 0 -> (succ i, acc')
+      | _ -> component (acc' lsl 7) (succ i) in
+
+    let b1 = buf.{0} in
+    let v1, v2 = b1 / 40, b1 mod 40 in
+
+    v1 :: v2 :: values 1
+
+  let to_bytes = function
+    | [] | [_]   -> assert false (* XXX make a neater type *)
+    | v1::v2::vs ->
+        let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
+        let rec component xs x =
+          if x < 0x80 then cons x xs
+          else component (cons (x land 0x7f) xs) (x lsr 7)
+        and values = function
+          | []    -> Wr.empty
+          | v::vs -> Wr.(list (component [] v) <> values vs) in
+        Wr.(byte (v1 * 40 + v2) <> values vs)
+
+  let random () =
+    Random.( [ int 3 ; int 40 ] @ replicate_l (int 4) random_int )
+
+end
+

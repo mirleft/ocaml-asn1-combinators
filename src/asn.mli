@@ -100,12 +100,14 @@ val choice6 :
 
 open Prim
 
-val bool       : bool      t
-val int        : Integer.t t
-val bit_string : Bits.t    t
-val null       : unit      t
-val oid        : OID.t     t
-val ia5_string : ASCII.t   t
+val bool              : bool            t
+val int               : Integer.t       t
+val bit_string        : Bits.t          t
+val octet_string      : Octets.t        t
+val octet_string_size : int -> Octets.t t
+val null              : unit            t
+val oid               : OID.t           t
+val ia5_string        : ASCII.t         t
 
 type encoding
 val ber : encoding

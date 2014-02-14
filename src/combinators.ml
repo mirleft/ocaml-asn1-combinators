@@ -34,12 +34,14 @@ let implicit, explicit =
   ( (fun ?cls id asn -> Implicit (tag (cls, id), asn))
   , (fun ?cls id asn -> Explicit (tag (cls, id), asn)) )
 
-let bool       = Prim Bool
-and int        = Prim Int
-and bit_string = Prim Bits
-and null       = Prim Null
-and oid        = Prim OID
-and ia5_string = Prim IA5String
+let bool                = Prim Bool
+and int                 = Prim Int
+and bit_string          = Prim Bits
+and octet_string        = Prim (Octets None)
+and octet_string_size s = Prim (Octets (Some s))
+and null                = Prim Null
+and oid                 = Prim OID
+and ia5_string          = Prim IA5String
 
 let single a   = Last a
 and (@)  a b   = Pair (a, b)

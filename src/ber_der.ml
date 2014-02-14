@@ -208,19 +208,27 @@ module R = struct
       | h -> (sequence_of_parser prs >|= combine) h in
     prs
 
+  let assert_length s length a =
+    match s with
+    | None   -> a
+    | Some s -> if length a = s then a else halt ()
+
   let parser_of_prim : type a. a prim -> a parser = function
 
-    | Bool -> primitive_n 1 @@ fun buf -> buf.{0} <> 0x00
+    | Bool      -> primitive_n 1 @@ fun buf -> buf.{0} <> 0x00
 
-    | Int  -> primitive Prim.Integer.of_bytes
+    | Int       -> primitive Prim.Integer.of_bytes
 
-    | Bits -> string_like Array.concat Prim.Bits.of_bytes
+    | Bits      -> Prim.Bits.(string_like concat of_bytes)
 
-    | Null -> primitive_n 0 @@ fun _ -> ()
+    | Octets s  -> Prim.Octets.( string_like concat of_bytes
+                                 >|= assert_length s length )
 
-    | OID  -> primitive Prim.OID.of_bytes
+    | Null      -> primitive_n 0 @@ fun _ -> ()
 
-    | IA5String -> string_like String.(concat "") Prim.ASCII.of_bytes
+    | OID       -> primitive Prim.OID.of_bytes
+
+    | IA5String -> Prim.ASCII.(string_like concat of_bytes)
 
 
   module Cache = Combinators.Fix_cache (struct type 'a t = 'a parser end)
@@ -428,6 +436,15 @@ module W = struct
   let e_primitive tag body =
     e_header tag `Primitive (Wr.size body) <> body
 
+  let assert_length constr len_f a =
+    match constr with
+    | None   -> ()
+    | Some s ->
+        let len = len_f a in
+        if len = s then () else
+          invalid_arg @@
+          Printf.sprintf "bad length: constraint: %d actual: %d" s len
+
   let rec encode : type a. conf -> tag option -> a -> a asn -> Wr.t
   = fun conf tag a -> function
 
@@ -492,6 +509,10 @@ module W = struct
     | Int       -> encode @@ Prim.Integer.to_bytes a
 
     | Bits      -> encode @@ Prim.Bits.to_bytes a
+
+    | Octets s  ->
+        assert_length s Prim.Octets.length a ;
+        encode @@ Prim.Octets.to_bytes a
 
     | Null      -> encode Wr.empty
 

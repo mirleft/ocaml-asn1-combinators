@@ -12,6 +12,7 @@ let r_prim : type a. a Core.prim -> a = function
   | Bool      -> Random.bool ()
   | Int       -> Integer.random ()
   | Bits      -> Bits.random ()
+  | Octets s  -> Octets.random ?size:s ()
   | Null      -> ()
   | OID       -> OID.random ()
   | IA5String -> ASCII.random ()

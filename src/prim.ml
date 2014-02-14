@@ -2,13 +2,19 @@
 open Bytekit
 
 module type Prim = sig
-
   type t
-
   val of_bytes : int -> bytes -> t
   val to_bytes : t -> Wr.t
   val random   : unit -> t
 end
+
+module type Str_prim = sig
+  include Prim
+  val random : ?size:int -> unit -> t
+  val concat : t list -> t
+  val length : t -> int
+end
+
 
 let rec replicate_l n f =
   if n < 1 then [] else f () :: replicate_l (pred n) f
@@ -18,6 +24,10 @@ let max_r_int = (1 lsl 30) - 1
 let random_int () = Random.int max_r_int
 
 let random_int_r a b = a + Random.int (b - a + 1)
+
+let random_size = function
+  | Some size -> size
+  | None      -> Random.int 20
 
 module Integer :
   Prim with type t = [ `B of Big_int.big_int | `I of int ]
@@ -102,7 +112,7 @@ module Integer :
 
 end
 
-module ASCII : Prim with type t = string = struct
+module ASCII : Str_prim with type t = string = struct
 
   type t = string
 
@@ -115,14 +125,17 @@ module ASCII : Prim with type t = string = struct
 
   let to_bytes = Wr.string ~f:(fun b -> b land 0x7f)
 
-  let random () =
-    let n = Random.int 40 in
+  let random ?size () =
+    let n = random_size size in
     let s = String.create n in
     for i = 0 to n - 1 do s.[i] <- Char.chr (random_int_r 32 126) done;
     s
+
+  let concat = String.concat ""
+  let length = String.length
 end
 
-module Bits : Prim with type t = bool array = struct
+module Bits : Str_prim with type t = bool array = struct
 
   type t = bool array
 
@@ -149,8 +162,41 @@ module Bits : Prim with type t = bool array = struct
       | (0, acc, xs) -> 0 :: []
       | (n, acc, xs) -> 8 - n :: List.rev ((acc lsl (8 - n))::xs)
 
-  let random () =
-    Array.init (Random.int 40) (fun _ -> Random.bool ())
+  let random ?size () =
+    Array.init (random_size size) (fun _ -> Random.bool ())
+
+  let concat = Array.concat
+  let length = Array.length
+
+end
+
+module Octets : Str_prim with type t = bytes = struct
+  type t = bytes
+
+  open Bigarray
+
+  let make = Array1.create int8_unsigned c_layout
+
+  let of_bytes n buf = Array1.sub buf 0 n
+
+  let to_bytes = Wr.bytes
+
+  let random ?size () =
+    let n   = random_size size in
+    let arr = make n in
+    for i = 0 to n - 1 do arr.{i} <- Random.int 256 done;
+    arr
+
+  let concat arrs =
+    let arr = make List.(fold_left (+) 0 @@ map Array1.dim arrs) in
+    let _   =
+      List.fold_left (fun i e ->
+        let len = Array1.dim e in
+        ( Array1.(blit e @@ sub arr i len) ; i + len ))
+        0 arrs in
+    arr
+
+  let length = Array1.dim
 
 end
 

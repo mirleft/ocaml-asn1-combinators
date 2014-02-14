@@ -44,12 +44,13 @@ and _ sequence =
 
 and _ prim =
 
-  | Bool      : bool      prim
-  | Int       : Integer.t prim
-  | Bits      : Bits.t    prim
-  | Null      : unit      prim
-  | OID       : OID.t     prim
-  | IA5String : ASCII.t   prim
+  | Bool      : bool                   prim
+  | Int       : Integer.t              prim
+  | Bits      : Bits.t                 prim
+  | Octets    : int option -> Octets.t prim
+  | Null      : unit                   prim
+  | OID       : OID.t                  prim
+  | IA5String : ASCII.t                prim
 
 
 let sequence_tag = Universal 0x10
@@ -60,6 +61,7 @@ let tag_of_p : type a. a prim -> tag = function
   | Bool      -> Universal 0x01
   | Int       -> Universal 0x02
   | Bits      -> Universal 0x03
+  | Octets _  -> Universal 0x04
   | Null      -> Universal 0x05
   | OID       -> Universal 0x06
   | IA5String -> Universal 0x16

@@ -202,16 +202,21 @@ module R = struct
           scan (a :: acc) buf' in
       scan [] buf0
 
-  let string_like combine atom =
-    let rec prs = function
-      | { coding = Primitive n ; buf } -> (atom n buf, Rd.drop n buf)
-      | h -> (sequence_of_parser prs >|= combine) h in
-    prs
+  let string_like (type a) ?sz impl =
+    let module P = (val impl : Prim.Str_prim with type t = a) in
 
-  let assert_length s length a =
-    match s with
-    | None   -> a
-    | Some s -> if length a = s then a else halt ()
+    let rec prs = function
+      | { coding = Primitive n ; buf } -> (P.of_bytes n buf, Rd.drop n buf)
+      | h -> ( sequence_of_parser prs >|= P.concat ) h in
+
+    match sz with
+    | None   -> prs
+    | Some s ->
+        let ck a =
+          if P.length a = s then a else
+            parse_error "bad size; constrained by grammar"
+        in prs >|= ck
+
 
   let parser_of_prim : type a. a prim -> a parser = function
 
@@ -219,16 +224,15 @@ module R = struct
 
     | Int       -> primitive Prim.Integer.of_bytes
 
-    | Bits      -> Prim.Bits.(string_like concat of_bytes)
+    | Bits      -> string_like (module Prim.Bits)
 
-    | Octets s  -> Prim.Octets.( string_like concat of_bytes
-                                 >|= assert_length s length )
+    | Octets sz -> string_like ?sz (module Prim.Octets)
 
     | Null      -> primitive_n 0 @@ fun _ -> ()
 
     | OID       -> primitive Prim.OID.of_bytes
 
-    | IA5String -> Prim.ASCII.(string_like concat of_bytes)
+    | IA5String -> string_like (module Prim.ASCII)
 
 
   module Cache = Combinators.Fix_cache (struct type 'a t = 'a parser end)

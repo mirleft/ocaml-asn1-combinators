@@ -11,10 +11,9 @@ type tag =
 
 type tags = tag list
 
-exception Ambiguous_tags
-
-exception Invalid_encoding
+exception Ambiguous_grammar
 exception End_of_input
+exception Parse_error of string
 
 type _ asn =
 

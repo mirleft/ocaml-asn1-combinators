@@ -35,7 +35,7 @@ and decode_exn (Codec (dec, _)) b = dec b
 
 and decode (Codec (dec, _)) b =
   try Some (dec b) with
-  ( Core.End_of_input | Core.Invalid_encoding ) -> None
+  ( Core.End_of_input | Core.Parse_error _ ) -> None
 
 
 let random = Asn_random.r_asn

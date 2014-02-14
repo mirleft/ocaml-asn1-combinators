@@ -1,7 +1,7 @@
 open Core
 
 (* Horrible, horrible hack.
-  * Extend the Core.asn type to fix. *)
+ * Extend the Core.asn type to fix. *)
 module Fix_cache (T : sig type 'a t end) : sig
   val cached : ('a asn -> 'a asn) -> (unit -> 'a T.t) -> 'a T.t
   val add : ('a asn -> 'a asn) -> 'a T.t -> 'a T.t
@@ -147,7 +147,7 @@ let validate asn =
   let rec disjunct tss =
     let rec go = function
       | t::(u::_ as ts) ->
-          if t <> u then go ts else raise Ambiguous_tags
+          if t <> u then go ts else raise Ambiguous_grammar
       | [] | [_] -> () in
     go List.(sort compare @@ concat tss)
 
@@ -184,5 +184,5 @@ let validate asn =
     | Explicit (_, asn) -> check asn
     | Prim _ -> () in
 
-  try check asn with Stack_overflow -> raise Ambiguous_tags
+  try check asn with Stack_overflow -> raise Ambiguous_grammar
 

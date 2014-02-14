@@ -64,12 +64,8 @@ module R = struct
     let (a, buf') = prs header in (f a, buf')
 
 
-  let halt ?why () =
-    ( match why with
-      | Some str -> Printf.printf "HALT: %s\n%!" str
-      | None     -> Printf.printf "HALT.\n%!"  );
-    raise Invalid_encoding
-
+  let parse_error reason = raise (Parse_error reason)
+  let eof_error ()       = raise End_of_input
 
   module Partial = struct
     module C = Core
@@ -90,7 +86,7 @@ module R = struct
 
     let to_complete_exn =
       let rec f1 : type a. a element -> a = function
-        | Required  `Nada     -> halt ()
+        | Required  `Nada     -> invalid_arg "partial"
         | Required (`Found a) -> a
         | Optional  `Nada     -> None
         | Optional (`Found a) -> Some a
@@ -178,20 +174,27 @@ module R = struct
     | { coding = Constructed n ; buf } -> 
         let (b1, b2) = Rd.isolate n buf in
         let (a, b1') = f2 Rd.eof b1 in
-        if Rd.eof b1' then (a, b2) else halt ()
+        if Rd.eof b1' then (a, b2)
+        else parse_error "definite constructed: leftovers"
 
     | { coding = Constructed_indefinite ; buf } ->
         let (a, buf') = f2 is_sequence_end buf in
         if is_sequence_end buf' then
           (a, drop_sequence_end buf')
-        else halt ()
+        else parse_error "indefinite constructed: leftovers"
 
-  let constructed f = with_header (fun _ _ -> halt ()) f
+  let constructed f =
+    with_header
+      (fun _ _ -> parse_error "constructed: got primitive")
+      f
 
-  let primitive f = with_header f (fun _ _ -> halt ())
+  let primitive f =
+    with_header f
+      (fun _ _ -> parse_error "primitive: got constructed")
 
   let primitive_n n f = primitive @@ fun n' b ->
-    if n = n' then f b else halt ()
+    if n = n' then f b
+    else parse_error "primitive: invalid length"
 
   let sequence_of_parser prs =
     constructed @@ fun eof buf0 ->
@@ -260,7 +263,7 @@ module R = struct
               let prs = parser_of_asn asn in fun header ->
                 if accepts (asn, header) then
                   let (a, buf) = prs header in Hit (a, buf)
-                else halt ()
+                else parse_error "seq: unexpected subfield"
           | Optional asn ->
               let prs = parser_of_asn asn in fun header ->
                 if accepts (asn, header) then
@@ -272,28 +275,29 @@ module R = struct
           | Last e ->
               let prs = elt e in fun _ header ->
               ( match prs header with
-                | Pass a        -> halt ()
+                | Pass a ->
+                    parse_error "seq: not all input consumed"
                 | Hit (a, buf') -> (a, buf') )
           | Pair (e, tl) ->
               let (prs1, prs2) = elt e, seq tl in fun eof header ->
               ( match prs1 header with
                 | Hit (a, buf) when eof buf ->
-                    ((a, default_or_halt tl), buf)
+                    ((a, default_or_error tl), buf)
                 | Hit (a, buf) ->
                     let (b, buf') = prs2 eof (p_header buf) in ((a, b), buf')
                 | Pass a ->
                     let (b, buf') = prs2 eof header in ((a, b), buf') )
 
-        and default_or_halt : type a. a sequence -> a = function
-          | Last (Required _   ) -> halt ()
-          | Pair (Required _, _) -> halt ()
+        and default_or_error : type a. a sequence -> a = function
+          | Last (Required _   ) -> parse_error "seq: missing required field"
+          | Pair (Required _, _) -> parse_error "seq: missing required field"
           | Last (Optional _   ) -> None
-          | Pair (Optional _, s) -> None, default_or_halt s
+          | Pair (Optional _, s) -> None, default_or_error s
             
         in
         let prs = seq asns in
         constructed @@ fun eof buf ->
-          if eof buf then (default_or_halt asns, buf)
+          if eof buf then (default_or_error asns, buf)
           else prs eof (p_header buf)
 
     | Set asns ->
@@ -341,13 +345,17 @@ module R = struct
 
         constructed @@ fun eof buf0 ->
           let rec scan partial buf =
-            if eof buf then (P.to_complete_exn partial, buf)
+            if eof buf then
+              try ( P.to_complete_exn partial, buf ) with
+              | Invalid_argument "partial" ->
+                  parse_error "set: missing required field"
             else
               let header = p_header buf in
               let (f, buf') = TM.find header.tag parsers header in
               scan (f partial) buf'
           in
-          ( try scan zero buf0 with Not_found -> halt () )
+          ( try scan zero buf0 with Not_found ->
+              parse_error "set: unknown field" )
 
 
     | Sequence_of asn -> sequence_of_parser @@ parser_of_asn asn 
@@ -377,8 +385,9 @@ module R = struct
     fun buf0 ->
       try
         let header = p_header buf0 in
-        if accepts (asn, header) then prs header else halt ()
-      with Invalid_argument _ -> raise End_of_input
+        if accepts (asn, header) then prs header
+        else parse_error "bad initial header"
+      with Invalid_argument _ -> eof_error ()
 
 end
 

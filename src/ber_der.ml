@@ -425,9 +425,7 @@ module W = struct
   let e_constructed tag body =
     e_header tag `Constructed (Wr.size body) <> body
 
-  let e_primitive prim mtag body =
-    let tag =
-      match mtag with Some x -> x | None -> tag_of_p prim in
+  let e_primitive tag body =
     e_header tag `Primitive (Wr.size body) <> body
 
   let rec encode : type a. conf -> tag option -> a -> a asn -> Wr.t
@@ -484,24 +482,22 @@ module W = struct
     Seq.fold_with_value f Wr.empty
 
   and e_prim : type a. tag option -> a -> a prim -> Wr.t
-  = fun tag a -> function
+  = fun tag a prim ->
+    let encode = e_primitive
+                 (match tag with Some x -> x | None -> tag_of_p prim) in
 
-    | Bool as prim ->
-        e_primitive prim tag @@
-          Wr.byte (if a then 0xff else 0x00)
+    match prim with
+    | Bool      -> encode @@ Wr.byte (if a then 0xff else 0x00)
 
-    | Int as prim ->
-        e_primitive prim tag @@ Prim.Integer.to_bytes a
+    | Int       -> encode @@ Prim.Integer.to_bytes a
 
-    | Bits as prim ->
-        e_primitive prim tag @@ Prim.Bits.to_bytes a
+    | Bits      -> encode @@ Prim.Bits.to_bytes a
 
-    | Null as prim -> e_primitive prim tag Wr.empty
+    | Null      -> encode Wr.empty
 
-    | OID as prim -> e_primitive prim tag @@ Prim.OID.to_bytes a
+    | OID       -> encode @@ Prim.OID.to_bytes a
 
-    | IA5String as prim ->
-        e_primitive prim tag @@ Prim.ASCII.to_bytes a
+    | IA5String -> encode @@ Prim.ASCII.to_bytes a
 
 
   let encode_ber_to_bytes asn a =

@@ -36,6 +36,7 @@ let implicit, explicit =
 
 let bool       = Prim Bool
 and int        = Prim Int
+and bit_string = Prim Bits
 and null       = Prim Null
 and ia5_string = Prim IA5String
 

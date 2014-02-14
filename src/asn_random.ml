@@ -10,6 +10,7 @@ let replicate n f =
 let r_prim : type a. a Core.prim -> a = function
   | Bool      -> Random.bool ()
   | Int       -> Prim.Integer.random ()
+  | Bits      -> Prim.Bits.random ()
   | Null      -> ()
   | IA5String -> Prim.ASCII.random ()
 

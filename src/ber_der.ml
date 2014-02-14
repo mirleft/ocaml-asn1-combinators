@@ -214,6 +214,8 @@ module R = struct
 
     | Int  -> primitive Prim.Integer.of_bytes
 
+    | Bits -> string_like Array.concat Prim.Bits.of_bytes
+
     | Null -> primitive_n 0 @@ fun _ -> ()
 
     | IA5String -> string_like String.(concat "") Prim.ASCII.of_bytes
@@ -488,6 +490,9 @@ module W = struct
 
     | Int as prim ->
         e_primitive prim tag @@ Prim.Integer.to_bytes a
+
+    | Bits as prim ->
+        e_primitive prim tag @@ Prim.Bits.to_bytes a
 
     | Null as prim -> e_primitive prim tag Wr.empty
 

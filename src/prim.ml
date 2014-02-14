@@ -116,14 +116,34 @@ module ASCII : Prim with type t = string = struct
     s
 end
 
-module Bit_string = struct
+module Bits : Prim with type t = bool array = struct
 
-  let bits_of_bytes n (buf : bytes) =
+  type t = bool array
+
+  let of_bytes n buf =
     let unused = buf.{0} in
     Array.init ((n - 1) * 8 - unused) @@ fun i ->
       let byte = buf.{i / 8 + 1} lsl (i mod 8) in
       byte land 0x80 = 0x80
 
-(*     let bytes_of_bits arr = *)
+  let (|<) n = function
+    | true  -> (n lsl 1) lor 1
+    | false -> (n lsl 1)
+
+  let to_bytes arr =
+    Wr.list @@
+      match
+        Array.fold_left
+          (fun (n, acc, accs) x ->
+            if n = 8 then (1, 0 |< x, acc::accs)
+            else (n + 1, acc |< x, accs))
+          (0, 0, [])
+          arr
+      with
+      | (0, acc, xs) -> 0 :: []
+      | (n, acc, xs) -> 8 - n :: List.rev ((acc lsl (8 - n))::xs)
+
+  let random () =
+    Array.init (Random.int 40) (fun _ -> Random.bool ())
 
 end

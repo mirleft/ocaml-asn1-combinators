@@ -21,14 +21,14 @@ let assert_decode
         assert_failure "not all input consumed"
       else assert_equal a x
 
-let test_decode (TC (_, asn, examples)) _ =
-  let codec = Asn.(codec ber asn) in
+let test_decode encoding (TC (_, asn, examples)) _ =
+  let codec = Asn.(codec encoding asn) in
   examples |> List.iter @@ fun (a, bytes) ->
     let arr = Dumpkit.bytes_of_list bytes in
     assert_decode codec arr a
 
-let test_loop_decode (TC (_, asn, _)) _ =
-  let codec = Asn.(codec ber asn) in
+let test_loop_decode encoding (TC (_, asn, _)) _ =
+  let codec = Asn.(codec encoding asn) in
   for i = 1 to 1000 do
     let a = Asn.random asn in
     assert_decode codec (Asn.encode codec a) a
@@ -40,6 +40,20 @@ let cases = [
   case "bool" Asn.bool [
     false, [0x01; 0x01; 0x00] ;
     true , [0x01; 0x01; 0xff]
+  ];
+
+  case "integer" Asn.int [
+    `I (   0), [0x02; 0x01; 0x00] ;
+    `I ( 127), [0x02; 0x01; 0x7F] ;
+    `I ( 128), [0x02; 0x02; 0x00; 0x80] ;
+    `I ( 256), [0x02; 0x02; 0x01; 0x00] ;
+    `I (-128), [0x02; 0x01; 0x80] ;
+    `I (-129), [0x02; 0x02; 0xFF; 0x7F]
+  ];
+
+  case "null" Asn.null [
+    (), [ 0x05; 0x00 ];
+    (), [ 0x05; 0x81; 0x00 ]
   ];
 
   case
@@ -421,14 +435,22 @@ let cases = [
 
 
 let suite =
+
   "ASN.1" >::: [
+
     "BER decoding" >:::
       List.map
-        (fun (TC (name, _, _) as tc) -> name >:: test_decode tc)
+        (fun (TC (name, _, _) as tc) -> name >:: test_decode Asn.ber tc)
         cases ;
-    "BER encode->decode" >:::
+
+    "BER random encode->decode" >:::
       List.map
-        (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode tc)
-        cases
+        (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode Asn.ber tc)
+        cases ;
+
+    "DER random encode->decode" >:::
+      List.map
+        (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode Asn.der tc)
+        cases ;
   ]
 

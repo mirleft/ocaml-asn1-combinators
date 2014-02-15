@@ -70,6 +70,8 @@ module R = struct
   module Partial = struct
     module C = Core
 
+    exception Partial
+
     type _ element =
       | Required : [`Nada | `Found of 'a] -> 'a element
       | Optional : [`Nada | `Found of 'a] -> 'a option element
@@ -86,7 +88,7 @@ module R = struct
 
     let to_complete_exn =
       let rec f1 : type a. a element -> a = function
-        | Required  `Nada     -> invalid_arg "partial"
+        | Required  `Nada     -> raise Partial
         | Required (`Found a) -> a
         | Optional  `Nada     -> None
         | Optional (`Found a) -> Some a
@@ -116,8 +118,8 @@ module R = struct
   let p_big_length buf off n =
     let last = off + n in
     let rec loop acc i =
-      if i > last then (acc, i) else
-        loop (acc * 0x100 + buf.{i}) (succ i) in
+      if i > last then (acc, i)
+      else loop (acc * 0x100 + buf.{i}) (succ i) in
     loop 0 (succ off)
 
 
@@ -184,13 +186,10 @@ module R = struct
         else parse_error "indefinite constructed: leftovers"
 
   let constructed f =
-    with_header
-      (fun _ _ -> parse_error "constructed: got primitive")
-      f
+    with_header (fun _ _ -> parse_error "constructed: got primitive") f
 
   let primitive f =
-    with_header f
-      (fun _ _ -> parse_error "primitive: got constructed")
+    with_header f (fun _ _ -> parse_error "primitive: got constructed")
 
   let primitive_n n f = primitive @@ fun n' b ->
     if n = n' then f b
@@ -200,9 +199,7 @@ module R = struct
     constructed @@ fun eof buf0 ->
       let rec scan acc buf =
         if eof buf then (List.rev acc, buf)
-        else
-          let (a, buf') = prs (p_header buf) in
-          scan (a :: acc) buf' in
+        else let (a, buf') = prs (p_header buf) in scan (a :: acc) buf' in
       scan [] buf0
 
   let string_like (type a) ?sz impl =
@@ -257,8 +254,7 @@ module R = struct
         end in
         let open S in
 
-        let rec elt : type a. a element -> header -> a S.touch
-        = function
+        let rec elt : type a. a element -> header -> a S.touch = function
           | Required asn ->
               let prs = parser_of_asn asn in fun header ->
                 if accepts (asn, header) then
@@ -270,8 +266,7 @@ module R = struct
                   let (a, buf) = prs header in Hit (Some a, buf)
                 else Pass None
 
-        and seq : type a. a sequence -> (bytes -> bool) -> a parser
-        = function
+        and seq : type a. a sequence -> (bytes -> bool) -> a parser = function
           | Last e ->
               let prs = elt e in fun _ header ->
               ( match prs header with
@@ -347,15 +342,14 @@ module R = struct
           let rec scan partial buf =
             if eof buf then
               try ( P.to_complete_exn partial, buf ) with
-              | Invalid_argument "partial" ->
-                  parse_error "set: missing required field"
+              | P.Partial -> parse_error "set: missing required field"
             else
               let header = p_header buf in
               let (f, buf') = TM.find header.tag parsers header in
               scan (f partial) buf'
           in
-          ( try scan zero buf0 with Not_found ->
-              parse_error "set: unknown field" )
+          ( try scan zero buf0 with
+            | Not_found -> parse_error "set: unknown field" )
 
 
     | Sequence_of asn -> sequence_of_parser @@ parser_of_asn asn 
@@ -396,32 +390,27 @@ module W = struct
   let (<>) = Wr.(<>)
 
   let e_big_tag tag =
-    let rec loop acc n =
-      if n = 0 then acc else
-        let acc' =
-          match acc with
-          | [] -> [ n land 0x7f ]
-          | _  -> ((n land 0x7f) lor 0x80) :: acc in
-        loop acc' (n lsr 7) in
+    let cons x = function [] -> [x] | xs -> (x lor 0x80)::xs in
+    let rec loop acc = function
+      | 0 -> acc
+      | n -> loop (cons (n land 0x7f) acc) (n lsr 7) in
     loop [] tag
 
   let e_big_length length =
-    let rec loop acc n =
-      if n = 0 then acc else
-        loop (n land 0xff :: acc) (n lsr 8) in
+    let rec loop acc = function
+      | 0 -> acc
+      | n -> loop (n land 0xff :: acc) (n lsr 8) in
     loop [] length
 
   let e_header tag mode len =
 
-    let (klass, tagn) =
-      match tag with
+    let (klass, tagn) = match tag with
       | Universal n        -> (0x00, n)
       | Application n      -> (0x40, n)
       | Context_specific n -> (0x80, n)
       | Private n          -> (0xc0, n) in
 
-    let constructed =
-      match mode with
+    let constructed = match mode with
       | `Primitive   -> 0x00
       | `Constructed -> 0x20 in
 
@@ -429,7 +418,7 @@ module W = struct
         Wr.byte (klass lor constructed lor tagn)
       else
         Wr.byte (klass lor constructed lor 0x1f) <>
-          Wr.list (e_big_tag tagn) )
+        Wr.list (e_big_tag tagn) )
     <>
     ( if len <= 0x7f then
         Wr.byte len
@@ -513,8 +502,15 @@ module W = struct
 
   and e_prim : type a. tag option -> a -> a prim -> Wr.t
   = fun tag a prim ->
-    let encode = e_primitive
-                 (match tag with Some x -> x | None -> tag_of_p prim) in
+
+    let encode =
+      e_primitive
+        (match tag with Some x -> x | None -> tag_of_p prim) in
+
+    let encode_s (type a) ?size a impl =
+      let module P = (val impl : Prim.Str_prim with type t = a) in
+      assert_length size P.length a;
+      encode (P.to_bytes a) in
 
     match prim with
     | Bool      -> encode @@ Wr.byte (if a then 0xff else 0x00)
@@ -523,9 +519,7 @@ module W = struct
 
     | Bits      -> encode @@ Prim.Bits.to_bytes a
 
-    | Octets s  ->
-        assert_length s Prim.Octets.length a ;
-        encode @@ Prim.Octets.to_bytes a
+    | Octets s  -> encode_s a (module Prim.Octets)
 
     | Null      -> encode Wr.empty
 

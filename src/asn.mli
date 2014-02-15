@@ -1,4 +1,12 @@
 
+module OID : sig
+  type t
+  val (<| ) : t -> int -> t
+  val (<||) : t -> int list -> t
+  val to_list : t -> int list
+  val base    : int -> int -> t
+end with type t = Prim.OID.t
+
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 

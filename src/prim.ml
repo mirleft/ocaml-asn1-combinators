@@ -200,15 +200,37 @@ module Octets : Str_prim with type t = bytes = struct
 
 end
 
-module OID : Prim with type t = int list = struct
+(* module OID : Prim with type t = int list = struct *)
+module OID : sig
 
-  type t = int list
+  include Prim
+
+  val (<|)    : t -> int -> t
+  val (<||)   : t -> int list -> t
+  val to_list : t -> int list
+  val base    : int -> int -> t
+
+end = struct
+
+  type t = Oid of int * int * int list
+
+  let (<| ) (Oid (v1, v2, vs)) vn  = Oid (v1, v2, vs @ [vn])
+  let (<||) (Oid (v1, v2, vs)) vs' = Oid (v1, v2, vs @ vs')
+
+  let to_list (Oid (v1, v2, vs)) = v1 :: v2 :: vs
+
+  let base v1 v2 =
+    if v1 < 0 || v1 > 2  then
+      invalid_arg "OID.base: component 1 not 0..2" else
+    if v2 < 0 || v2 > 39 then
+      invalid_arg "OID.base: component 2 not 0..39"
+    else Oid (v1, v2, [])
 
   let of_bytes n buf =
 
     let rec values i =
-      if i = n then [] else
-        let (i', v) = component 0 i in v :: values i'
+      if i = n then []
+      else let (i', v) = component 0 i in v :: values i'
 
     and component acc i =
       let byte = buf.{i} in
@@ -220,22 +242,20 @@ module OID : Prim with type t = int list = struct
     let b1 = buf.{0} in
     let v1, v2 = b1 / 40, b1 mod 40 in
 
-    v1 :: v2 :: values 1
+    Oid (v1, v2, values 1)
 
-  let to_bytes = function
-    | [] | [_]   -> assert false (* XXX make a neater type *)
-    | v1::v2::vs ->
-        let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
-        let rec component xs x =
-          if x < 0x80 then cons x xs
-          else component (cons (x land 0x7f) xs) (x lsr 7)
-        and values = function
-          | []    -> Wr.empty
-          | v::vs -> Wr.(list (component [] v) <> values vs) in
-        Wr.(byte (v1 * 40 + v2) <> values vs)
+  let to_bytes = fun (Oid (v1, v2, vs)) ->
+    let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
+    let rec component xs x =
+      if x < 0x80 then cons x xs
+      else component (cons (x land 0x7f) xs) (x lsr 7)
+    and values = function
+      | []    -> Wr.empty
+      | v::vs -> Wr.(list (component [] v) <> values vs) in
+    Wr.(byte (v1 * 40 + v2) <> values vs)
 
   let random () =
-    Random.( [ int 3 ; int 40 ] @ replicate_l (int 4) random_int )
+    Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )
 
 end
 

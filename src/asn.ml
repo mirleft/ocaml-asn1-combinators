@@ -1,4 +1,6 @@
 
+module OID = Prim.OID
+
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 

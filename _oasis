@@ -7,20 +7,19 @@ Maintainers: David Kaloper <david@numm.org>
 License:     BSD3
 Homepage:    https://github.com/pqwy/ocaml-asn1-combinators
 Plugins:     META (0.4)
+BuildTools:      ocamlbuild
 Description:
   Express ASN.1 grammars directly in OCaml, combinator-style, then use them to
   parse or encode.
 
 Library "asn1-combinators"
   Path:            src/
-  BuildTools:      ocamlbuild
   Modules:         Asn
   InternalModules: Bytekit, Prim, Core, Asn_random, Combinators, Ber_der
   BuildDepends:    bigarray, num
   
 Library "testlib"
   Path:         tests/
-  BuildTools:   ocamlbuild
   Modules:      Dumpkit, Testlib
   Install:      false
   Build$:       flag(tests)
@@ -28,7 +27,6 @@ Library "testlib"
 
 Executable "test_runner"
   Path:           tests/
-  BuildTools:     ocamlbuild
   Install:        false
   CompiledObject: best
   MainIs:         testrunner.ml

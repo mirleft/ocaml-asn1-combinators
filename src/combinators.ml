@@ -43,6 +43,10 @@ and null                = Prim Null
 and oid                 = Prim OID
 and ia5_string          = Prim IA5String
 
+and utc_time = assert false
+and generalized_time = assert false
+and any = assert false
+
 let single a   = Last a
 and (@)  a b   = Pair (a, b)
 and (!!) a     = Last (Required a)

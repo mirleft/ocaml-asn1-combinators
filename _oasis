@@ -18,6 +18,11 @@ Library "asn1-combinators"
   InternalModules: Bytekit, Prim, Core, Asn_random, Combinators, Ber_der
   BuildDepends:    bigarray, num
   
+Library "x509"
+  Path:         x509
+  Modules:      X509
+  BuildDepends: asn1-combinators
+
 Library "testlib"
   Path:         tests/
   Modules:      Dumpkit, Testlib

@@ -116,6 +116,9 @@ val octet_string_size : int -> Octets.t t
 val null              : unit            t
 val oid               : OID.t           t
 val ia5_string        : ASCII.t         t
+val utc_time          : unit t
+val generalized_time          : unit t
+val any : unit t
 
 type encoding
 val ber : encoding

@@ -203,7 +203,7 @@ module R = struct
       scan [] buf0
 
   let string_like (type a) ?sz impl =
-    let module P = (val impl : Prim.Str_prim with type t = a) in
+    let module P = (val impl : Prim.String_primitive with type t = a) in
 
     let rec prs = function
       | { coding = Primitive n ; buf } -> (P.of_bytes n buf, Rd.drop n buf)
@@ -232,7 +232,17 @@ module R = struct
 
     | OID       -> primitive Prim.OID.of_bytes
 
-    | IA5String -> string_like (module Prim.ASCII)
+    | UTF8String      -> string_like (module Prim.Gen_string)
+    | NumericString   -> string_like (module Prim.Gen_string)
+    | PrintableString -> string_like (module Prim.Gen_string)
+    | TeletexString   -> string_like (module Prim.Gen_string)
+    | VideotexString  -> string_like (module Prim.Gen_string)
+    | IA5String       -> string_like (module Prim.Gen_string)
+    | GraphicString   -> string_like (module Prim.Gen_string)
+    | VisibleString   -> string_like (module Prim.Gen_string)
+    | GeneralString   -> string_like (module Prim.Gen_string)
+    | UniversalString -> string_like (module Prim.Gen_string)
+    | BMPString       -> string_like (module Prim.Gen_string)
 
 
   module Cache = Combinators.Fix_cache (struct type 'a t = 'a parser end)
@@ -508,7 +518,7 @@ module W = struct
         (match tag with Some x -> x | None -> tag_of_p prim) in
 
     let encode_s (type a) ?size a impl =
-      let module P = (val impl : Prim.Str_prim with type t = a) in
+      let module P = (val impl : Prim.String_primitive with type t = a) in
       assert_length size P.length a;
       encode (P.to_bytes a) in
 
@@ -525,7 +535,17 @@ module W = struct
 
     | OID       -> encode @@ Prim.OID.to_bytes a
 
-    | IA5String -> encode @@ Prim.ASCII.to_bytes a
+    | UTF8String      -> encode @@ Prim.Gen_string.to_bytes a
+    | NumericString   -> encode @@ Prim.Gen_string.to_bytes a
+    | PrintableString -> encode @@ Prim.Gen_string.to_bytes a
+    | TeletexString   -> encode @@ Prim.Gen_string.to_bytes a
+    | VideotexString  -> encode @@ Prim.Gen_string.to_bytes a
+    | IA5String       -> encode @@ Prim.Gen_string.to_bytes a
+    | GraphicString   -> encode @@ Prim.Gen_string.to_bytes a
+    | VisibleString   -> encode @@ Prim.Gen_string.to_bytes a
+    | GeneralString   -> encode @@ Prim.Gen_string.to_bytes a
+    | UniversalString -> encode @@ Prim.Gen_string.to_bytes a
+    | BMPString       -> encode @@ Prim.Gen_string.to_bytes a
 
 
   let encode_ber_to_bytes asn a =

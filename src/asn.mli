@@ -115,9 +115,22 @@ val octet_string      : Octets.t        t
 val octet_string_size : int -> Octets.t t
 val null              : unit            t
 val oid               : OID.t           t
-val ia5_string        : ASCII.t         t
-val utc_time          : unit t
-val generalized_time          : unit t
+
+val utf8_string      : Gen_string.t t
+val numeric_string   : Gen_string.t t
+val printable_string : Gen_string.t t
+val teletex_string   : Gen_string.t t
+val videotex_string  : Gen_string.t t
+val ia5_string       : Gen_string.t t
+val graphic_string   : Gen_string.t t
+val visible_string   : Gen_string.t t
+val general_string   : Gen_string.t t
+val universal_string : Gen_string.t t
+val bmp_string       : Gen_string.t t
+
+
+val utc_time          : string t
+val generalized_time          : string t
 val any : unit t
 
 type encoding

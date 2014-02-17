@@ -9,13 +9,25 @@ let replicate n f =
   loop [] n
 
 let r_prim : type a. a Core.prim -> a = function
+
   | Bool      -> Random.bool ()
   | Int       -> Integer.random ()
   | Bits      -> Bits.random ()
   | Octets s  -> Octets.random ?size:s ()
   | Null      -> ()
   | OID       -> OID.random ()
-  | IA5String -> ASCII.random ()
+
+  | UTF8String      -> Gen_string.random ()
+  | NumericString   -> Gen_string.random ()
+  | PrintableString -> Gen_string.random ()
+  | TeletexString   -> Gen_string.random ()
+  | VideotexString  -> Gen_string.random ()
+  | IA5String       -> Gen_string.random ()
+  | GraphicString   -> Gen_string.random ()
+  | VisibleString   -> Gen_string.random ()
+  | GeneralString   -> Gen_string.random ()
+  | UniversalString -> Gen_string.random ()
+  | BMPString       -> Gen_string.random ()
 
 let rec r_element : type a. a element -> a = function
   | Required asn -> r_asn asn

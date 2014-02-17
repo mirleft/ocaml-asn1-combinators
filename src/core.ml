@@ -43,13 +43,24 @@ and _ sequence =
 
 and _ prim =
 
-  | Bool      : bool                   prim
-  | Int       : Integer.t              prim
-  | Bits      : Bits.t                 prim
-  | Octets    : int option -> Octets.t prim
-  | Null      : unit                   prim
-  | OID       : OID.t                  prim
-  | IA5String : ASCII.t                prim
+  | Bool            : bool                   prim
+  | Int             : Integer.t              prim
+  | Bits            : Bits.t                 prim
+  | Octets          : int option -> Octets.t prim
+  | Null            : unit                   prim
+  | OID             : OID.t                  prim
+
+  | UTF8String      : Gen_string.t prim
+  | NumericString   : Gen_string.t prim
+  | PrintableString : Gen_string.t prim
+  | TeletexString   : Gen_string.t prim
+  | VideotexString  : Gen_string.t prim
+  | IA5String       : Gen_string.t prim
+  | GraphicString   : Gen_string.t prim
+  | VisibleString   : Gen_string.t prim
+  | GeneralString   : Gen_string.t prim
+  | UniversalString : Gen_string.t prim
+  | BMPString       : Gen_string.t prim
 
 
 let sequence_tag = Universal 0x10
@@ -57,13 +68,25 @@ and set_tag      = Universal 0x11
 
 let tag_of_p : type a. a prim -> tag = function
 
-  | Bool      -> Universal 0x01
-  | Int       -> Universal 0x02
-  | Bits      -> Universal 0x03
-  | Octets _  -> Universal 0x04
-  | Null      -> Universal 0x05
-  | OID       -> Universal 0x06
-  | IA5String -> Universal 0x16
+  | Bool            -> Universal 0x01
+  | Int             -> Universal 0x02
+  | Bits            -> Universal 0x03
+  | Octets _        -> Universal 0x04
+  | Null            -> Universal 0x05
+  | OID             -> Universal 0x06
+
+  | UTF8String      -> Universal 0x0c
+  | NumericString   -> Universal 0x12
+  | PrintableString -> Universal 0x13
+  | TeletexString   -> Universal 0x14
+  | VideotexString  -> Universal 0x15
+  | IA5String       -> Universal 0x16
+  | GraphicString   -> Universal 0x19
+  | VisibleString   -> Universal 0x1a
+  | GeneralString   -> Universal 0x1b
+  | UniversalString -> Universal 0x1c
+  | BMPString       -> Universal 0x1e
+
 
 let rec tagset : type a. a asn -> tags = function
 

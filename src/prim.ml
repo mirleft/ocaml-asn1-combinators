@@ -8,7 +8,7 @@ module type Prim = sig
   val random   : unit -> t
 end
 
-module type Str_prim = sig
+module type String_primitive = sig
   include Prim
   val random : ?size:int -> unit -> t
   val concat : t list -> t
@@ -29,9 +29,10 @@ let random_size = function
   | Some size -> size
   | None      -> Random.int 20
 
+
 module Integer :
-  Prim with type t = [ `B of Big_int.big_int | `I of int ]
-= struct
+  Prim with type t = [ `B of Big_int.big_int | `I of int ] =
+struct
 
   open Big_int
 
@@ -112,15 +113,15 @@ module Integer :
 
 end
 
-module ASCII : Str_prim with type t = string = struct
+module Gen_string :
+  String_primitive with type t = string =
+struct
 
   type t = string
 
   let of_bytes n buf =
     let string = String.create n in
-    for i = 0 to n - 1 do
-      string.[i] <- char_of_int (buf.{i} land 0x7f)
-    done;
+    for i = 0 to n - 1 do string.[i] <- char_of_int buf.{i} done;
     string
 
   let to_bytes = Wr.string ~f:(fun b -> b land 0x7f)
@@ -131,11 +132,12 @@ module ASCII : Str_prim with type t = string = struct
     for i = 0 to n - 1 do s.[i] <- Char.chr (random_int_r 32 126) done;
     s
 
-  let concat = String.concat ""
-  let length = String.length
+  let (concat, length) = String.(concat "", length)
 end
 
-module Bits : Str_prim with type t = bool array = struct
+module Bits :
+  String_primitive with type t = bool array =
+struct
 
   type t = bool array
 
@@ -165,12 +167,14 @@ module Bits : Str_prim with type t = bool array = struct
   let random ?size () =
     Array.init (random_size size) (fun _ -> Random.bool ())
 
-  let concat = Array.concat
-  let length = Array.length
+  let (concat, length) = Array.(concat, length)
 
 end
 
-module Octets : Str_prim with type t = bytes = struct
+module Octets :
+  String_primitive with type t = bytes =
+struct
+
   type t = bytes
 
   open Bigarray
@@ -190,9 +194,10 @@ module Octets : Str_prim with type t = bytes = struct
   let concat arrs =
     let arr = make List.(fold_left (+) 0 @@ map Array1.dim arrs) in
     let _   =
-      List.fold_left (fun i e ->
-        let len = Array1.dim e in
-        ( Array1.(blit e @@ sub arr i len) ; i + len ))
+      List.fold_left
+        Array1.(fun i e ->
+          let len = dim e in
+          ( blit e @@ sub arr i len ; i + len ))
         0 arrs in
     arr
 

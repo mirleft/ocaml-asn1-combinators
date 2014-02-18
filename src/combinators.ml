@@ -1,5 +1,6 @@
 open Core
 
+
 (* Horrible, horrible hack.
  * Extend the Core.asn type to fix. *)
 module Fix_cache (T : sig type 'a t end) : sig
@@ -157,6 +158,7 @@ let validate asn =
     let rec go = function
       | t::(u::_ as ts) ->
           if t <> u then go ts else (
+            (* XXX USE LABELS TO REPORT *)
             Printf.printf "bad at: %s\n%!" @@
               String.concat "  " @@ List.map string_of_tags tss ;
             raise Ambiguous_grammar

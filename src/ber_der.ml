@@ -75,27 +75,28 @@ module R = struct
 
   let eof_error () = raise End_of_input
 
-(*   let describe context prs header =
+  let describe context prs header =
     try prs header with
     | Parse_error message ->
-        parse_error ("in " ^ context ^ ": " ^ message) *)
+        parse_error ("in " ^ context ^ ": " ^ message)
 
+(*
   let describe context prs header =
     try
-      XXX.note @@ context ^ " parsing " ^ string_of_tag header.tag;
-      XXX.enter context prs header
+      Dbg.note @@ context ^ " parsing " ^ string_of_tag header.tag;
+      Dbg.enter context prs header
     with Parse_error message ->
-      parse_error ("in " ^ context ^ ": " ^ message)
+      parse_error ("in " ^ context ^ ": " ^ message) *)
 
-  let (>|=) prs f = fun header ->
+  let (>|=) prs f header =
     let (a, buf') = prs header in (f a, buf')
 
-  let (>?=) prs f = fun header ->
+  let (>?=) prs (f, err_desc) header =
     let (a, buf') = prs header in
     match f a with
-    | None    -> parse_error "i hate you"
+    | None    -> parse_error err_desc
     | Some a' -> (a', buf')
-    
+
 
   module Partial = struct
     module C = Core
@@ -175,22 +176,19 @@ module R = struct
       | _ -> p_big_length buffer length_off t_length
     in
 
-    let tag =
-      match t_class with
+    let tag = match t_class with
       | 0x00 -> Universal tagn
       | 0x40 -> Application tagn
       | 0x80 -> Context_specific tagn
       | 0xc0 -> Private tagn
       | _    -> assert false
 
-    and coding =
-      match (t_constructed, l0) with
+    and coding = match (t_constructed, l0) with
       | (0, _   ) -> Primitive length
       | (_, 0x80) -> Constructed_indefinite
       | _         -> Constructed length
 
     and rest = Rd.drop contents_off buffer in
-    Printf.printf "parsed tag %s\n%!" @@ string_of_tag tag ;
 
     { tag = tag ; coding = coding ; buf = rest }
 
@@ -267,11 +265,12 @@ module R = struct
 
     | OID       -> primitive Prim.OID.of_bytes
 
-    | UTCTime         -> Prim.Time.( string_like (module Str)
-                                     >?= utc_time_of_string )
-
-    | GeneralizedTime -> Prim.Time.( string_like (module Str)
-                                     >?= gen_time_of_string )
+    | UTCTime   ->
+        Prim.Time.(string_like (module Str) >?=
+                     (utc_time_of_string, "malformed UTCTime"))
+    | GeneralizedTime ->
+        Prim.Time.(string_like (module Str) >?=
+                     (gen_time_of_string, "malformed GeneralizedTime"))
 
     | UTF8String      -> string_like (module Prim.Gen_string)
     | NumericString   -> string_like (module Prim.Gen_string)

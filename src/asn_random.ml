@@ -32,8 +32,8 @@ let r_prim : type a. a Core.prim -> a = function
   | BMPString       -> Gen_string.random ()
 
 let rec r_element : type a. a element -> a = function
-  | Required asn -> r_asn asn
-  | Optional asn ->
+  | Required (_, asn) -> r_asn asn
+  | Optional (_, asn) ->
       if Random.int 3 = 0 then None
       else Some (r_asn asn)
 

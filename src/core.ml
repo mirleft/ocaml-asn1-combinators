@@ -33,8 +33,8 @@ type _ asn =
 
 and _ element =
 
-  | Required : 'a asn -> 'a element
-  | Optional : 'a asn -> 'a option element
+  | Required : string option * 'a asn -> 'a element
+  | Optional : string option * 'a asn -> 'a option element
 
 and _ sequence =
 
@@ -91,16 +91,16 @@ let tag_of_p : type a. a prim -> tag = function
   | BMPString       -> Universal 0x1e
 
 
-let rec tagset : type a. a asn -> tags = function
+let rec tag_set : type a. a asn -> tags = function
 
-  | Iso (_, _, asn) -> tagset asn
-  | Fix f as fix    -> tagset (f fix)
+  | Iso (_, _, asn) -> tag_set asn
+  | Fix f as fix    -> tag_set (f fix)
 
   | Sequence    _ -> [ sequence_tag ]
   | Sequence_of _ -> [ sequence_tag ]
   | Set _         -> [ set_tag ]
   | Set_of _      -> [ set_tag ]
-  | Choice (asn1, asn2) -> tagset asn1 @ tagset asn2
+  | Choice (asn1, asn2) -> tag_set asn1 @ tag_set asn2
 
   | Implicit (t, _) -> [ t ]
   | Explicit (t, _) -> [ t ]
@@ -121,3 +121,14 @@ let rec tag : type a. a -> a asn -> tag
   | Explicit (t, _) -> t
   | Prim p          -> tag_of_p p
 
+
+let string_of_tag tag =
+  let p = Printf.sprintf "(%s %d)" in
+  match tag with
+  | Universal n        -> p "univ" n
+  | Application n      -> p "app" n
+  | Context_specific n -> p "context" n
+  | Private n          -> p "private" n
+
+let string_of_tags tags =
+  "(" ^ (String.concat " " @@ List.map string_of_tag tags) ^ ")"

@@ -35,12 +35,12 @@ module Seq = struct
 
   let rec fold_with_value : type a. 'r f -> 'r -> a -> a sequence -> 'r
   = fun f r a -> function
-    | Last (Required asn) -> f.f a asn r
-    | Last (Optional asn) ->
+    | Last (Required (_, asn)) -> f.f a asn r
+    | Last (Optional (_, asn)) ->
       ( match a with None -> r | Some a' -> f.f a' asn r )
-    | Pair (Required asn, asns) ->
+    | Pair (Required (_, asn), asns) ->
         let (a1, a2) = a in f.f a1 asn (fold_with_value f r a2 asns)
-    | Pair (Optional asn, asns) ->
+    | Pair (Optional (_, asn), asns) ->
         let (a1, a2) = a in
         match a1 with
         | None     -> fold_with_value f r a2 asns
@@ -59,39 +59,69 @@ module R = struct
 
   type 'a parser = header -> 'a * bytes
 
+  let parse_error ?header reason =
+    let message = match header with
+      | None   -> reason
+      | Some h ->
+          Printf.sprintf "%s (header: %s)"
+            reason (string_of_tag h.tag) in
+    raise (Parse_error message)
+
+  let i_wanted asn = "expected: " ^ string_of_tags (tag_set asn)
+
+  let field = function
+    | None       -> "(unknown)"
+    | Some label -> "'" ^ label ^ "'"
+
+  let eof_error () = raise End_of_input
+
+(*   let describe context prs header =
+    try prs header with
+    | Parse_error message ->
+        parse_error ("in " ^ context ^ ": " ^ message) *)
+
+  let describe context prs header =
+    try
+      XXX.note @@ context ^ " parsing " ^ string_of_tag header.tag;
+      XXX.enter context prs header
+    with Parse_error message ->
+      parse_error ("in " ^ context ^ ": " ^ message)
 
   let (>|=) prs f = fun header ->
     let (a, buf') = prs header in (f a, buf')
 
-
-  let parse_error reason = raise (Parse_error reason)
-  let eof_error ()       = raise End_of_input
+  let (>?=) prs f = fun header ->
+    let (a, buf') = prs header in
+    match f a with
+    | None    -> parse_error "i hate you"
+    | Some a' -> (a', buf')
+    
 
   module Partial = struct
     module C = Core
 
-    exception Partial
+    exception Missing of string option
 
     type _ element =
-      | Required : [`Nada | `Found of 'a] -> 'a element
-      | Optional : [`Nada | `Found of 'a] -> 'a option element
+      | Required : [`Nada of string option | `Found of 'a] -> 'a element
+      | Optional : [`Nada of string option | `Found of 'a] -> 'a option element
 
     type _ sequence =
       | Last : 'a element -> 'a sequence
       | Pair : 'a element * 'b sequence -> ('a * 'b) sequence
 
     let rec of_complete : type a. a C.sequence -> a sequence = function
-      | C.Last (C.Required _   ) -> Last (Required `Nada)
-      | C.Last (C.Optional _   ) -> Last (Optional `Nada)
-      | C.Pair (C.Required _, t) -> Pair (Required `Nada, of_complete t)
-      | C.Pair (C.Optional _, t) -> Pair (Optional `Nada, of_complete t)
+      | C.Last (C.Required (label, _)   ) -> Last (Required (`Nada label))
+      | C.Last (C.Optional (label, _)   ) -> Last (Optional (`Nada label))
+      | C.Pair (C.Required (label, _), t) -> Pair (Required (`Nada label), of_complete t)
+      | C.Pair (C.Optional (label, _), t) -> Pair (Optional (`Nada label), of_complete t)
 
     let to_complete_exn =
       let rec f1 : type a. a element -> a = function
-        | Required  `Nada     -> raise Partial
-        | Required (`Found a) -> a
-        | Optional  `Nada     -> None
-        | Optional (`Found a) -> Some a
+        | Required (`Nada label) -> raise (Missing label)
+        | Required (`Found a   ) -> a
+        | Optional (`Nada _    ) -> None
+        | Optional (`Found a   ) -> Some a
       and f2 : type a. a sequence -> a = function
         | Last  e      ->  f1 e
         | Pair (e, tl) -> (f1 e, f2 tl) in
@@ -123,7 +153,7 @@ module R = struct
     loop 0 (succ off)
 
 
-  let p_header buffer =
+  let p_header_unsafe buffer =
 
     let b0 = buffer.{0} in
     let t_class       = b0 land 0xc0
@@ -160,12 +190,17 @@ module R = struct
       | _         -> Constructed length
 
     and rest = Rd.drop contents_off buffer in
+    Printf.printf "parsed tag %s\n%!" @@ string_of_tag tag ;
 
     { tag = tag ; coding = coding ; buf = rest }
 
+  let p_header buffer =
+    try p_header_unsafe buffer with
+    | Invalid_argument _ -> parse_error "malformed header"
+
 
   let accepts : type a. a asn * header -> bool = function
-    | (asn, { tag }) -> List.mem tag (tagset asn)
+    | (asn, { tag }) -> List.mem tag (tag_set asn)
 
 
   let with_header = fun f1 f2 -> function
@@ -186,10 +221,10 @@ module R = struct
         else parse_error "indefinite constructed: leftovers"
 
   let constructed f =
-    with_header (fun _ _ -> parse_error "constructed: got primitive") f
+    with_header (fun _ _ -> parse_error "expected constructed") f
 
   let primitive f =
-    with_header f (fun _ _ -> parse_error "primitive: got constructed")
+    with_header f (fun _ _ -> parse_error "expected primitive")
 
   let primitive_n n f = primitive @@ fun n' b ->
     if n = n' then f b
@@ -271,24 +306,29 @@ module R = struct
         let open S in
 
         let rec elt : type a. a element -> header -> a S.touch = function
-          | Required asn ->
-              let prs = parser_of_asn asn in fun header ->
+
+          | Required (label, asn) ->
+              let prs = parser_of_asn asn in
+              describe (field label) @@ fun header ->
                 if accepts (asn, header) then
                   let (a, buf) = prs header in Hit (a, buf)
-                else parse_error "seq: unexpected subfield"
-          | Optional asn ->
-              let prs = parser_of_asn asn in fun header ->
+                else parse_error ~header (i_wanted asn)
+
+          | Optional (label, asn) ->
+              let prs = parser_of_asn asn in
+              describe (field label) @@ fun header ->
                 if accepts (asn, header) then
                   let (a, buf) = prs header in Hit (Some a, buf)
                 else Pass None
 
         and seq : type a. a sequence -> (bytes -> bool) -> a parser = function
+
           | Last e ->
               let prs = elt e in fun _ header ->
               ( match prs header with
-                | Pass a ->
-                    parse_error "seq: not all input consumed"
+                | Pass a -> parse_error ~header "not all input consumed"
                 | Hit (a, buf') -> (a, buf') )
+
           | Pair (e, tl) ->
               let (prs1, prs2) = elt e, seq tl in fun eof header ->
               ( match prs1 header with
@@ -300,16 +340,20 @@ module R = struct
                     let (b, buf') = prs2 eof header in ((a, b), buf') )
 
         and default_or_error : type a. a sequence -> a = function
-          | Last (Required _   ) -> parse_error "seq: missing required field"
-          | Pair (Required _, _) -> parse_error "seq: missing required field"
-          | Last (Optional _   ) -> None
-          | Pair (Optional _, s) -> None, default_or_error s
+          | Last (Required (label, _)   ) -> missing label
+          | Pair (Required (label, _), _) -> missing label
+          | Last (Optional (_    , _)   ) -> None
+          | Pair (Optional (_    , _), s) -> None, default_or_error s
+
+        and missing : type a. string option -> a =
+          fun label -> parse_error ("missing " ^ field label)
             
         in
         let prs = seq asns in
-        constructed @@ fun eof buf ->
-          if eof buf then (default_or_error asns, buf)
-          else prs eof (p_header buf)
+        describe "sequence" @@
+          constructed @@ fun eof buf ->
+            if eof buf then (default_or_error asns, buf)
+            else prs eof (p_header buf)
 
     | Set asns ->
 
@@ -320,12 +364,14 @@ module R = struct
 
         let rec partial_e : type a. a element -> tags * a P.element parser
           = function
-          | Required asn ->
-              ( tagset asn, 
-                parser_of_asn asn >|= fun a -> P.Required (`Found a) )
-          | Optional asn ->
-              ( tagset asn, 
-                parser_of_asn asn >|= fun a -> P.Optional (`Found a) )
+          | Required (label, asn) ->
+              ( tag_set asn, 
+                describe (field label) (parser_of_asn asn)
+                >|= fun a -> P.Required (`Found a) )
+          | Optional (label, asn) ->
+              ( tag_set asn, 
+                describe (field label) (parser_of_asn asn)
+                >|= fun a -> P.Optional (`Found a) )
 
         and setters :
           type a b. ((a P.sequence endo) -> b P.sequence endo)
@@ -354,50 +400,58 @@ module R = struct
 
         and zero = P.of_complete asns in 
 
-        constructed @@ fun eof buf0 ->
-          let rec scan partial buf =
-            if eof buf then
-              try ( P.to_complete_exn partial, buf ) with
-              | P.Partial -> parse_error "set: missing required field"
-            else
-              let header = p_header buf in
-              let (f, buf') = TM.find header.tag parsers header in
-              scan (f partial) buf'
-          in
-          ( try scan zero buf0 with
-            | Not_found -> parse_error "set: unknown field" )
+        describe "set" @@
+          constructed @@ fun eof buf0 ->
+            let rec scan partial buf =
+              if eof buf then
+                try ( P.to_complete_exn partial, buf ) with
+                | P.Missing label -> parse_error ("missing " ^ field label)
+              else
+                let header = p_header buf in
+                let prs =
+                  try TM.find header.tag parsers with
+                  | Not_found -> parse_error ~header "unexpected field" in
+                let (f, buf') = prs header in
+                scan (f partial) buf'
+            in
+            scan zero buf0
 
+    | Sequence_of asn ->
+        describe "sequence_of" @@
+          sequence_of_parser @@ parser_of_asn asn 
 
-    | Sequence_of asn -> sequence_of_parser @@ parser_of_asn asn 
-
-    | Set_of asn -> sequence_of_parser @@ parser_of_asn asn
+    | Set_of asn ->
+        describe "set_of" @@
+          sequence_of_parser @@ parser_of_asn asn
 
     | Choice (asn1, asn2) ->
 
         let (prs1, prs2) = (parser_of_asn asn1, parser_of_asn asn2) in
-        fun header ->
-          if accepts (asn1, header) then
-            let (a, buf') = prs1 header in (L a, buf')
-          else
-            let (b, buf') = prs2 header in (R b, buf')
+        describe "choice" @@
+          fun header ->
+            if accepts (asn1, header) then
+              let (a, buf') = prs1 header in (L a, buf')
+            else
+              let (b, buf') = prs2 header in (R b, buf')
 
     | Implicit (_, asn) -> parser_of_asn asn
 
     | Explicit (_, asn) ->
-        constructed @@ const (comp (parser_of_asn asn) p_header)
+        describe "explicit" @@
+          constructed @@ const (comp (parser_of_asn asn) p_header)
 
-    | Prim p -> parser_of_prim p
+    | Prim p ->
+        describe "primitive" @@
+          parser_of_prim p
 
 
   let parser : 'a asn -> bytes -> 'a * bytes
   = fun asn ->
     let prs = parser_of_asn asn in
     fun buf0 ->
-      try
-        let header = p_header buf0 in
-        if accepts (asn, header) then prs header
-        else parse_error "bad initial header"
-      with Invalid_argument _ -> eof_error ()
+      let header = p_header buf0 in
+      if accepts (asn, header) then prs header
+      else parse_error ~header "unexpected header"
 
 end
 

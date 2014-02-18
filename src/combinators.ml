@@ -58,12 +58,8 @@ and bmp_string          = Prim BMPString
 
 let single a   = Last a
 and (@)  a b   = Pair (a, b)
-and (!!) a     = Last (Required a)
-and (!?) a     = Last (Optional a)
-and (@!) a b   = Pair (Required a, b)
-and (@?) a b   = Pair (Optional a, b)
-and optional a = Optional a
-and required a = Required a
+and optional ?label a = Optional (label, a)
+and required ?label a = Required (label, a)
 
 let product2 fn a b = fn @@ a @ single b
 
@@ -160,24 +156,28 @@ let validate asn =
   let rec disjunct tss =
     let rec go = function
       | t::(u::_ as ts) ->
-          if t <> u then go ts else raise Ambiguous_grammar
+          if t <> u then go ts else (
+            Printf.printf "bad at: %s\n%!" @@
+              String.concat "  " @@ List.map string_of_tags tss ;
+            raise Ambiguous_grammar
+          )
       | [] | [_] -> () in
     go List.(sort compare @@ concat tss)
 
   and ck_seq : type a. tags list * a sequence -> unit = function
-    | ts, Last (Optional x)     -> check x ; disjunct (tagset x :: ts)
-    | [], Last (Required x)     -> check x
-    | ts, Last (Required x)     -> check x ; disjunct (tagset x :: ts)
-    | ts, Pair (Optional x, xs) -> check x ; ck_seq (tagset x :: ts, xs)
-    | [], Pair (Required x, xs) -> check x ; ck_seq ([], xs)
-    | ts, Pair (Required x, xs) ->
-        check x ; disjunct (tagset x :: ts) ; ck_seq ([], xs)
+    | ts, Last (Optional (_, x))     -> check x ; disjunct (tag_set x :: ts)
+    | [], Last (Required (_, x))     -> check x
+    | ts, Last (Required (_, x))     -> check x ; disjunct (tag_set x :: ts)
+    | ts, Pair (Optional (_, x), xs) -> check x ; ck_seq (tag_set x :: ts, xs)
+    | [], Pair (Required (_, x), xs) -> check x ; ck_seq ([], xs)
+    | ts, Pair (Required (_, x), xs) ->
+        check x ; disjunct (tag_set x :: ts) ; ck_seq ([], xs)
 
   and ck_set : type a. a sequence -> tags list = function
-    | Last (Required x)     -> check x ; [ tagset x ]
-    | Last (Optional x)     -> check x ; [ tagset x ]
-    | Pair (Required x, xs) -> check x ; tagset x :: ck_set xs
-    | Pair (Optional x, xs) -> check x ; tagset x :: ck_set xs
+    | Last (Required (_, x))     -> check x ; [ tag_set x ]
+    | Last (Optional (_, x))     -> check x ; [ tag_set x ]
+    | Pair (Required (_, x), xs) -> check x ; tag_set x :: ck_set xs
+    | Pair (Optional (_, x), xs) -> check x ; tag_set x :: ck_set xs
 
   and check : type a. a asn -> unit = function
 
@@ -191,11 +191,12 @@ let validate asn =
     | Set_of      asn -> check asn
 
     | Choice (asn1, asn2) ->
-        disjunct [ tagset asn1; tagset asn2 ] ; check asn1 ; check asn2
+        disjunct [ tag_set asn1; tag_set asn2 ] ; check asn1 ; check asn2
 
     | Implicit (_, asn) -> check asn
     | Explicit (_, asn) -> check asn
     | Prim _ -> () in
 
   try check asn with Stack_overflow -> raise Ambiguous_grammar
+
 

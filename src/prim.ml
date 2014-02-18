@@ -344,7 +344,7 @@ module Time = struct
     and hh = rn2 str 8
     and mi = rn2 str 10 in
     let (ss, sf, tz_off) =
-      match S.pred_at C.digit str 10 with
+      match S.pred_at C.digit str 12 with
       | false -> (0, 0., 12)
       | true  ->
           let ss = rn2 str 12 in
@@ -353,22 +353,37 @@ module Time = struct
           | true  ->
               let rec scan_f acc e i =
                 if S.pred_at C.digit str i then
-                  let digit = float @@ rn1 str i in
-                  scan_f (acc +. e *. digit) (e *. 0.1) (succ i)
-                else (ss, acc, i) in
-              scan_f 0. 0.1 15 in
+                  scan_f (acc * 10 + rn1 str i) (e * 10) (succ i)
+                else (ss, float acc /. float e, i) in
+              scan_f 0 1 15 in
     let tz = tz_of_string_optional (S.drop tz_off str)
     in
     { date = (yy, mm, dd) ; time = (hh, mi, ss, sf) ; tz }
 
+  let string_of_list list =
+    let b  = Buffer.create 16 in
+    let () = List.iter (Buffer.add_char b) list in
+    Buffer.contents b
+
+  let rec take n = function
+    | []    -> []
+    | x::xs -> if n > 0 then x :: take (pred n) xs else []
+
+  (* The most ridiculously convoluted way to print three decimal digits.
+   * When in doubt, multiply 0.57 by 100.
+   *)
+  let pf3 f =
+    let str = Printf.sprintf "%.03f" f in
+    let rec dump acc i =
+      match (str.[i], acc) with
+      | '0', [] -> dump acc (pred i)
+      | '.', [] -> []
+      | '.', xs -> '.' :: take 3 xs
+      | c  , xs -> dump (c::acc) (pred i) in
+    let digits = dump [] (String.length str - 1) in
+    string_of_list digits
+
   let gen_time_to_string ?(ber=false) t =
-
-    let pf3 f =
-      let rec go e =
-        if e > 1000. then ""
-        else string_of_int (int_of_float (f *. e) mod 10) ^ go (e *. 10.)
-      in go 10.  in
-
     match (ber, t.tz) with
     | (false, _) | (true, None) | (true, Some (0, 0, _)) ->
         let (yy, mm, dd)     = t.date
@@ -377,7 +392,7 @@ module Time = struct
           pn4 yy ; pn2 mm ; pn2 dd ; pn2 hh ; pn2 mi ;
           ( if ss = 0 && sf = 0. then "" else
             if sf = 0. then pn2 ss
-            else pn2 ss ^ "." ^ pf3 sf ) ;
+            else pn2 ss ^ pf3 sf ) ;
           tz_to_string t.tz
         ]
     | _ -> invalid_arg "GeneralizedTime: can't encode time in non-GMT zone"
@@ -386,7 +401,7 @@ module Time = struct
   let random ?(fraction=false) () =
     let num n = Random.int n + 1 in
     let sec   = if Random.int 3 = 0 then 0 else num 59
-    and sec_f = if fraction then Random.float 1. else 0.
+    and sec_f = if fraction then float (Random.int 1000) /. 1000. else 0.
     and tz    = match Random.int 3 with
       | 0 -> None
       | 1 -> Some (num 12, num 59, `E)

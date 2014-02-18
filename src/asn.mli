@@ -1,4 +1,6 @@
 
+(* XXX BOILERPLATE *)
+
 module OID : sig
   type t
   val (<| ) : t -> int -> t
@@ -17,8 +19,12 @@ module Time : sig
 end
 with type t = Prim.Time.t
 
+type integer = [ `I of int | `B of Big_int.big_int ]
+
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
+
+(* /XXX *)
 
 type 'a t
 type 'a sequence
@@ -114,27 +120,26 @@ val choice6 :
 
 open Prim
 
-val bool              : bool            t
-val int               : Integer.t       t
-val bit_string        : Bits.t          t
-val octet_string      : Octets.t        t
-val octet_string_size : int -> Octets.t t
-val null              : unit            t
-val oid               : OID.t           t
-val utc_time          : Time.t t
-val generalized_time  : Time.t t
+val bool              : bool       t
+val int               : integer    t
+val bit_string        : bool array t
+val octet_string      : bytes      t
+val null              : unit       t
+val oid               : OID.t      t
+val utc_time          : Time.t     t
+val generalized_time  : Time.t     t
 
-val utf8_string      : Gen_string.t t
-val numeric_string   : Gen_string.t t
-val printable_string : Gen_string.t t
-val teletex_string   : Gen_string.t t
-val videotex_string  : Gen_string.t t
-val ia5_string       : Gen_string.t t
-val graphic_string   : Gen_string.t t
-val visible_string   : Gen_string.t t
-val general_string   : Gen_string.t t
-val universal_string : Gen_string.t t
-val bmp_string       : Gen_string.t t
+val utf8_string      : string t
+val numeric_string   : string t
+val printable_string : string t
+val teletex_string   : string t
+val videotex_string  : string t
+val ia5_string       : string t
+val graphic_string   : string t
+val visible_string   : string t
+val general_string   : string t
+val universal_string : string t
+val bmp_string       : string t
 
 type encoding
 val ber : encoding

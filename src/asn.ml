@@ -1,9 +1,15 @@
 
+(* XXX BOILERPLATE *)
+
 module OID  = Prim.OID
 module Time = Prim.Time
 
+type integer = [ `I of int | `B of Big_int.big_int ]
+
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
+
+(* /XXX *)
 
 type 'a t        = 'a Core.asn
 type 'a element  = 'a Core.element

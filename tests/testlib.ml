@@ -2,6 +2,7 @@
 open OUnit2
 open Bigarray
 
+let bytes_of_list = Dumpkit.bytes_of_list
 
 type testcase =
   | TC : string * 'a Asn.t * ('a * int list) list -> testcase
@@ -12,26 +13,29 @@ let case
 
 
 let assert_decode
-: type a. a Asn.codec -> Asn.bytes -> a -> unit
-= fun codec bytes a ->
+: type a. ?example:a -> a Asn.codec -> Asn.bytes -> unit
+= fun ?example codec bytes ->
   match Asn.decode codec bytes with
   | None -> assert_failure "decode failed"
   | Some (x, buf) ->
       if Array1.dim buf <> 0 then
         assert_failure "not all input consumed"
-      else assert_equal a x
+      else
+        match example with
+        | Some a -> assert_equal a x
+        | None   -> ()
 
 let test_decode encoding (TC (_, asn, examples)) _ =
   let codec = Asn.(codec encoding asn) in
   examples |> List.iter @@ fun (a, bytes) ->
-    let arr = Dumpkit.bytes_of_list bytes in
-    assert_decode codec arr a
+    let arr = bytes_of_list bytes in
+    assert_decode ~example:a codec arr
 
-let test_loop_decode encoding (TC (_, asn, _)) _ =
+let test_loop_decode encoding asn _ =
   let codec = Asn.(codec encoding asn) in
-  for i = 1 to 1000 do
+  for i = 1 to 10000 do
     let a = Asn.random asn in
-    assert_decode codec (Asn.encode codec a) a
+    assert_decode ~example:a codec (Asn.encode codec a)
   done
 
 let cases = [
@@ -455,21 +459,37 @@ let cases = [
     ] );
 
   case "octets" Asn.octet_string
-  ( let bytes = Dumpkit.bytes_of_list in [
+  ( let f = bytes_of_list in [
 
-    bytes [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
+    f [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
     [ 0x04; 0x08; 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ] ;
 
-    bytes [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
+    f [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
     [ 0x04; 0x81; 0x08; 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef; ];
 
-    bytes [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
+    f [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
     [ 0x24; 0x0c;
         0x04; 0x04; 0x01; 0x23; 0x45; 0x67;
         0x04; 0x04; 0x89; 0xab; 0xcd; 0xef; ]
   ]);
 
-  case "sized octets" Asn.(octet_string_size 55) []
+  case "sized octets" Asn.(octet_string_size 55) [] ;
+
+  case "utc time" Asn.utc_time [
+
+    ( Asn.Time.({ date = (91, 5, 6); time = (23, 45, 40, 0.); tz = None }),
+      [ 0x17; 0x0d; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36;
+        0x32; 0x33; 0x34; 0x35; 0x34; 0x30; 0x5a ] ) ;
+
+    ( Asn.Time.({
+        date = (91, 5, 6)  ;
+        time = (16, 45, 40, 0.);
+        tz   = Some (7, 0, `W) }) ,
+      [ 0x17; 0x11; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31; 0x36;
+        0x34; 0x35; 0x34; 0x30; 0x2D; 0x30; 0x37; 0x30; 0x30 ] )
+
+
+  ]
 
 ]
 
@@ -485,12 +505,24 @@ let suite =
 
     "BER random encode->decode" >:::
       List.map
-        (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode Asn.ber tc)
+        (fun (TC (name, asn, _)) -> name >:: test_loop_decode Asn.ber asn)
         cases ;
 
     "DER random encode->decode" >:::
       List.map
-        (fun (TC (name, _, _) as tc) -> name >:: test_loop_decode Asn.der tc)
+        (fun (TC (name, asn, _)) -> name >:: test_loop_decode Asn.der asn)
         cases ;
+
+    "X509 decode" >:::
+      List.mapi
+        (fun i bytes ->
+          ("certificate " ^ string_of_int i) >:: fun _ ->
+            assert_decode X509.cert_der (bytes_of_list bytes))
+        X509.examples ;
+
+    "X509 random encode->decode" >::: [
+(*       "BER" >:: test_loop_decode Asn.ber X509.certificate ; *)
+(*       "DER" >:: test_loop_decode Asn.der X509.certificate *)
+    ] ;
   ]
 

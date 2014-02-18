@@ -31,9 +31,9 @@ let test_decode encoding (TC (_, asn, examples)) _ =
     let arr = bytes_of_list bytes in
     assert_decode ~example:a codec arr
 
-let test_loop_decode encoding asn _ =
+let test_loop_decode ?(iter=10000) encoding asn _ =
   let codec = Asn.(codec encoding asn) in
-  for i = 1 to 10000 do
+  for i = 1 to iter do
     let a = Asn.random asn in
     assert_decode ~example:a codec (Asn.encode codec a)
   done
@@ -520,9 +520,41 @@ let suite =
             assert_decode X509.cert_der (bytes_of_list bytes))
         X509.examples ;
 
-    "X509 random encode->decode" >::: [
-(*       "BER" >:: test_loop_decode Asn.ber X509.certificate ; *)
-(*       "DER" >:: test_loop_decode Asn.der X509.certificate *)
+    "X509 elements random encode->decode" >::: [
+      "BER validity" >:: test_loop_decode Asn.ber X509.validity ;
+      "DER validity" >:: test_loop_decode Asn.der X509.validity ;
+      "BER cert" >:: test_loop_decode ~iter:1000 Asn.ber X509.certificate ;
+(*       "DER cert" >:: test_loop_decode ~iter:100 Asn.der X509.certificate ; *)
     ] ;
   ]
+
+
+
+
+let verify_decode = function
+  | None        -> `fail
+  | Some (a, b) ->
+      if Bytekit.Rd.eof b then `ok a else `leftover
+
+let verify_decode_value x dec =
+  match verify_decode dec with
+  | `ok a     ->
+      if x = a then `ok else `mismatch (x, a)
+  | `fail     -> `fail
+  | `leftover -> `leftover
+
+let loop_code codec x =
+  let enc = Asn.encode codec x in
+  let dec = Asn.decode codec enc in
+  verify_decode_value x dec
+
+let loop_code_random ?(coding=Asn.ber) asn =
+  loop_code Asn.(codec coding asn) Asn.(random asn)
+
+let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
+  if n < 0 then [] else
+    let rest = fuzz ~coding ~n:(pred n) asn in
+    match loop_code_random ~coding asn with
+    | `ok  -> rest
+    | fail -> fail :: rest
 

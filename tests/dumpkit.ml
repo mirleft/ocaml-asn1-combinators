@@ -49,3 +49,9 @@ let bytes_of_list list =
   let arr = Array1.create int8_unsigned c_layout length in
   ( write_list arr list ; arr )
 
+let bytes_of_string string =
+  let length = String.length string in
+  let arr = Array1.create int8_unsigned c_layout length in
+  for i = 0 to length - 1 do arr.{i} <- int_of_char string.[i] done;
+  arr
+

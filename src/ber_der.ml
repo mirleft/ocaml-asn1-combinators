@@ -41,10 +41,9 @@ module Seq = struct
     | Pair (Required (_, asn), asns) ->
         let (a1, a2) = a in f.f a1 asn (fold_with_value f r a2 asns)
     | Pair (Optional (_, asn), asns) ->
-        let (a1, a2) = a in
-        match a1 with
-        | None     -> fold_with_value f r a2 asns
-        | Some a1' -> f.f a1' asn (fold_with_value f r a2 asns)
+        match a with
+        | (None   , a2) -> fold_with_value f r a2 asns
+        | (Some a1, a2) -> f.f a1 asn (fold_with_value f r a2 asns)
 end
 
 

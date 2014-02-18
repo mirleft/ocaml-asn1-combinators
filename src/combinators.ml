@@ -41,8 +41,10 @@ and octet_string        = Prim (Octets None)
 and octet_string_size s = Prim (Octets (Some s))
 and null                = Prim Null
 and oid                 = Prim OID
+and utc_time            = Prim UTCTime
+and generalized_time    = Prim GeneralizedTime
 
-and utf8_string         = Prim UTF8String
+let utf8_string         = Prim UTF8String
 and numeric_string      = Prim NumericString
 and printable_string    = Prim PrintableString
 and teletex_string      = Prim TeletexString
@@ -53,10 +55,6 @@ and visible_string      = Prim VisibleString
 and general_string      = Prim GeneralString
 and universal_string    = Prim UniversalString
 and bmp_string          = Prim BMPString
-
-let utc_time = ia5_string
-and generalized_time = ia5_string
-and any = null
 
 let single a   = Last a
 and (@)  a b   = Pair (a, b)

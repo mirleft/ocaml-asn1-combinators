@@ -1,5 +1,6 @@
 
-module OID = Prim.OID
+module OID  = Prim.OID
+module Time = Prim.Time
 
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t

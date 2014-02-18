@@ -5,7 +5,17 @@ module OID : sig
   val (<||) : t -> int list -> t
   val to_list : t -> int list
   val base    : int -> int -> t
-end with type t = Prim.OID.t
+end
+with type t = Prim.OID.t
+
+module Time : sig
+  type t = {
+    date : (int * int * int) ;
+    time : (int * int * int * float) ;
+    tz   : (int * int * [ `W | `E ]) option ;
+  }
+end
+with type t = Prim.Time.t
 
 open Bigarray
 type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
@@ -115,6 +125,8 @@ val octet_string      : Octets.t        t
 val octet_string_size : int -> Octets.t t
 val null              : unit            t
 val oid               : OID.t           t
+val utc_time          : Time.t t
+val generalized_time  : Time.t t
 
 val utf8_string      : Gen_string.t t
 val numeric_string   : Gen_string.t t
@@ -127,11 +139,6 @@ val visible_string   : Gen_string.t t
 val general_string   : Gen_string.t t
 val universal_string : Gen_string.t t
 val bmp_string       : Gen_string.t t
-
-
-val utc_time          : string t
-val generalized_time          : string t
-val any : unit t
 
 type encoding
 val ber : encoding

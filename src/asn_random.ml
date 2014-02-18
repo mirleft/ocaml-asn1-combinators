@@ -10,12 +10,14 @@ let replicate n f =
 
 let r_prim : type a. a Core.prim -> a = function
 
-  | Bool      -> Random.bool ()
-  | Int       -> Integer.random ()
-  | Bits      -> Bits.random ()
-  | Octets s  -> Octets.random ?size:s ()
-  | Null      -> ()
-  | OID       -> OID.random ()
+  | Bool            -> Random.bool ()
+  | Int             -> Integer.random ()
+  | Bits            -> Bits.random ()
+  | Octets s        -> Octets.random ?size:s ()
+  | Null            -> ()
+  | OID             -> OID.random ()
+  | UTCTime         -> Time.random ()
+  | GeneralizedTime -> Time.random ~fraction:true ()
 
   | UTF8String      -> Gen_string.random ()
   | NumericString   -> Gen_string.random ()

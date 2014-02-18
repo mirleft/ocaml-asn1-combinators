@@ -232,6 +232,12 @@ module R = struct
 
     | OID       -> primitive Prim.OID.of_bytes
 
+    | UTCTime         -> Prim.Time.( string_like (module Str)
+                                     >?= utc_time_of_string )
+
+    | GeneralizedTime -> Prim.Time.( string_like (module Str)
+                                     >?= gen_time_of_string )
+
     | UTF8String      -> string_like (module Prim.Gen_string)
     | NumericString   -> string_like (module Prim.Gen_string)
     | PrintableString -> string_like (module Prim.Gen_string)
@@ -534,6 +540,12 @@ module W = struct
     | Null      -> encode Wr.empty
 
     | OID       -> encode @@ Prim.OID.to_bytes a
+
+    | UTCTime ->
+        encode Prim.Time.(Str.to_bytes @@ utc_time_to_string a)
+
+    | GeneralizedTime ->
+        encode Prim.Time.(Str.to_bytes @@ gen_time_to_string a)
 
     | UTF8String      -> encode @@ Prim.Gen_string.to_bytes a
     | NumericString   -> encode @@ Prim.Gen_string.to_bytes a

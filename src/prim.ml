@@ -264,3 +264,141 @@ end = struct
 
 end
 
+module Time = struct
+
+  type t = {
+    date : (int * int * int) ;
+    time : (int * int * int * float) ;
+    tz   : (int * int * [ `W | `E ]) option ;
+  }
+
+  module C = struct
+    let is c d = c = d
+    let digit c = c >= '0' && c <= '9'
+  end
+
+  module S = struct
+    open String
+    let drop n str =
+      let len = length str in
+      if n >= len then "" else sub str n (len - n)
+    let pred_at p str n = length str > n && p str.[n]
+    let length = length
+  end
+
+  let pn2, pn3, pn4 =
+    Printf.(sprintf "%02d", sprintf "%03d", sprintf "%04d")
+
+  let rnn n str off = int_of_string (String.sub str off n)
+  let rn1, rn2, rn3, rn4 = rnn 1, rnn 2, rnn 3, rnn 4
+
+  let tz_to_string = function
+    | None              -> "Z"
+    | Some (0, 0, _)    -> "Z"
+    | Some (hh, mm, `W) -> "-" ^ pn2 hh ^ pn2 mm
+    | Some (hh, mm, `E) -> "+" ^ pn2 hh ^ pn2 mm
+
+  let tz_of_string str =
+    let pack = function
+      | (0, 0, _) -> None
+      | triple    -> Some triple in
+    match str.[0] with
+    | 'Z' | 'z' -> None
+    | '+' -> pack (rn2 str 1, rn2 str 3, `E)
+    | '-' -> pack (rn2 str 1, rn2 str 3, `W)
+    | _   -> failwith ""
+
+  let tz_of_string_optional str =
+    if S.length str = 0 then None
+    else tz_of_string str
+
+  let try_ fn =
+    try Some (fn ()) with
+    | Failure _ | Invalid_argument _ -> None
+
+  let utc_time_of_string str = try_ @@ fun () ->
+    let yy = rn2 str 0
+    and mm = rn2 str 2
+    and dd = rn2 str 4
+    and hh = rn2 str 6
+    and mi = rn2 str 8 in
+    let (ss, tz_off) =
+      match S.pred_at C.digit str 10 with
+      | false -> (0, 10)
+      | true  -> (rn2 str 10, 12) in
+    let tz = tz_of_string (S.drop tz_off str)
+    in
+    { date = (yy, mm, dd) ; time = (hh, mi, ss, 0.) ; tz }
+
+  let utc_time_to_string { date = (yy, mm, dd); time = (hh, mi, ss, _); tz } =
+    String.concat "" [
+      pn2 yy ; pn2 mm ; pn2 dd ; pn2 hh ; pn2 mi ;
+      ( if ss = 0 then "" else pn2 ss ) ;
+      tz_to_string tz
+    ]
+
+  let gen_time_of_string str = try_ @@ fun () ->
+    let yy = rn4 str 0
+    and mm = rn2 str 4
+    and dd = rn2 str 6
+    and hh = rn2 str 8
+    and mi = rn2 str 10 in
+    let (ss, sf, tz_off) =
+      match S.pred_at C.digit str 10 with
+      | false -> (0, 0., 12)
+      | true  ->
+          let ss = rn2 str 12 in
+          match S.pred_at C.(is '.') str 14 with
+          | false -> (ss, 0., 14)
+          | true  ->
+              let rec scan_f acc e i =
+                if S.pred_at C.digit str i then
+                  let digit = float @@ rn1 str i in
+                  scan_f (acc +. e *. digit) (e *. 0.1) (succ i)
+                else (ss, acc, i) in
+              scan_f 0. 0.1 15 in
+    let tz = tz_of_string_optional (S.drop tz_off str)
+    in
+    { date = (yy, mm, dd) ; time = (hh, mi, ss, sf) ; tz }
+
+  let gen_time_to_string ?(ber=false) t =
+
+    let pf3 f =
+      let rec go e =
+        if e > 1000. then ""
+        else string_of_int (int_of_float (f *. e) mod 10) ^ go (e *. 10.)
+      in go 10.  in
+
+    match (ber, t.tz) with
+    | (false, _) | (true, None) | (true, Some (0, 0, _)) ->
+        let (yy, mm, dd)     = t.date
+        and (hh, mi, ss, sf) = t.time in
+        String.concat "" [
+          pn4 yy ; pn2 mm ; pn2 dd ; pn2 hh ; pn2 mi ;
+          ( if ss = 0 && sf = 0. then "" else
+            if sf = 0. then pn2 ss
+            else pn2 ss ^ "." ^ pf3 sf ) ;
+          tz_to_string t.tz
+        ]
+    | _ -> invalid_arg "GeneralizedTime: can't encode time in non-GMT zone"
+
+
+  let random ?(fraction=false) () =
+    let num n = Random.int n + 1 in
+    let sec   = if Random.int 3 = 0 then 0 else num 59
+    and sec_f = if fraction then Random.float 1. else 0.
+    and tz    = match Random.int 3 with
+      | 0 -> None
+      | 1 -> Some (num 12, num 59, `E)
+      | 2 -> Some (num 12, num 59, `W)
+      | _ -> assert false
+    in
+    { date = (num 99, num 12, num 30) ;
+      time = (num 23, num 59, sec, sec_f) ;
+      tz   = tz }
+
+  module Str = Gen_string
+
+end
+  
+

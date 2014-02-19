@@ -1,8 +1,11 @@
 
 (* XXX BOILERPLATE *)
 
-module OID  = Prim.OID
+module OID = Prim.OID
+type oid = OID.t
+
 module Time = Prim.Time
+type time = Time.t
 
 type integer = [ `I of int | `B of Big_int.big_int ]
 

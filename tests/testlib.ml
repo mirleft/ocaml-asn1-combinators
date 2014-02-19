@@ -4,6 +4,39 @@ open Bigarray
 
 let bytes_of_list = Dumpkit.bytes_of_list
 
+
+(* interactive *)
+
+let verify_decode = function
+  | None        -> `fail
+  | Some (a, b) ->
+      if Bytekit.Rd.eof b then `ok a else `leftover
+
+let verify_decode_value x dec =
+  match verify_decode dec with
+  | `ok a when x = a -> `ok
+  | `ok a     -> `mismatch (x, a)
+  | `fail     -> `fail
+  | `leftover -> `leftover
+
+let loop_code codec x =
+  let enc = Asn.encode codec x in
+  let dec = Asn.decode codec enc in
+  verify_decode_value x dec
+
+let loop_code_random ?(coding=Asn.ber) asn =
+  loop_code Asn.(codec coding asn) Asn.(random asn)
+
+let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
+  if n < 0 then [] else
+    let rest = fuzz ~coding ~n:(pred n) asn in
+    match loop_code_random ~coding asn with
+    | `ok  -> rest
+    | fail -> fail :: rest
+
+
+(* the other one *)
+
 type testcase =
   | TC : string * 'a Asn.t * ('a * int list) list -> testcase
 
@@ -37,6 +70,9 @@ let test_loop_decode ?(iter=10000) encoding asn _ =
     let a = Asn.random asn in
     assert_decode ~example:a codec (Asn.encode codec a)
   done
+
+
+
 
 let cases = [
 
@@ -492,7 +528,6 @@ let cases = [
 
 ]
 
-
 let suite =
 
   "ASN.1" >::: [
@@ -526,34 +561,4 @@ let suite =
 (*       "DER cert" >:: test_loop_decode ~iter:100 Asn.der X509.certificate ; *)
     ] ;
   ]
-
-
-
-
-let verify_decode = function
-  | None        -> `fail
-  | Some (a, b) ->
-      if Bytekit.Rd.eof b then `ok a else `leftover
-
-let verify_decode_value x dec =
-  match verify_decode dec with
-  | `ok a     ->
-      if x = a then `ok else `mismatch (x, a)
-  | `fail     -> `fail
-  | `leftover -> `leftover
-
-let loop_code codec x =
-  let enc = Asn.encode codec x in
-  let dec = Asn.decode codec enc in
-  verify_decode_value x dec
-
-let loop_code_random ?(coding=Asn.ber) asn =
-  loop_code Asn.(codec coding asn) Asn.(random asn)
-
-let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
-  if n < 0 then [] else
-    let rest = fuzz ~coding ~n:(pred n) asn in
-    match loop_code_random ~coding asn with
-    | `ok  -> rest
-    | fail -> fail :: rest
 

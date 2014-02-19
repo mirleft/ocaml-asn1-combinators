@@ -38,7 +38,8 @@ val implicit : ?cls:[< `Application | `Private ] -> int -> 'a t -> 'a t
 val explicit : ?cls:[< `Application | `Private ] -> int -> 'a t -> 'a t
 
 val single : 'a element -> 'a sequence
-val ( @ )  : 'a element -> 'b sequence -> ('a * 'b) sequence
+val (  @ ) : 'a element -> 'b sequence -> ('a * 'b) sequence
+val ( -@ ) : 'a element -> 'b element  -> ('a * 'b) sequence
 
 val optional : ?label:string -> 'a t -> 'a option element
 val required : ?label:string -> 'a t -> 'a element

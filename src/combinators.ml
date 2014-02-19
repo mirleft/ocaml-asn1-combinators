@@ -58,7 +58,8 @@ and universal_string    = Prim UniversalString
 and bmp_string          = Prim BMPString
 
 let single a   = Last a
-and (@)  a b   = Pair (a, b)
+and ( @) a b   = Pair (a, b)
+and (-@) a b   = Pair (a, Last b)
 and optional ?label a = Optional (label, a)
 and required ?label a = Required (label, a)
 

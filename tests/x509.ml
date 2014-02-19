@@ -1,8 +1,6 @@
 
 open Asn
 
-type time = Time.t
-type oid  = OID.t
 type bits = bool array
 
 type tBSCertificate = {

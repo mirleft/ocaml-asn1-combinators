@@ -97,29 +97,17 @@ val set_of : 'a t -> 'a list t
 val choice2 :
   'a t -> 'b t -> [ `C1 of 'a | `C2 of 'b ] t
 val choice3 :
-  'a t ->
-  'b t ->
-  'c t -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c ] t
+  'a t -> 'b t -> 'c t
+  -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c ] t
 val choice4 :
-  'a t ->
-  'b t ->
-  'c t ->
-  'd t -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd ] t
+  'a t -> 'b t -> 'c t -> 'd t
+  -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd ] t
 val choice5 :
-  'a t ->
-  'b t ->
-  'c t ->
-  'd t ->
-  'e t ->
-  [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e ] t
+  'a t -> 'b t -> 'c t -> 'd t -> 'e t
+  -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e ] t
 val choice6 :
-  'a t ->
-  'b t ->
-  'c t ->
-  'd t ->
-  'e t ->
-  'f t ->
-  [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
+  'a t -> 'b t -> 'c t -> 'd t -> 'e t -> 'f t
+  -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
 
 
 val bool              : bool       t

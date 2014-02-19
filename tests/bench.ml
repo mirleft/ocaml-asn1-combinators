@@ -20,20 +20,15 @@ let mmap filename =
   let arr = Array1.map_file fd int8_unsigned c_layout false (-1) in
   ( Unix.close fd ; arr )
 
-let serially_bytes f =
-  let rec go acc bytes =
-    if Array1.dim bytes = 0 then acc
-    else let (a, bytes') = f bytes in
-    go (a :: acc) bytes' in
-  go []
-
 let bench_certs filename =
   let arr = mmap filename in
-  let bench () =
-    let cs =
-      serially_bytes (Asn.decode_exn X509.cert_ber) arr in
-    Printf.printf "parsed %d cers.\n%!"
-      (List.length cs) in
-  time bench
+  let dec = Asn.decode_exn X509.cert_ber in
+  let rec bench n bytes =
+    if Array1.dim bytes = 0 then n else
+      let (a, bytes') = dec bytes in
+      bench (succ n) bytes' in
+  time ~iter:1 @@ fun () ->
+    let n = bench 0 arr in
+    Printf.printf "parsed %d cers.\n%!" n
 
 let _ = bench_certs "./rondom/certs.bin"

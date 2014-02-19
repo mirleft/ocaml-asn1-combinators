@@ -140,7 +140,7 @@ let certificate =
     (required ~label:"signatureValue"     bit_string)
 
 let cert_ber, cert_der =
-  Asn.(codec ber certificate, codec der certificate)
+  (codec ber certificate, codec der certificate)
 
 
 let examples = [

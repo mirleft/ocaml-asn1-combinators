@@ -1,5 +1,10 @@
+rondom
 
-/rondom/
-/_build/
+_build
 setup.data
 setup.log
+
+*.native
+*.byte
+
+gmon.out

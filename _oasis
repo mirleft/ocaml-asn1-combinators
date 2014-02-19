@@ -38,3 +38,11 @@ Test the_things
   TestTools: test_runner
   Run$:      flag(tests)
   
+Executable "bench"
+  Path:           tests/
+  Install:        false
+  CompiledObject: native
+  MainIs:         bench.ml
+  Build$:         flag(tests)
+  BuildDepends:   testlib
+

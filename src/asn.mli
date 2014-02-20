@@ -108,14 +108,15 @@ val choice6 :
   -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
 
 
-val bool             : bool       t
-val int              : integer    t
-val bit_string       : bool array t
-val octet_string     : Cstruct.t  t
-val null             : unit       t
-val oid              : oid        t
-val utc_time         : time       t
-val generalized_time : time       t
+val bool             : bool        t
+val int              : integer     t
+val bit_string       : bool array  t
+val bit_string'      : Cstruct.t   t
+val octet_string     : Cstruct.t   t
+val null             : unit        t
+val oid              : oid         t
+val utc_time         : time        t
+val generalized_time : time        t
 
 val utf8_string      : string t
 val numeric_string   : string t

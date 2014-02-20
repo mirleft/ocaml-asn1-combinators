@@ -3,6 +3,8 @@ val cs_compare : Cstruct.t -> Cstruct.t -> int
 
 type t
 
+val immediate : int -> (int -> Cstruct.t -> unit) -> t
+
 val size    : t -> int
 val empty   : t
 val (<>)    : t -> t -> t

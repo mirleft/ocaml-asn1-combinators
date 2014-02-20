@@ -27,6 +27,18 @@ let random_size = function
   | Some size -> size
   | None      -> Random.int 20
 
+let cs_concat list =
+  let cs =
+    Cstruct.create @@
+      List.fold_right (fun e a -> Cstruct.len e + a) list 0 in
+  let _ =
+    List.fold_left
+      (fun i e ->
+        let n = Cstruct.len e in
+        ( Cstruct.blit e 0 cs i n ; n + i ))
+      0 list in
+  cs
+
 
 module Integer :
   Prim with type t = [ `B of Big_int.big_int | `I of int ] =
@@ -130,42 +142,6 @@ struct
   let (concat, length) = String.(concat "", length)
 end
 
-module Bits :
-  String_primitive with type t = bool array =
-struct
-
-  type t = bool array
-
-  let of_bytes n buf =
-    let unused = Cstruct.get_uint8 buf 0 in
-    Array.init ((n - 1) * 8 - unused) @@ fun i ->
-      let byte = (Cstruct.get_uint8 buf (i / 8 + 1)) lsl (i mod 8) in
-      byte land 0x80 = 0x80
-
-  let (|<) n = function
-    | true  -> (n lsl 1) lor 1
-    | false -> (n lsl 1)
-
-  let to_bytes arr =
-    Writer.list @@
-      match
-        Array.fold_left
-          (fun (n, acc, accs) x ->
-            if n = 8 then (1, 0 |< x, acc::accs)
-            else (n + 1, acc |< x, accs))
-          (0, 0, [])
-          arr
-      with
-      | (0, acc, xs) -> 0 :: []
-      | (n, acc, xs) -> 8 - n :: List.rev ((acc lsl (8 - n))::xs)
-
-  let random ?size () =
-    Array.init (random_size size) (fun _ -> Random.bool ())
-
-  let (concat, length) = Array.(concat, length)
-
-end
-
 module Octets :
   String_primitive with type t = Cstruct.t =
 struct
@@ -200,6 +176,74 @@ struct
     cs
 
   let length = Cstruct.len
+
+end
+
+module Bits : sig
+  include String_primitive with type t = int * Cstruct.t
+  val array_of_pair : t -> bool array
+  val pair_of_array : bool array -> t
+end
+  =
+struct
+
+  type t = int * Cstruct.t
+
+  let of_bytes n buf =
+    let unused = Cstruct.get_uint8 buf 0
+    and octets = Octets.of_bytes (n - 1) (Cstruct.shift buf 1) in
+    (unused, octets)
+
+  let to_bytes (unused, cs) =
+    let size = Cstruct.len cs in
+    let write off buf =
+      Cstruct.set_uint8 buf off unused;
+      Cstruct.blit cs 0 buf (off + 1) size in
+    Writer.immediate (size + 1) write
+
+
+  let array_of_pair (unused, cs) =
+    Array.init (Cstruct.len cs * 8 - unused) @@ fun i ->
+      let byte = (Cstruct.get_uint8 cs (i / 8)) lsl (i mod 8) in
+      byte land 0x80 = 0x80
+
+  let (|<) n = function
+    | true  -> (n lsl 1) lor 1
+    | false -> (n lsl 1)
+
+  let pair_of_array arr =
+    let cs =
+      Cstruct.create
+        ( match Array.length arr with
+          | 0 -> 0
+          | n -> (n - 1) / 8 + 1 ) in
+    match
+      Array.fold_left
+        (fun (n, acc, i) bit ->
+          if n = 8 then
+            ( Cstruct.set_uint8 cs i acc ; (1, 0 |< bit, i + 1) )
+          else (n + 1, acc |< bit, i))
+        (0, 0, 0)
+        arr
+    with
+    | (0, acc, _) -> (0, cs)
+    | (n, acc, i) ->
+        Cstruct.set_uint8 cs i (acc lsl (8 - n));
+        (8 - n, cs)
+
+  let random ?size () = (0, Octets.random ?size ())
+
+  let concat css =
+    let (unused, css') =
+      let rec go = function
+        | []           -> (0, [])
+        | [(u, cs)]    -> (u, [cs])
+        | (_, cs)::ucs -> let (u, css') = go ucs in (u, cs::css') in
+      go css in
+    (unused, cs_concat css')
+
+  and length (unused, cs) =
+    Cstruct.len cs - unused
 
 end
 

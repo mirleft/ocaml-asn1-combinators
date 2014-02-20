@@ -1,7 +1,7 @@
 
 open Asn
 
-type bits = bool array
+type bits = Cstruct.t
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
@@ -88,9 +88,9 @@ let validity =
 let subjectPublicKeyInfo =
   sequence2
     (required ~label:"algorithm" algorithmIdentifier)
-    (required ~label:"subjectPK" bit_string)
+    (required ~label:"subjectPK" bit_string')
 
-let uniqueIdentifier = bit_string
+let uniqueIdentifier = bit_string'
 
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
@@ -137,7 +137,7 @@ let certificate =
   sequence3
     (required ~label:"tbsCertificate"     tBSCertificate)
     (required ~label:"signatureAlgorithm" algorithmIdentifier)
-    (required ~label:"signatureValue"     bit_string)
+    (required ~label:"signatureValue"     bit_string')
 
 let cert_ber, cert_der =
   (codec ber certificate, codec der certificate)

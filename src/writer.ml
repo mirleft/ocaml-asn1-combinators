@@ -14,6 +14,8 @@ let cs_compare cs1 cs2 =
 
 type t = int * (int -> Cstruct.t -> unit)
 
+let immediate n f = (n, f)
+
 let size (n, _) = n
 
 let empty = (0, (fun _ _ -> ()))

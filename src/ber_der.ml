@@ -195,10 +195,10 @@ module R = struct
     try p_header_unsafe buf with
     | Invalid_argument _ -> parse_error "malformed header"
 
-
-  let accepts : type a. a asn * header -> bool = function
-    | (asn, { tag }) -> List.mem tag (tag_set asn)
-
+  let accepts : type a. a asn -> header -> bool = fun asn ->
+    match tag_set asn with
+    | [t]  -> fun { tag } -> tag = t
+    | tags -> fun { tag } -> List.mem tag tags
 
   let with_header = fun f1 f2 -> function
 
@@ -301,16 +301,16 @@ module R = struct
         let rec elt : type a. a element -> header -> a S.touch = function
 
           | Required (label, asn) ->
-              let prs = parser_of_asn asn in
+              let (prs, acpt) = (parser_of_asn asn, accepts asn) in
               describe (field label) @@ fun header ->
-                if accepts (asn, header) then
+                if acpt header then
                   let (a, buf) = prs header in Hit (a, buf)
                 else parse_error ~header (i_wanted asn)
 
           | Optional (label, asn) ->
-              let prs = parser_of_asn asn in
+              let (prs, acpt) = (parser_of_asn asn, accepts asn) in
               describe (field label) @@ fun header ->
-                if accepts (asn, header) then
+                if acpt header then
                   let (a, buf) = prs header in Hit (Some a, buf)
                 else Pass None
 
@@ -350,13 +350,14 @@ module R = struct
 
     | Set asns ->
 
-        let module P = Partial in
+        let module P  = Partial in
         let module TM = RichMap ( struct
           type t = tag let compare = compare
         end ) in
 
         let rec partial_e : type a. a element -> tags * a P.element parser
           = function
+
           | Required (label, asn) ->
               ( tag_set asn, 
                 describe (field label) (parser_of_asn asn)
@@ -419,10 +420,11 @@ module R = struct
 
     | Choice (asn1, asn2) ->
 
-        let (prs1, prs2) = (parser_of_asn asn1, parser_of_asn asn2) in
+        let (prs1, prs2) = (parser_of_asn asn1, parser_of_asn asn2)
+        and acpt = accepts asn1 in
         describe "choice" @@
           fun header ->
-            if accepts (asn1, header) then
+            if acpt header then
               let (a, buf') = prs1 header in (L a, buf')
             else
               let (b, buf') = prs2 header in (R b, buf')
@@ -440,10 +442,10 @@ module R = struct
 
   let parser : 'a asn -> Cstruct.t -> 'a * Cstruct.t
   = fun asn ->
-    let prs = parser_of_asn asn in
+    let (prs, acpt) = (parser_of_asn asn, accepts asn) in
     fun buf0 ->
       let header = p_header buf0 in
-      if accepts (asn, header) then prs header
+      if acpt header then prs header
       else parse_error ~header "unexpected header"
 
 end

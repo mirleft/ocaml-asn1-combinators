@@ -240,7 +240,7 @@ module R = struct
 
     let rec prs = function
       | { coding = Primitive n ; buf } ->
-          (P.of_bytes n buf, Cstruct.shift buf n)
+          (P.of_cstruct n buf, Cstruct.shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
     prs
 
@@ -249,7 +249,7 @@ module R = struct
     | Bool -> primitive_n 1 @@ fun buf ->
         Cstruct.get_uint8 buf 0 <> 0x00
 
-    | Int -> primitive Prim.Integer.of_bytes
+    | Int -> primitive Prim.Integer.of_cstruct
 
     | Bits -> string_like (module Prim.Bits)
 
@@ -257,7 +257,7 @@ module R = struct
 
     | Null -> primitive_n 0 @@ fun _ -> ()
 
-    | OID -> primitive Prim.OID.of_bytes
+    | OID -> primitive Prim.OID.of_cstruct
 
     | UTCTime   ->
         Prim.Time.(string_like (module Str) >?=
@@ -577,38 +577,38 @@ module W = struct
     let encode_s (type a) ?size a impl =
       let module P = (val impl : Prim.String_primitive with type t = a) in
       assert_length size P.length a;
-      encode (P.to_bytes a) in
+      encode (P.to_writer a) in
 
     match prim with
     | Bool    -> encode @@ Writer.byte (if a then 0xff else 0x00)
 
-    | Int     -> encode @@ Prim.Integer.to_bytes a
+    | Int     -> encode @@ Prim.Integer.to_writer a
 
-    | Bits    -> encode @@ Prim.Bits.to_bytes a
+    | Bits    -> encode @@ Prim.Bits.to_writer a
 
     | Octets  -> encode_s a (module Prim.Octets)
 
     | Null    -> encode Writer.empty
 
-    | OID     -> encode @@ Prim.OID.to_bytes a
+    | OID     -> encode @@ Prim.OID.to_writer a
 
     | UTCTime -> 
-        encode Prim.Time.(Str.to_bytes @@ utc_time_to_string a)
+        encode Prim.Time.(Str.to_writer @@ utc_time_to_string a)
 
     | GeneralizedTime ->
-        encode Prim.Time.(Str.to_bytes @@ gen_time_to_string a)
+        encode Prim.Time.(Str.to_writer @@ gen_time_to_string a)
 
-    | UTF8String      -> encode @@ Prim.Gen_string.to_bytes a
-    | NumericString   -> encode @@ Prim.Gen_string.to_bytes a
-    | PrintableString -> encode @@ Prim.Gen_string.to_bytes a
-    | TeletexString   -> encode @@ Prim.Gen_string.to_bytes a
-    | VideotexString  -> encode @@ Prim.Gen_string.to_bytes a
-    | IA5String       -> encode @@ Prim.Gen_string.to_bytes a
-    | GraphicString   -> encode @@ Prim.Gen_string.to_bytes a
-    | VisibleString   -> encode @@ Prim.Gen_string.to_bytes a
-    | GeneralString   -> encode @@ Prim.Gen_string.to_bytes a
-    | UniversalString -> encode @@ Prim.Gen_string.to_bytes a
-    | BMPString       -> encode @@ Prim.Gen_string.to_bytes a
+    | UTF8String      -> encode @@ Prim.Gen_string.to_writer a
+    | NumericString   -> encode @@ Prim.Gen_string.to_writer a
+    | PrintableString -> encode @@ Prim.Gen_string.to_writer a
+    | TeletexString   -> encode @@ Prim.Gen_string.to_writer a
+    | VideotexString  -> encode @@ Prim.Gen_string.to_writer a
+    | IA5String       -> encode @@ Prim.Gen_string.to_writer a
+    | GraphicString   -> encode @@ Prim.Gen_string.to_writer a
+    | VisibleString   -> encode @@ Prim.Gen_string.to_writer a
+    | GeneralString   -> encode @@ Prim.Gen_string.to_writer a
+    | UniversalString -> encode @@ Prim.Gen_string.to_writer a
+    | BMPString       -> encode @@ Prim.Gen_string.to_writer a
 
 
   let ber_to_writer asn a = encode { der = false } None a asn

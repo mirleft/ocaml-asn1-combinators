@@ -1,9 +1,9 @@
 
 module type Prim = sig
   type t
-  val of_bytes : int -> Cstruct.t -> t
-  val to_bytes : t -> Writer.t
-  val random   : unit -> t
+  val of_cstruct : int -> Cstruct.t -> t
+  val to_writer  : t -> Writer.t
+  val random     : unit -> t
 end
 
 module type String_primitive = sig
@@ -30,7 +30,7 @@ let random_size = function
 let cs_concat list =
   let cs =
     Cstruct.create @@
-      List.fold_right (fun e a -> Cstruct.len e + a) list 0 in
+      List.fold_left (fun a e -> a + Cstruct.len e) 0 list in
   let _ =
     List.fold_left
       (fun i e ->
@@ -50,37 +50,37 @@ struct
 
   let small_int_bytes = 7
 
-  let zero, one, neg_one, two =
+  let (zero, one, neg_one, two) =
     let f = big_int_of_int in
-    f 0, f 1, f (-1), f 2
+    (f 0, f 1, f (-1), f 2)
 
-  let big_of_bytes n buf =
-    let rec loop acc i =
-      if i = n then acc else 
-        loop (add_int_big_int
-                (Cstruct.get_uint8 buf i)
-                (mult_int_big_int 0x100 acc))
-              (succ i) in
+  let big_of_cs n buf =
+    let rec loop acc = function
+      | i when i = n -> acc
+      | i -> loop (add_int_big_int
+                    (Cstruct.get_uint8 buf i)
+                    (mult_int_big_int 0x100 acc))
+                  (succ i) in
+
     let x = loop zero_big_int 0 in
     match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
-    | _ ->
-        sub_big_int x
-          (power_big_int_positive_int two (n * 8))
+    | _ -> sub_big_int x (power_big_int_positive_int two (n * 8))
 
-  let int_of_bytes n buf =
-    let rec loop acc i =
-      if i = n then acc else
-        loop (Cstruct.get_uint8 buf i + (acc lsl 8)) (succ i) in
+  let int_of_cs n buf =
+    let rec loop acc = function
+      | i when i = n -> acc
+      | i -> loop (Cstruct.get_uint8 buf i + (acc lsl 8)) (succ i) in
+
     let x = loop 0 0 in
     match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
     | _ -> x - 0x01 lsl (n * 8)
 
-  let of_bytes n buf =
+  let of_cstruct n buf =
     if n > small_int_bytes then
-      `B (big_of_bytes n buf)
-    else `I (int_of_bytes n buf)
+      `B (big_of_cs n buf)
+    else `I (int_of_cs n buf)
 
   let int_to_byte_list n =
     let rec loop acc n =
@@ -111,7 +111,7 @@ struct
         loop (b :: acc) (shift_right_big_int n 8) in
     loop [] n
 
-  let to_bytes = function
+  let to_writer = function
     | `I n -> Writer.list (int_to_byte_list n)
     | `B n -> Writer.list (big_to_byte_list n)
 
@@ -129,9 +129,9 @@ struct
 
   type t = string
 
-  let of_bytes n buf = Cstruct.(to_string @@ sub buf 0 n)
+  let of_cstruct n buf = Cstruct.(to_string @@ sub buf 0 n)
 
-  let to_bytes = Writer.string
+  let to_writer = Writer.string
 
   let random ?size () =
     let n = random_size size in
@@ -148,13 +148,13 @@ struct
 
   type t = Cstruct.t
 
-  let of_bytes n buf =
+  let of_cstruct n buf =
     let cs' = Cstruct.sub buf 0 n in
     (* mumbo jumbo to retain cs equality *)
     Cstruct.(of_bigarray @@
       Bigarray.Array1.sub cs'.buffer cs'.off cs'.len)
 
-  let to_bytes = Writer.cstruct
+  let to_writer = Writer.cstruct
 
   let random ?size () =
     let n   = random_size size in
@@ -189,12 +189,12 @@ struct
 
   type t = int * Cstruct.t
 
-  let of_bytes n buf =
+  let of_cstruct n buf =
     let unused = Cstruct.get_uint8 buf 0
-    and octets = Octets.of_bytes (n - 1) (Cstruct.shift buf 1) in
+    and octets = Octets.of_cstruct (n - 1) (Cstruct.shift buf 1) in
     (unused, octets)
 
-  let to_bytes (unused, cs) =
+  let to_writer (unused, cs) =
     let size = Cstruct.len cs in
     let write off buf =
       Cstruct.set_uint8 buf off unused;
@@ -242,8 +242,7 @@ struct
       go css in
     (unused, cs_concat css')
 
-  and length (unused, cs) =
-    Cstruct.len cs - unused
+  and length (unused, cs) = Cstruct.len cs - unused
 
 end
 
@@ -272,7 +271,7 @@ end = struct
       invalid_arg "OID.base: component 2 not 0..39"
     else Oid (v1, v2, [])
 
-  let of_bytes n buf =
+  let of_cstruct n buf =
 
     let rec values i =
       if i = n then []
@@ -286,11 +285,11 @@ end = struct
       | _ -> component (acc' lsl 7) (succ i) in
 
     let b1 = Cstruct.get_uint8 buf 0 in
-    let v1, v2 = b1 / 40, b1 mod 40 in
+    let (v1, v2) = (b1 / 40, b1 mod 40) in
 
     Oid (v1, v2, values 1)
 
-  let to_bytes = fun (Oid (v1, v2, vs)) ->
+  let to_writer = fun (Oid (v1, v2, vs)) ->
     let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
     let rec component xs x =
       if x < 0x80 then cons x xs

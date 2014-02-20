@@ -22,6 +22,7 @@ struct
   let find k  = cast (Hashtbl.find cache @@ cast k)
 end
 
+type tag_class = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
 
@@ -29,11 +30,12 @@ let map f g asn = Iso (f, g, asn)
 
 let implicit, explicit =
   let tag = function
-    | (None, n) -> Context_specific n
+    | (None,              n) -> Context_specific n
     | (Some `Application, n) -> Application n
-    | (Some `Private, n) -> Private n in
-  ( (fun ?cls id asn -> Implicit (tag (cls, id), asn))
-  , (fun ?cls id asn -> Explicit (tag (cls, id), asn)) )
+    | (Some `Private,     n) -> Private n
+    | (Some `Universal,   n) -> Universal n in
+  (fun ?cls id asn -> Implicit (tag (cls, id), asn)) ,
+  (fun ?cls id asn -> Explicit (tag (cls, id), asn))
 
 let bool                = Prim Bool
 and int                 = Prim Int

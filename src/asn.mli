@@ -111,7 +111,7 @@ val choice6 :
 
 
 val bool             : bool        t
-val int              : integer     t
+val integer          : integer     t
 val bit_string       : bool array  t
 val bit_string'      : Cstruct.t   t
 val octet_string     : Cstruct.t   t

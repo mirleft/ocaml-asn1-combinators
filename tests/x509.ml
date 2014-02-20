@@ -71,10 +71,10 @@ let algorithmIdentifier =
 let version =
   map (function `I 2 -> `V2 | `I 3 -> `V3 | _ -> `V1)
       (function `V2 -> `I 2 | `V3 -> `I 3 | _ -> `I 1)
-  int
+  integer
 
 let certificateSerialNumber =
-  map (function `I sn -> sn | _ -> -1) (fun sn -> `I sn) int
+  map (function `I sn -> sn | _ -> -1) (fun sn -> `I sn) integer
 
 let time =
   map (function `C1 t -> t | `C2 t -> t) (fun t -> `C2 t)

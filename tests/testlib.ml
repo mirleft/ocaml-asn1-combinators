@@ -90,7 +90,7 @@ let cases = [
     true , [0x01; 0x01; 0xff]
   ];
 
-  case "integer" Asn.int [
+  case "integer" Asn.integer [
     `I (   0), [0x02; 0x01; 0x00] ;
     `I ( 127), [0x02; 0x01; 0x7F] ;
     `I ( 128), [0x02; 0x02; 0x00; 0x80] ;
@@ -114,7 +114,7 @@ let cases = [
   case
     "sequence with implicits"
     Asn.(sequence3
-          (required int)
+          (required integer)
           (required @@ implicit 1 bool)
           (required bool))
 
@@ -135,7 +135,7 @@ let cases = [
   case
     "sequence with optional and explicit fields"
     Asn.(sequence3
-          (required @@ implicit 1 int)
+          (required @@ implicit 1 integer)
           (optional @@ explicit 2 bool)
           (optional @@ implicit 3 bool))
 
@@ -167,10 +167,10 @@ let cases = [
   case
     "sequence with missing optional and choice fields"
     Asn.(sequence3
-          (required @@ choice2 bool int)
-          (optional @@ choice2 bool int)
+          (required @@ choice2 bool integer)
+          (optional @@ choice2 bool integer)
           (optional @@ explicit 0
-                    @@ choice2 int (implicit 1 int)))
+                    @@ choice2 integer (implicit 1 integer)))
 
     [ (`C1 true, None, None),
       [ 0x30; 0x03; 0x01; 0x01; 0xff ] ;
@@ -276,10 +276,10 @@ let cases = [
 
   case
     "sets"
-    Asn.(set4 (required @@ implicit 1 bool)
-              (required @@ implicit 2 bool)
-              (required @@ implicit 3 int )
-              (optional @@ implicit 4 int ))
+    Asn.(set4 (required @@ implicit 1 bool   )
+              (required @@ implicit 2 bool   )
+              (required @@ implicit 3 integer)
+              (optional @@ implicit 4 integer))
 
     [ (true, false, `I 42, None),
       [ 0x31; 0x09;
@@ -326,10 +326,10 @@ let cases = [
   case
     "set or seq"
     Asn.(choice2
-          (set2 (optional int )
-                (optional bool))
-          (sequence2 (optional int )
-                     (optional bool)))
+          (set2 (optional integer)
+                (optional bool   ))
+          (sequence2 (optional integer)
+                     (optional bool   )))
 
     [ (`C1 (None, Some true)),
       [ 0x31; 0x03;

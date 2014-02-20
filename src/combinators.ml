@@ -38,7 +38,7 @@ let implicit, explicit =
   (fun ?cls id asn -> Explicit (tag (cls, id), asn))
 
 let bool                = Prim Bool
-and int                 = Prim Int
+and integer             = Prim Int
 and octet_string        = Prim Octets
 and null                = Prim Null
 and oid                 = Prim OID

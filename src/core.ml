@@ -43,14 +43,14 @@ and _ sequence =
 
 and _ prim =
 
-  | Bool            : bool                   prim
-  | Int             : Integer.t              prim
-  | Bits            : Bits.t                 prim
-  | Octets          : int option -> Octets.t prim
-  | Null            : unit                   prim
-  | OID             : OID.t                  prim
-  | UTCTime         : Time.t                 prim
-  | GeneralizedTime : Time.t                 prim
+  | Bool            : bool       prim
+  | Int             : Integer.t  prim
+  | Bits            : Bits.t     prim
+  | Octets          : Octets.t   prim
+  | Null            : unit       prim
+  | OID             : OID.t      prim
+  | UTCTime         : Time.t     prim
+  | GeneralizedTime : Time.t     prim
 
   | UTF8String      : Gen_string.t prim
   | NumericString   : Gen_string.t prim
@@ -73,7 +73,7 @@ let tag_of_p : type a. a prim -> tag = function
   | Bool            -> Universal 0x01
   | Int             -> Universal 0x02
   | Bits            -> Universal 0x03
-  | Octets _        -> Universal 0x04
+  | Octets          -> Universal 0x04
   | Null            -> Universal 0x05
   | OID             -> Universal 0x06
   | UTF8String      -> Universal 0x0c

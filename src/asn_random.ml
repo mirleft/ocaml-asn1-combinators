@@ -13,7 +13,7 @@ let r_prim : type a. a Core.prim -> a = function
   | Bool            -> Random.bool ()
   | Int             -> Integer.random ()
   | Bits            -> Bits.random ()
-  | Octets s        -> Octets.random ?size:s ()
+  | Octets          -> Octets.random ()
   | Null            -> ()
   | OID             -> OID.random ()
   | UTCTime         -> Time.random ()

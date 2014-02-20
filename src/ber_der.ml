@@ -235,22 +235,14 @@ module R = struct
         else let (a, buf') = prs (p_header buf) in scan (a :: acc) buf' in
       scan [] buf0
 
-  let string_like (type a) ?sz impl =
+  let string_like (type a) impl =
     let module P = (val impl : Prim.String_primitive with type t = a) in
 
     let rec prs = function
       | { coding = Primitive n ; buf } ->
           (P.of_bytes n buf, Cstruct.shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
-
-    match sz with
-    | None   -> prs
-    | Some s ->
-        let ck a =
-          if P.length a = s then a else
-            parse_error "bad size; constrained by grammar"
-        in prs >|= ck
-
+    prs
 
   let parser_of_prim : type a. a prim -> a parser = function
 
@@ -261,7 +253,7 @@ module R = struct
 
     | Bits -> string_like (module Prim.Bits)
 
-    | Octets sz -> string_like ?sz (module Prim.Octets)
+    | Octets -> string_like (module Prim.Octets)
 
     | Null -> primitive_n 0 @@ fun _ -> ()
 
@@ -586,19 +578,19 @@ module W = struct
       encode (P.to_bytes a) in
 
     match prim with
-    | Bool      -> encode @@ Writer.byte (if a then 0xff else 0x00)
+    | Bool    -> encode @@ Writer.byte (if a then 0xff else 0x00)
 
-    | Int       -> encode @@ Prim.Integer.to_bytes a
+    | Int     -> encode @@ Prim.Integer.to_bytes a
 
-    | Bits      -> encode @@ Prim.Bits.to_bytes a
+    | Bits    -> encode @@ Prim.Bits.to_bytes a
 
-    | Octets s  -> encode_s a (module Prim.Octets)
+    | Octets  -> encode_s a (module Prim.Octets)
 
-    | Null      -> encode Writer.empty
+    | Null    -> encode Writer.empty
 
-    | OID       -> encode @@ Prim.OID.to_bytes a
+    | OID     -> encode @@ Prim.OID.to_bytes a
 
-    | UTCTime ->
+    | UTCTime -> 
         encode Prim.Time.(Str.to_bytes @@ utc_time_to_string a)
 
     | GeneralizedTime ->

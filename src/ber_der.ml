@@ -1,6 +1,5 @@
 
 open Core
-open Bytekit
 
 type 'a endo = 'a -> 'a
 let id x       = x
@@ -54,9 +53,9 @@ module R = struct
     | Constructed of int
     | Constructed_indefinite
 
-  type header = { tag : tag ; coding : coding ; buf : bytes }
+  type header = { tag : tag ; coding : coding ; buf : Cstruct.t }
 
-  type 'a parser = header -> 'a * bytes
+  type 'a parser = header -> 'a * Cstruct.t
 
   let parse_error ?header reason =
     let message = match header with
@@ -130,14 +129,14 @@ module R = struct
 
 
   let is_sequence_end buf =
-    buf.{0} = 0x00 && buf.{1} = 0x00
+    Cstruct.BE.get_uint16 buf 0 = 0x00
 
-  let drop_sequence_end buf = Rd.drop 2 buf
+  let drop_sequence_end buf = Cstruct.shift buf 2
 
 
   let p_big_tag buf =
     let rec loop acc i =
-      let byte = buf.{i} in
+      let byte = Cstruct.get_uint8 buf i in
       let acc' = byte land 0x7f + acc in
       match byte land 0x80 with
       | 0 -> (acc', succ i)
@@ -149,30 +148,31 @@ module R = struct
     let last = off + n in
     let rec loop acc i =
       if i > last then (acc, i)
-      else loop (acc * 0x100 + buf.{i}) (succ i) in
+      else let byte = Cstruct.get_uint8 buf i in
+      loop (acc * 0x100 + byte) (succ i) in
     loop 0 (succ off)
 
 
-  let p_header_unsafe buffer =
+  let p_header_unsafe buf =
 
-    let b0 = buffer.{0} in
+    let b0 = Cstruct.get_uint8 buf 0 in
     let t_class       = b0 land 0xc0
     and t_constructed = b0 land 0x20
     and t_tag         = b0 land 0x1f in
 
     let tagn, length_off =
       match t_tag with
-      | 0x1f -> p_big_tag buffer
+      | 0x1f -> p_big_tag buf
       | n    -> (n, 1) in
 
-    let l0 = buffer.{length_off} in
+    let l0 = Cstruct.get_uint8 buf length_off in
     let t_ltype  = l0 land 0x80
     and t_length = l0 land 0x7f in
 
     let length, contents_off =
       match t_ltype with
       | 0 -> (t_length, succ length_off)
-      | _ -> p_big_length buffer length_off t_length
+      | _ -> p_big_length buf length_off t_length
     in
 
     let tag = match t_class with
@@ -187,12 +187,12 @@ module R = struct
       | (_, 0x80) -> Constructed_indefinite
       | _         -> Constructed length
 
-    and rest = Rd.drop contents_off buffer in
+    and rest = Cstruct.shift buf contents_off in
 
     { tag = tag ; coding = coding ; buf = rest }
 
-  let p_header buffer =
-    try p_header_unsafe buffer with
+  let p_header buf =
+    try p_header_unsafe buf with
     | Invalid_argument _ -> parse_error "malformed header"
 
 
@@ -203,12 +203,13 @@ module R = struct
   let with_header = fun f1 f2 -> function
 
     | { coding = Primitive n ; buf } ->
-        (f1 n buf, Rd.drop n buf)
+        (f1 n buf, Cstruct.shift buf n)
 
     | { coding = Constructed n ; buf } -> 
-        let (b1, b2) = Rd.isolate n buf in
-        let (a, b1') = f2 Rd.eof b1 in
-        if Rd.eof b1' then (a, b2)
+        let eof cs = Cstruct.len cs = 0 in
+        let (b1, b2) = Cstruct.(sub buf 0 n, shift buf n) in
+        let (a, b1') = f2 eof b1 in
+        if eof b1' then (a, b2)
         else parse_error "definite constructed: leftovers"
 
     | { coding = Constructed_indefinite ; buf } ->
@@ -238,7 +239,8 @@ module R = struct
     let module P = (val impl : Prim.String_primitive with type t = a) in
 
     let rec prs = function
-      | { coding = Primitive n ; buf } -> (P.of_bytes n buf, Rd.drop n buf)
+      | { coding = Primitive n ; buf } ->
+          (P.of_bytes n buf, Cstruct.shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
 
     match sz with
@@ -252,17 +254,18 @@ module R = struct
 
   let parser_of_prim : type a. a prim -> a parser = function
 
-    | Bool      -> primitive_n 1 @@ fun buf -> buf.{0} <> 0x00
+    | Bool -> primitive_n 1 @@ fun buf ->
+        Cstruct.get_uint8 buf 0 <> 0x00
 
-    | Int       -> primitive Prim.Integer.of_bytes
+    | Int -> primitive Prim.Integer.of_bytes
 
-    | Bits      -> string_like (module Prim.Bits)
+    | Bits -> string_like (module Prim.Bits)
 
     | Octets sz -> string_like ?sz (module Prim.Octets)
 
-    | Null      -> primitive_n 0 @@ fun _ -> ()
+    | Null -> primitive_n 0 @@ fun _ -> ()
 
-    | OID       -> primitive Prim.OID.of_bytes
+    | OID -> primitive Prim.OID.of_bytes
 
     | UTCTime   ->
         Prim.Time.(string_like (module Str) >?=
@@ -299,7 +302,7 @@ module R = struct
     | Sequence asns ->
 
         let module S = struct
-          type 'a touch = Hit of 'a * bytes | Pass of 'a
+          type 'a touch = Hit of 'a * Cstruct.t | Pass of 'a
         end in
         let open S in
 
@@ -319,7 +322,7 @@ module R = struct
                   let (a, buf) = prs header in Hit (Some a, buf)
                 else Pass None
 
-        and seq : type a. a sequence -> (bytes -> bool) -> a parser = function
+        and seq : type a. a sequence -> (Cstruct.t -> bool) -> a parser = function
 
           | Last e ->
               let prs = elt e in fun _ header ->
@@ -443,7 +446,7 @@ module R = struct
           parser_of_prim p
 
 
-  let parser : 'a asn -> bytes -> 'a * bytes
+  let parser : 'a asn -> Cstruct.t -> 'a * Cstruct.t
   = fun asn ->
     let prs = parser_of_asn asn in
     fun buf0 ->
@@ -455,7 +458,7 @@ end
 
 module W = struct
 
-  let (<>) = Wr.(<>)
+  let (<>) = Writer.(<>)
 
   let e_big_tag tag =
     let cons x = function [] -> [x] | xs -> (x lor 0x80)::xs in
@@ -483,16 +486,16 @@ module W = struct
       | `Constructed -> 0x20 in
 
     ( if tagn < 0x1f then
-        Wr.byte (klass lor constructed lor tagn)
+        Writer.byte (klass lor constructed lor tagn)
       else
-        Wr.byte (klass lor constructed lor 0x1f) <>
-        Wr.list (e_big_tag tagn) )
+        Writer.byte (klass lor constructed lor 0x1f) <>
+        Writer.list (e_big_tag tagn) )
     <>
     ( if len <= 0x7f then
-        Wr.byte len
+        Writer.byte len
       else
-        let body = Wr.list (e_big_length len) in
-        Wr.byte (0x80 lor Wr.size body) <> body )
+        let body = Writer.list (e_big_length len) in
+        Writer.byte (0x80 lor Writer.size body) <> body )
 
 
   type conf = { der : bool }
@@ -501,10 +504,10 @@ module W = struct
     match o with | None -> def | Some x -> x
 
   let e_constructed tag body =
-    e_header tag `Constructed (Wr.size body) <> body
+    e_header tag `Constructed (Writer.size body) <> body
 
   let e_primitive tag body =
-    e_header tag `Primitive (Wr.size body) <> body
+    e_header tag `Primitive (Writer.size body) <> body
 
   let assert_length constr len_f a =
     match constr with
@@ -515,7 +518,7 @@ module W = struct
           invalid_arg @@
           Printf.sprintf "bad length: constraint: %d actual: %d" s len
 
-  let rec encode : type a. conf -> tag option -> a -> a asn -> Wr.t
+  let rec encode : type a. conf -> tag option -> a -> a asn -> Writer.t
   = fun conf tag a -> function
 
     | Iso (_, g, asn) -> encode conf tag (g a) asn
@@ -527,13 +530,13 @@ module W = struct
 
     | Sequence_of asn -> (* size/stack? *)
         e_constructed (tag @? sequence_tag) @@
-          Wr.concat (List.map (fun e -> encode conf None e asn) a)
+          Writer.concat (List.map (fun e -> encode conf None e asn) a)
 
     | Set asns ->
         let h_sorted conf a asns =
           let fn = { Seq.f = fun a asn xs ->
                       ( Core.tag a asn, encode conf None a asn ) :: xs } in
-          Wr.concat @@
+          Writer.concat @@
             List.( map snd @@
               sort (fun (t1, _) (t2, _) -> compare t1 t2) @@
                 Seq.fold_with_value fn [] a asns )
@@ -544,9 +547,11 @@ module W = struct
     | Set_of asn ->
         let ws = List.map (fun e -> encode conf None e asn) a in
         let body =
-          Wr.concat @@
+          Writer.concat @@
             if conf.der then
-              List.(map Wr.bytes @@ sort compare_b @@ map Wr.to_bytes ws)
+              List.( ws |> map  Writer.to_cstruct
+                        |> sort Writer.cs_compare
+                        |> map  Writer.cstruct )
             else ws
         in
         e_constructed (tag @? set_tag) body
@@ -564,11 +569,11 @@ module W = struct
 
     | Prim p -> e_prim tag a p
 
-  and e_seq : type a. conf -> a -> a sequence -> Wr.t = fun conf ->
+  and e_seq : type a. conf -> a -> a sequence -> Writer.t = fun conf ->
     let f = { Seq.f = fun e asn w -> encode conf None e asn <> w } in
-    Seq.fold_with_value f Wr.empty
+    Seq.fold_with_value f Writer.empty
 
-  and e_prim : type a. tag option -> a -> a prim -> Wr.t
+  and e_prim : type a. tag option -> a -> a prim -> Writer.t
   = fun tag a prim ->
 
     let encode =
@@ -581,7 +586,7 @@ module W = struct
       encode (P.to_bytes a) in
 
     match prim with
-    | Bool      -> encode @@ Wr.byte (if a then 0xff else 0x00)
+    | Bool      -> encode @@ Writer.byte (if a then 0xff else 0x00)
 
     | Int       -> encode @@ Prim.Integer.to_bytes a
 
@@ -589,7 +594,7 @@ module W = struct
 
     | Octets s  -> encode_s a (module Prim.Octets)
 
-    | Null      -> encode Wr.empty
+    | Null      -> encode Writer.empty
 
     | OID       -> encode @@ Prim.OID.to_bytes a
 
@@ -612,11 +617,9 @@ module W = struct
     | BMPString       -> encode @@ Prim.Gen_string.to_bytes a
 
 
-  let encode_ber_to_bytes asn a =
-    Wr.to_bytes @@ encode { der = false } None a asn
+  let ber_to_writer asn a = encode { der = false } None a asn
 
-  let encode_der_to_bytes asn a =
-    Wr.to_bytes @@ encode { der = true } None a asn
+  let der_to_writer asn a = encode { der = true } None a asn
 
 end
 

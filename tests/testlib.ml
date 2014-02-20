@@ -1,16 +1,23 @@
 
-open OUnit2
-open Bigarray
-
-let bytes_of_list = Dumpkit.bytes_of_list
-
-
 (* interactive *)
+
+let bit_dump x =
+  let rec go = function
+    | i when i < 0 -> []
+    | i -> string_of_int ((x lsr i) land 1) :: go (i - 1) in
+  String.concat "" @@ go 7
+
+let cstruct_of_list list =
+  let cs = Cstruct.create @@ List.length list in
+  let rec go i = function
+    | [] -> ()
+    | x::xs -> (Cstruct.set_uint8 cs i x ; go (succ i) xs) in
+  ( go 0 list ; cs )
 
 let verify_decode = function
   | None        -> `fail
   | Some (a, b) ->
-      if Bytekit.Rd.eof b then `ok a else `leftover
+      if Cstruct.len b = 0 then `ok a else `leftover
 
 let verify_decode_value x dec =
   match verify_decode dec with
@@ -37,6 +44,8 @@ let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
 
 (* the other one *)
 
+open OUnit2
+
 type testcase =
   | TC : string * 'a Asn.t * ('a * int list) list -> testcase
 
@@ -46,12 +55,12 @@ let case
 
 
 let assert_decode
-: type a. ?example:a -> a Asn.codec -> Asn.bytes -> unit
+: type a. ?example:a -> a Asn.codec -> Cstruct.t -> unit
 = fun ?example codec bytes ->
   match Asn.decode codec bytes with
   | None -> assert_failure "decode failed"
   | Some (x, buf) ->
-      if Array1.dim buf <> 0 then
+      if Cstruct.len buf <> 0 then
         assert_failure "not all input consumed"
       else
         match example with
@@ -61,7 +70,7 @@ let assert_decode
 let test_decode encoding (TC (_, asn, examples)) _ =
   let codec = Asn.(codec encoding asn) in
   examples |> List.iter @@ fun (a, bytes) ->
-    let arr = bytes_of_list bytes in
+    let arr = cstruct_of_list bytes in
     assert_decode ~example:a codec arr
 
 let test_loop_decode ?(iter=10000) encoding asn _ =
@@ -495,7 +504,7 @@ let cases = [
     ] );
 
   case "octets" Asn.octet_string
-  ( let f = bytes_of_list in [
+  ( let f = cstruct_of_list in [
 
     f [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
     [ 0x04; 0x08; 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ] ;
@@ -551,7 +560,7 @@ let suite =
       List.mapi
         (fun i bytes ->
           ("certificate " ^ string_of_int i) >:: fun _ ->
-            assert_decode X509.cert_der (bytes_of_list bytes))
+            assert_decode X509.cert_der (cstruct_of_list bytes))
         X509.examples ;
 
     "X509 elements random encode->decode" >::: [

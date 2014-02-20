@@ -15,12 +15,12 @@ Description:
 Library "asn1-combinators"
   Path:            src/
   Modules:         Asn
-  InternalModules: Bytekit, Prim, Core, Asn_random, Combinators, Ber_der
-  BuildDepends:    bigarray, num
+  InternalModules: Writer, Prim, Core, Asn_random, Combinators, Ber_der
+  BuildDepends:    cstruct, num
 
 Library "testlib"
   Path:         tests/
-  Modules:      Dumpkit, Testlib, X509
+  Modules:      Testlib, X509
   Install:      false
   Build$:       flag(tests)
   BuildDepends: asn1-combinators, oUnit

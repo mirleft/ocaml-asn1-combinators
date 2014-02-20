@@ -13,7 +13,7 @@ type tBSCertificate = {
   pk_info    : oid * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
-  extensions : (oid * bool * bytes) list option
+  extensions : (oid * bool * Cstruct.t) list option
 }
 
 type certificate = {

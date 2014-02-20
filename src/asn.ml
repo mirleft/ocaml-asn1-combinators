@@ -9,8 +9,6 @@ type time = Time.t
 
 type integer = [ `I of int | `B of Big_int.big_int ]
 
-open Bigarray
-type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 
 (* /XXX *)
 
@@ -21,27 +19,32 @@ type 'a sequence = 'a Core.sequence
 include Combinators
 
 type encoding = {
-  mk_decoder : 'a. 'a t -> bytes -> 'a * bytes;
-  mk_encoder : 'a. 'a t -> 'a -> bytes
+  mk_decoder : 'a. 'a t -> Cstruct.t -> 'a * Cstruct.t;
+  mk_encoder : 'a. 'a t -> 'a -> Writer.t
 }
 
 let ber = {
-  mk_encoder = Ber_der.W.encode_ber_to_bytes ;
-  mk_decoder = Ber_der.R.parser
+  mk_decoder = Ber_der.R.parser ;
+  mk_encoder = Ber_der.W.ber_to_writer ;
 }
 
 let der = {
-  mk_encoder = Ber_der.W.encode_der_to_bytes ;
-  mk_decoder = Ber_der.R.parser
+  mk_decoder = Ber_der.R.parser ;
+  mk_encoder = Ber_der.W.der_to_writer ;
 }
 
-type 'a codec = Codec of (bytes -> ('a * bytes)) * ('a -> bytes)
+type 'a codec =
+  Codec of (Cstruct.t -> ('a * Cstruct.t)) * ('a -> Writer.t)
 
 let codec { mk_encoder ; mk_decoder } asn =
   let () = validate asn in
   Codec (mk_decoder asn, mk_encoder asn)
 
-let encode (Codec (_, enc)) a = enc a
+let encode (Codec (_, enc)) a =
+  Writer.to_cstruct (enc a)
+
+let encode_into (Codec (_, enc)) a =
+  Writer.to_writer (enc a)
 
 and decode_exn (Codec (dec, _)) b = dec b
 

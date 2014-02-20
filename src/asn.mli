@@ -23,8 +23,6 @@ type time = Time.t
 
 type integer = [ `I of int | `B of Big_int.big_int ]
 
-open Bigarray
-type bytes = (int, int8_unsigned_elt, c_layout) Array1.t
 
 (* /XXX *)
 
@@ -113,7 +111,7 @@ val choice6 :
 val bool              : bool       t
 val int               : integer    t
 val bit_string        : bool array t
-val octet_string      : bytes      t
+val octet_string      : Cstruct.t  t
 val null              : unit       t
 val oid               : oid        t
 val utc_time          : time       t
@@ -136,9 +134,12 @@ val ber : encoding
 val der : encoding
 
 type 'a codec
-val codec : encoding -> 'a t -> 'a codec
-val encode : 'a codec -> 'a -> bytes
-val decode_exn : 'a codec -> bytes -> 'a * bytes
-val decode : 'a codec -> bytes -> ('a * bytes) option
+
+val codec       : encoding -> 'a t -> 'a codec
+val encode      : 'a codec -> 'a -> Cstruct.t
+val encode_into : 'a codec -> 'a -> (int * (Cstruct.t -> unit))
+val decode_exn  : 'a codec -> Cstruct.t -> 'a * Cstruct.t
+val decode      : 'a codec -> Cstruct.t -> ('a * Cstruct.t) option
 
 val random : 'a t -> 'a
+

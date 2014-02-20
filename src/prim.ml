@@ -1,10 +1,8 @@
 
-open Bytekit
-
 module type Prim = sig
   type t
-  val of_bytes : int -> bytes -> t
-  val to_bytes : t -> Wr.t
+  val of_bytes : int -> Cstruct.t -> t
+  val to_bytes : t -> Writer.t
   val random   : unit -> t
 end
 
@@ -44,33 +42,33 @@ struct
     let f = big_int_of_int in
     f 0, f 1, f (-1), f 2
 
-  let big_of_bytes n buff =
+  let big_of_bytes n buf =
     let rec loop acc i =
       if i = n then acc else 
         loop (add_int_big_int
-                buff.{i}
+                (Cstruct.get_uint8 buf i)
                 (mult_int_big_int 0x100 acc))
               (succ i) in
     let x = loop zero_big_int 0 in
-    match buff.{0} land 0x80 with
+    match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
     | _ ->
         sub_big_int x
           (power_big_int_positive_int two (n * 8))
 
-  let int_of_bytes n buff =
+  let int_of_bytes n buf =
     let rec loop acc i =
       if i = n then acc else
-        loop (buff.{i} + (acc lsl 8)) (succ i) in
+        loop (Cstruct.get_uint8 buf i + (acc lsl 8)) (succ i) in
     let x = loop 0 0 in
-    match buff.{0} land 0x80 with
+    match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
     | _ -> x - 0x01 lsl (n * 8)
 
-  let of_bytes n buff =
+  let of_bytes n buf =
     if n > small_int_bytes then
-      `B (big_of_bytes n buff)
-    else `I (int_of_bytes n buff)
+      `B (big_of_bytes n buf)
+    else `I (int_of_bytes n buf)
 
   let int_to_byte_list n =
     let rec loop acc n =
@@ -102,8 +100,8 @@ struct
     loop [] n
 
   let to_bytes = function
-    | `I n -> Wr.list (int_to_byte_list n)
-    | `B n -> Wr.list (big_to_byte_list n)
+    | `I n -> Writer.list (int_to_byte_list n)
+    | `B n -> Writer.list (big_to_byte_list n)
 
   let random =
     let big_odds = 10 in fun () ->
@@ -119,12 +117,9 @@ struct
 
   type t = string
 
-  let of_bytes n buf =
-    let string = String.create n in
-    for i = 0 to n - 1 do string.[i] <- char_of_int buf.{i} done;
-    string
+  let of_bytes n buf = Cstruct.(to_string @@ sub buf 0 n)
 
-  let to_bytes = Wr.string ~f:(fun b -> b land 0x7f)
+  let to_bytes = Writer.string
 
   let random ?size () =
     let n = random_size size in
@@ -142,9 +137,9 @@ struct
   type t = bool array
 
   let of_bytes n buf =
-    let unused = buf.{0} in
+    let unused = Cstruct.get_uint8 buf 0 in
     Array.init ((n - 1) * 8 - unused) @@ fun i ->
-      let byte = buf.{i / 8 + 1} lsl (i mod 8) in
+      let byte = (Cstruct.get_uint8 buf (i / 8 + 1)) lsl (i mod 8) in
       byte land 0x80 = 0x80
 
   let (|<) n = function
@@ -152,7 +147,7 @@ struct
     | false -> (n lsl 1)
 
   let to_bytes arr =
-    Wr.list @@
+    Writer.list @@
       match
         Array.fold_left
           (fun (n, acc, accs) x ->
@@ -172,40 +167,42 @@ struct
 end
 
 module Octets :
-  String_primitive with type t = bytes =
+  String_primitive with type t = Cstruct.t =
 struct
 
-  type t = bytes
+  type t = Cstruct.t
 
-  open Bigarray
+  let of_bytes n buf =
+    let cs' = Cstruct.sub buf 0 n in
+    (* mumbo jumbo to retain cs equality *)
+    Cstruct.(of_bigarray @@
+      Bigarray.Array1.sub cs'.buffer cs'.off cs'.len)
 
-  let make = Array1.create int8_unsigned c_layout
-
-  let of_bytes n buf = Array1.sub buf 0 n
-
-  let to_bytes = Wr.bytes
+  let to_bytes = Writer.cstruct
 
   let random ?size () =
     let n   = random_size size in
-    let arr = make n in
-    for i = 0 to n - 1 do arr.{i} <- Random.int 256 done;
-    arr
+    let str = String.create n in
+    for i = 0 to n - 1 do
+      str.[i] <- char_of_int @@ Random.int 256
+    done;
+    Cstruct.of_string str
 
-  let concat arrs =
-    let arr = make List.(fold_left (+) 0 @@ map Array1.dim arrs) in
-    let _   =
+  let concat css =
+    let cs =
+      Cstruct.create
+        List.(fold_left (+) 0 @@ map Cstruct.len css) in
+    let _  =
       List.fold_left
-        Array1.(fun i e ->
-          let len = dim e in
-          ( blit e @@ sub arr i len ; i + len ))
-        0 arrs in
-    arr
+        Cstruct.(fun i e ->
+          let n = len e in ( blit e 0 cs i n ; i + n ))
+        0 css in
+    cs
 
-  let length = Array1.dim
+  let length = Cstruct.len
 
 end
 
-(* module OID : Prim with type t = int list = struct *)
 module OID : sig
 
   include Prim
@@ -238,13 +235,13 @@ end = struct
       else let (i', v) = component 0 i in v :: values i'
 
     and component acc i =
-      let byte = buf.{i} in
+      let byte = Cstruct.get_uint8 buf i in
       let acc' = acc lor (byte land 0x7f) in
       match byte land 0x80 with
       | 0 -> (succ i, acc')
       | _ -> component (acc' lsl 7) (succ i) in
 
-    let b1 = buf.{0} in
+    let b1 = Cstruct.get_uint8 buf 0 in
     let v1, v2 = b1 / 40, b1 mod 40 in
 
     Oid (v1, v2, values 1)
@@ -255,9 +252,9 @@ end = struct
       if x < 0x80 then cons x xs
       else component (cons (x land 0x7f) xs) (x lsr 7)
     and values = function
-      | []    -> Wr.empty
-      | v::vs -> Wr.(list (component [] v) <> values vs) in
-    Wr.(byte (v1 * 40 + v2) <> values vs)
+      | []    -> Writer.empty
+      | v::vs -> Writer.(list (component [] v) <> values vs) in
+    Writer.(byte (v1 * 40 + v2) <> values vs)
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )
@@ -370,8 +367,8 @@ module Time = struct
     | x::xs -> if n > 0 then x :: take (pred n) xs else []
 
   (* The most ridiculously convoluted way to print three decimal digits.
-   * When in doubt, multiply 0.57 by 100.
-   *)
+   * When in doubt, multiply 0.57 by 100.  *)
+
   let pf3 f =
     let str = Printf.sprintf "%.03f" f in
     let rec dump acc i =

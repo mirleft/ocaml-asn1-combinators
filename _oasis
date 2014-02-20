@@ -1,6 +1,6 @@
 OASISFormat: 0.4
 Name:        asn1-combinators
-Version:     0.0.3
+Version:     0.0.4
 Synopsis:    Combinators for expressing ASN.1 grammars in OCaml
 Authors:     David Kaloper <david@numm.org>
 Maintainers: David Kaloper <david@numm.org>

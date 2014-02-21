@@ -21,6 +21,6 @@ let bench_certs filename =
       bench (succ n) cs' in
   time ~iter:1 @@ fun () ->
     let n = bench 0 cs in
-    Printf.printf "parsed %d cers.\n%!" n
+    Printf.printf "parsed %d certs.\n%!" n
 
 let _ = bench_certs "./rondom/certs.bin"

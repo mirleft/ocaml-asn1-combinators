@@ -12,7 +12,6 @@ val append  : t -> t -> t
 val concat  : t list -> t
 
 val list    : int list -> t
-val array   : int array -> t
 val string  : string -> t
 val cstruct : Cstruct.t -> t
 val byte    : int -> t

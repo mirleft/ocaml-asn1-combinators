@@ -37,12 +37,6 @@ let list lst =
     iteri (fun i -> Cstruct.set_uint8 cs (off + i)) lst in
   (length lst, w)
 
-let array arr =
-  let open Array in
-  let w off cs =
-    iteri (fun i -> Cstruct.set_uint8 cs (off + i)) arr in
-  (length arr, w)
-
 let string str =
   let n = String.length str in
   (n, fun off cs -> Cstruct.blit_from_string str 0 cs off n)

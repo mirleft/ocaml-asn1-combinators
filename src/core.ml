@@ -107,8 +107,7 @@ let rec tag_set : type a. a asn -> tags = function
 
   | Prim p -> [ tag_of_p p ]
 
-let rec tag : type a. a -> a asn -> tag
-= fun a -> function
+let rec tag : type a. a -> a asn -> tag = fun a -> function
 
   | Iso (_, g, asn) -> tag (g a) asn
   | Fix f as fix    -> tag a fix
@@ -132,3 +131,4 @@ let string_of_tag tag =
 
 let string_of_tags tags =
   "(" ^ (String.concat " " @@ List.map string_of_tag tags) ^ ")"
+

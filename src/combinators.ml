@@ -57,7 +57,7 @@ and general_string      = Prim GeneralString
 and universal_string    = Prim UniversalString
 and bmp_string          = Prim BMPString
 
-and bit_string' =
+let bit_string' =
   map snd (fun cs -> (0, cs)) (Prim Bits)
 and bit_string  =
   Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))

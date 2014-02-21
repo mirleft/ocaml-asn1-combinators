@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c7acaed1477109f8b14f2a4b083cae68)
+# DO NOT EDIT (digest: 1315f736f84fc7ffae40ed0e0cca1248)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -23,17 +23,20 @@
 <tests/testrunner.{native,byte}>: use_testlib
 <tests/testrunner.{native,byte}>: use_asn1-combinators
 <tests/testrunner.{native,byte}>: pkg_oUnit
+<tests/testrunner.{native,byte}>: pkg_cstruct.unix
 <tests/testrunner.{native,byte}>: pkg_cstruct
 <tests/testrunner.{native,byte}>: pkg_num
 # Executable bench
 "tests/bench.native": use_testlib
 "tests/bench.native": use_asn1-combinators
 "tests/bench.native": pkg_oUnit
+"tests/bench.native": pkg_cstruct.unix
 "tests/bench.native": pkg_cstruct
 "tests/bench.native": pkg_num
 <tests/*.ml{,i}>: use_testlib
 <tests/*.ml{,i}>: use_asn1-combinators
 <tests/*.ml{,i}>: pkg_oUnit
+<tests/*.ml{,i}>: pkg_cstruct.unix
 <tests/*.ml{,i}>: pkg_cstruct
 <tests/*.ml{,i}>: pkg_num
 # OASIS_STOP

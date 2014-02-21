@@ -23,7 +23,7 @@ Library "testlib"
   Modules:      Testlib, X509
   Install:      false
   Build$:       flag(tests)
-  BuildDepends: asn1-combinators, oUnit
+  BuildDepends: asn1-combinators, oUnit, cstruct.unix
 
 Executable "test_runner"
   Path:           tests/

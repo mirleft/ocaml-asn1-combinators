@@ -13,7 +13,6 @@ module type String_primitive = sig
   val length : t -> int
 end
 
-
 let rec replicate_l n f =
   if n < 1 then [] else f () :: replicate_l (pred n) f
 
@@ -120,9 +119,7 @@ struct
 
 end
 
-module Gen_string :
-  String_primitive with type t = string =
-struct
+module Gen_string : String_primitive with type t = string = struct
 
   type t = string
 
@@ -139,9 +136,7 @@ struct
   let (concat, length) = String.(concat "", length)
 end
 
-module Octets :
-  String_primitive with type t = Cstruct.t =
-struct
+module Octets : String_primitive with type t = Cstruct.t = struct
 
   type t = Cstruct.t
 

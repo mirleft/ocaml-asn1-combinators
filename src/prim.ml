@@ -112,8 +112,8 @@ struct
     loop [] n
 
   let to_writer = function
-    | `I n -> Writer.list (int_to_byte_list n)
-    | `B n -> Writer.list (big_to_byte_list n)
+    | `I n -> Writer.of_list (int_to_byte_list n)
+    | `B n -> Writer.of_list (big_to_byte_list n)
 
   let random =
     let big_odds = 10 in fun () ->
@@ -131,7 +131,7 @@ struct
 
   let of_cstruct n buf = Cstruct.(to_string @@ sub buf 0 n)
 
-  let to_writer = Writer.string
+  let to_writer = Writer.of_string
 
   let random ?size () =
     let n = random_size size in
@@ -154,7 +154,7 @@ struct
     Cstruct.(of_bigarray @@
       Bigarray.Array1.sub cs'.buffer cs'.off cs'.len)
 
-  let to_writer = Writer.cstruct
+  let to_writer = Writer.of_cstruct
 
   let random ?size () =
     let n   = random_size size in
@@ -296,8 +296,8 @@ end = struct
       else component (cons (x land 0x7f) xs) (x lsr 7)
     and values = function
       | []    -> Writer.empty
-      | v::vs -> Writer.(list (component [] v) <> values vs) in
-    Writer.(byte (v1 * 40 + v2) <> values vs)
+      | v::vs -> Writer.(of_list (component [] v) <> values vs) in
+    Writer.(of_byte (v1 * 40 + v2) <> values vs)
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )

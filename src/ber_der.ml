@@ -1,7 +1,7 @@
 
 open Core
 
-type 'a endo = 'a -> 'a
+type 'a endo   = 'a -> 'a
 let id x       = x
 let const x _  = x
 let comp f g x = f (g x)
@@ -143,7 +143,6 @@ module R = struct
       | _ -> loop (acc' * 0x80) (succ i) in
     loop 0 1
 
-
   let p_big_length buf off n =
     let last = off + n in
     let rec loop acc i =
@@ -151,7 +150,6 @@ module R = struct
       else let byte = Cstruct.get_uint8 buf i in
       loop (acc * 0x100 + byte) (succ i) in
     loop 0 (succ off)
-
 
   let p_header_unsafe buf =
 
@@ -195,10 +193,12 @@ module R = struct
     try p_header_unsafe buf with
     | Invalid_argument _ -> parse_error "malformed header"
 
+
   let accepts : type a. a asn -> header -> bool = fun asn ->
     match tag_set asn with
     | [t]  -> fun { tag } -> tag = t
     | tags -> fun { tag } -> List.mem tag tags
+
 
   let with_header = fun f1 f2 -> function
 
@@ -228,6 +228,7 @@ module R = struct
     if n = n' then f b
     else parse_error "primitive: invalid length"
 
+
   let sequence_of_parser prs =
     constructed @@ fun eof buf0 ->
       let rec scan acc buf =
@@ -243,6 +244,7 @@ module R = struct
           (P.of_cstruct n buf, Cstruct.shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
     prs
+
 
   let parser_of_prim : type a. a prim -> a parser = function
 
@@ -368,7 +370,7 @@ module R = struct
                 >|= fun a -> P.Optional (`Found a) )
 
         and setters :
-          type a b. ((a P.sequence endo) -> b P.sequence endo)
+          type a b. (a P.sequence endo -> b P.sequence endo)
                   -> a sequence
                   -> (tags * (b P.sequence endo) parser) list
           = fun k -> function
@@ -435,9 +437,7 @@ module R = struct
         describe "explicit" @@
           constructed @@ const (comp (parser_of_asn asn) p_header)
 
-    | Prim p ->
-        describe "primitive" @@
-          parser_of_prim p
+    | Prim p -> describe "primitive" @@ parser_of_prim p
 
 
   let parser : 'a asn -> Cstruct.t -> 'a * Cstruct.t
@@ -480,16 +480,16 @@ module W = struct
       | `Constructed -> 0x20 in
 
     ( if tagn < 0x1f then
-        Writer.byte (klass lor constructed lor tagn)
+        Writer.of_byte (klass lor constructed lor tagn)
       else
-        Writer.byte (klass lor constructed lor 0x1f) <>
-        Writer.list (e_big_tag tagn) )
+        Writer.of_byte (klass lor constructed lor 0x1f) <>
+        Writer.of_list (e_big_tag tagn) )
     <>
     ( if len <= 0x7f then
-        Writer.byte len
+        Writer.of_byte len
       else
-        let body = Writer.list (e_big_length len) in
-        Writer.byte (0x80 lor Writer.size body) <> body )
+        let body = Writer.of_list (e_big_length len) in
+        Writer.of_byte (0x80 lor Writer.len body) <> body )
 
 
   type conf = { der : bool }
@@ -498,10 +498,10 @@ module W = struct
     match o with | None -> def | Some x -> x
 
   let e_constructed tag body =
-    e_header tag `Constructed (Writer.size body) <> body
+    e_header tag `Constructed (Writer.len body) <> body
 
   let e_primitive tag body =
-    e_header tag `Primitive (Writer.size body) <> body
+    e_header tag `Primitive (Writer.len body) <> body
 
   let assert_length constr len_f a =
     match constr with
@@ -545,7 +545,7 @@ module W = struct
             if conf.der then
               List.( ws |> map  Writer.to_cstruct
                         |> sort Writer.cs_compare
-                        |> map  Writer.cstruct )
+                        |> map  Writer.of_cstruct )
             else ws
         in
         e_constructed (tag @? set_tag) body
@@ -580,7 +580,7 @@ module W = struct
       encode (P.to_writer a) in
 
     match prim with
-    | Bool    -> encode @@ Writer.byte (if a then 0xff else 0x00)
+    | Bool    -> encode @@ Writer.of_byte (if a then 0xff else 0x00)
 
     | Int     -> encode @@ Prim.Integer.to_writer a
 

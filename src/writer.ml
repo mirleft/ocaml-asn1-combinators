@@ -16,7 +16,7 @@ type t = int * (int -> Cstruct.t -> unit)
 
 let immediate n f = (n, f)
 
-let size (n, _) = n
+let len (n, _) = n
 
 let empty = (0, (fun _ _ -> ()))
 
@@ -31,21 +31,21 @@ let rec concat = function
   | []    -> empty
   | w::ws -> w <> concat ws
 
-let list lst =
+let of_list lst =
   let open List in
   let w off cs =
     iteri (fun i -> Cstruct.set_uint8 cs (off + i)) lst in
   (length lst, w)
 
-let string str =
+let of_string str =
   let n = String.length str in
   (n, fun off cs -> Cstruct.blit_from_string str 0 cs off n)
 
-let cstruct cs' =
+let of_cstruct cs' =
   let n = Cstruct.len cs' in
   (n, fun off cs -> Cstruct.blit cs' 0 cs off n)
 
-let byte b = (1, fun off cs -> Cstruct.set_uint8 cs off b)
+let of_byte b = (1, fun off cs -> Cstruct.set_uint8 cs off b)
 
 let to_cstruct (n, w) =
   let cs = Cstruct.create n in ( w 0 cs ; cs )

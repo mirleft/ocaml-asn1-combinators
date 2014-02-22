@@ -91,12 +91,12 @@ let cases = [
   ];
 
   case "integer" Asn.integer [
-    `I (   0), [0x02; 0x01; 0x00] ;
-    `I ( 127), [0x02; 0x01; 0x7F] ;
-    `I ( 128), [0x02; 0x02; 0x00; 0x80] ;
-    `I ( 256), [0x02; 0x02; 0x01; 0x00] ;
-    `I (-128), [0x02; 0x01; 0x80] ;
-    `I (-129), [0x02; 0x02; 0xFF; 0x7F]
+    Num.num_of_int (   0), [0x02; 0x01; 0x00] ;
+    Num.num_of_int ( 127), [0x02; 0x01; 0x7F] ;
+    Num.num_of_int ( 128), [0x02; 0x02; 0x00; 0x80] ;
+    Num.num_of_int ( 256), [0x02; 0x02; 0x01; 0x00] ;
+    Num.num_of_int (-128), [0x02; 0x01; 0x80] ;
+    Num.num_of_int (-129), [0x02; 0x02; 0xFF; 0x7F]
   ];
 
   case "null" Asn.null [
@@ -114,17 +114,17 @@ let cases = [
   case
     "sequence with implicits"
     Asn.(sequence3
-          (required integer)
+          (required int)
           (required @@ implicit 1 bool)
           (required bool))
 
-    [ (`I 42, false, true),
+    [ (42, false, true),
       [ 0x30; 0x09;
           0x02; 0x01; 0x2a;
           0x81; 0x01; 0x00;
           0x01; 0x01; 0xff; ] ;
 
-      (`I 42, false, true),
+      (42, false, true),
       [ 0x30; 0x80;
           0x02; 0x01; 0x2a;
           0x81; 0x01; 0x00;
@@ -135,18 +135,18 @@ let cases = [
   case
     "sequence with optional and explicit fields"
     Asn.(sequence3
-          (required @@ implicit 1 integer)
+          (required @@ implicit 1 int)
           (optional @@ explicit 2 bool)
           (optional @@ implicit 3 bool))
 
-    [ (`I 255, Some true, Some false),
+    [ (255, Some true, Some false),
       [ 0x30; 0x0c;
           0x81; 0x02; 0x00; 0xff;
           0xa2; 0x03;
             0x01; 0x01; 0xf0;
           0x83; 0x01; 0x00; ] ;
 
-      (`I 255, Some true, Some false),
+      (255, Some true, Some false),
       [ 0x30; 0x80;
           0x81; 0x02; 0x00; 0xff;
           0xa2; 0x03;
@@ -154,7 +154,7 @@ let cases = [
           0x83; 0x01; 0x00;
           0x00; 0x00; ] ;
 
-      (`I 255, Some true, Some false),
+      (255, Some true, Some false),
       [ 0x30; 0x80;
           0x81; 0x02; 0x00; 0xff;
           0xa2; 0x80;
@@ -167,42 +167,42 @@ let cases = [
   case
     "sequence with missing optional and choice fields"
     Asn.(sequence3
-          (required @@ choice2 bool integer)
-          (optional @@ choice2 bool integer)
+          (required @@ choice2 bool int)
+          (optional @@ choice2 bool int)
           (optional @@ explicit 0
-                    @@ choice2 integer (implicit 1 integer)))
+                    @@ choice2 int (implicit 1 int)))
 
     [ (`C1 true, None, None),
       [ 0x30; 0x03; 0x01; 0x01; 0xff ] ;
 
-      (`C2 (`I 42), None, None),
+      (`C2 42, None, None),
       [ 0x30; 0x05; 0x02; 0x03; 0x00; 0x00; 0x2a ] ;
 
-      (`C1 false, Some (`C2 (`I 42)), None),
+      (`C1 false, Some (`C2 42), None),
       [ 0x30; 0x06;
           0x01; 0x01; 0x00;
           0x02; 0x01; 0x2a ] ;
 
-      (`C1 true, None, Some (`C1 (`I 42))),
+      (`C1 true, None, Some (`C1 42)),
       [ 0x30; 0x08;
           0x01; 0x01; 0xff;
           0xa0; 0x03;
             0x02; 0x01; 0x2a ] ;
 
-      (`C2 (`I (-2)), Some (`C2 (`I 42)), Some (`C2 (`I 42))),
+      (`C2 (-2), Some (`C2 42), Some (`C2 42)),
       [ 0x30; 0x0b;
           0x02; 0x01; 0xfe;
           0x02; 0x01; 0x2a;
           0xa0; 0x03;
             0x81; 0x01; 0x2a ] ;
 
-      (`C2 (`I (-3)), None, Some (`C2 (`I 42))),
+      (`C2 (-3), None, Some (`C2 42)),
       [ 0x30; 0x0a;
           0x02; 0x01; 0xfd;
           0xa0; 0x80;
             0x81; 0x01; 0x2a; 0x00; 0x00; ] ;
 
-      (`C2 (`I (-4)), None, Some (`C1 (`I 42))),
+      (`C2 (-4), None, Some (`C1 42)),
       [ 0x30; 0x80;
           0x02; 0x01; 0xfc;
           0xa0; 0x80;
@@ -276,45 +276,45 @@ let cases = [
 
   case
     "sets"
-    Asn.(set4 (required @@ implicit 1 bool   )
-              (required @@ implicit 2 bool   )
-              (required @@ implicit 3 integer)
-              (optional @@ implicit 4 integer))
+    Asn.(set4 (required @@ implicit 1 bool)
+              (required @@ implicit 2 bool)
+              (required @@ implicit 3 int )
+              (optional @@ implicit 4 int ))
 
-    [ (true, false, `I 42, None),
+    [ (true, false, 42, None),
       [ 0x31; 0x09;
           0x81; 0x01; 0xff;
           0x82; 0x01; 0x00;
           0x83; 0x01; 0x2a; ];
 
-      (true, false, `I 42, Some (`I (-1))),
+      (true, false, 42, Some (-1)),
       [ 0x31; 0x0c;
           0x82; 0x01; 0x00;
           0x84; 0x01; 0xff;
           0x81; 0x01; 0xff;
           0x83; 0x01; 0x2a; ];
 
-      (true, false, `I 42, None),
+      (true, false, 42, None),
       [ 0x31; 0x09;
           0x82; 0x01; 0x00;
           0x83; 0x01; 0x2a;
           0x81; 0x01; 0xff; ];
 
-      (true, false, `I 42, Some (`I 15)),
+      (true, false, 42, Some 15),
       [ 0x31; 0x0c;
           0x83; 0x01; 0x2a;
           0x82; 0x01; 0x00;
           0x81; 0x01; 0xff;
           0x84; 0x01; 0x0f; ];
 
-      (true, false, `I 42, None),
+      (true, false, 42, None),
       [ 0x31; 0x80;
           0x82; 0x01; 0x00;
           0x83; 0x01; 0x2a;
           0x81; 0x01; 0xff;
           0x00; 0x00 ];
 
-      (true, false, `I 42, Some (`I 15)),
+      (true, false, 42, Some 15),
       [ 0x31; 0x80;
           0x83; 0x01; 0x2a;
           0x82; 0x01; 0x00;
@@ -326,20 +326,20 @@ let cases = [
   case
     "set or seq"
     Asn.(choice2
-          (set2 (optional integer)
-                (optional bool   ))
-          (sequence2 (optional integer)
-                     (optional bool   )))
+          (set2 (optional int )
+                (optional bool))
+          (sequence2 (optional int )
+                     (optional bool)))
 
     [ (`C1 (None, Some true)),
       [ 0x31; 0x03;
           0x01; 0x01; 0xff; ];
 
-      (`C1 (Some (`I 42), None)),
+      (`C1 (Some 42, None)),
       [ 0x31; 0x03;
           0x02; 0x01; 0x2a; ];
 
-      (`C1 (Some (`I 42), Some true)),
+      (`C1 (Some 42, Some true)),
       [ 0x31; 0x06;
           0x01; 0x01; 0xff;
           0x02; 0x01; 0x2a; ];
@@ -348,11 +348,11 @@ let cases = [
       [ 0x30; 0x03;
           0x01; 0x01; 0xff; ];
 
-      (`C2 (Some (`I 42), None)),
+      (`C2 (Some 42, None)),
       [ 0x30; 0x03;
           0x02; 0x01; 0x2a; ];
 
-      (`C2 (Some (`I 42), Some true)),
+      (`C2 (Some 42, Some true)),
       [ 0x30; 0x06;
           0x02; 0x01; 0x2a;
           0x01; 0x01; 0xff; ];

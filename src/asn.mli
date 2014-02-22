@@ -21,8 +21,6 @@ end
 
 type time = Time.t
 
-type integer = [ `I of int | `B of Big_int.big_int ]
-
 
 (* /XXX *)
 
@@ -111,7 +109,8 @@ val choice6 :
 
 
 val bool             : bool        t
-val integer          : integer     t
+val integer          : Num.num     t
+val int              : int         t
 val bit_string       : bool array  t
 val bit_string'      : Cstruct.t   t
 val octet_string     : Cstruct.t   t

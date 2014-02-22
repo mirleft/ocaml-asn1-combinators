@@ -57,6 +57,14 @@ and general_string      = Prim GeneralString
 and universal_string    = Prim UniversalString
 and bmp_string          = Prim BMPString
 
+let int =
+  let f n =
+    try Num.int_of_num n with Failure _ ->
+      raise (Parse_error ("int: too large: " ^ Num.string_of_num n))
+  in
+  map f Num.num_of_int integer
+
+
 let bit_string' =
   map snd (fun cs -> (0, cs)) (Prim Bits)
 and bit_string  =

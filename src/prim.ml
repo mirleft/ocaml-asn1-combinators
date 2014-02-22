@@ -40,86 +40,83 @@ let cs_concat list =
   cs
 
 
-module Integer :
-  Prim with type t = [ `B of Big_int.big_int | `I of int ] =
+module Integer : sig
+  include Prim with type t = Num.num
+  val cs_of_nat_string : string -> Cstruct.t
+  val nat_string_of_cs : Cstruct.t -> string
+end
+  =
 struct
 
-  open Big_int
+  open Num
 
-  type t = [ `B of big_int | `I of int ]
-
-  let small_int_bytes = 7
-
-  let (zero, one, neg_one, two) =
-    let f = big_int_of_int in
-    (f 0, f 1, f (-1), f 2)
-
-  let big_of_cs n buf =
-    let rec loop acc = function
-      | i when i = n -> acc
-      | i -> loop (add_int_big_int
-                    (Cstruct.get_uint8 buf i)
-                    (mult_int_big_int 0x100 acc))
-                  (succ i) in
-
-    let x = loop zero_big_int 0 in
-    match (Cstruct.get_uint8 buf 0) land 0x80 with
-    | 0 -> x
-    | _ -> sub_big_int x (power_big_int_positive_int two (n * 8))
-
-  let int_of_cs n buf =
-    let rec loop acc = function
-      | i when i = n -> acc
-      | i -> loop (Cstruct.get_uint8 buf i + (acc lsl 8)) (succ i) in
-
-    let x = loop 0 0 in
-    match (Cstruct.get_uint8 buf 0) land 0x80 with
-    | 0 -> x
-    | _ -> x - 0x01 lsl (n * 8)
+  type t = num
 
   let of_cstruct n buf =
-    if n > small_int_bytes then
-      `B (big_of_cs n buf)
-    else `I (int_of_cs n buf)
+    let rec loop acc = function
+      | i when i = n -> acc
+      | i ->
+          let x = Cstruct.get_uint8 buf i in
+          loop ((acc */ Int 0x100) +/ Int x) (succ i)
+    in
+    let x = loop (Int 0) 0 in
+    match (Cstruct.get_uint8 buf 0) land 0x80 with
+    | 0 -> x
+    | _ -> x -/ power_num (Int 2) (Int (n * 8))
 
-  let int_to_byte_list n =
-    let rec loop acc n =
-      match (n, acc) with
-      | ( 0, []  ) -> [ 0x00 ]
-      | ( 0, x::_) when x >= 0x80 -> 0x00 :: acc
-      | ( 0, _   ) -> acc
-      | (-1, []  ) -> [ 0xff ]
-      | (-1, x::_) when x < 0x80  -> 0xff :: acc
-      | (-1, _   ) -> acc
-      | _ -> loop (n land 0xff :: acc) (n asr 8) in
-    loop [] n
+  let asr_8 = function
+    | Big_int x -> Big_int (Big_int.shift_right_big_int x 8)
+    | Int     x -> Int     (x asr 8)
+    | Ratio   _ -> invalid_arg "Asn: Num.Rational"
 
-  let big_to_byte_list n =
-    let rec loop acc n =
-      if eq_big_int n zero then
+  let last_8 = function
+    | Big_int x -> Big_int.(int_of_big_int @@ extract_big_int x 0 8)
+    | Int     x -> x land 0xff
+    | Ratio   _ -> invalid_arg "Asn: Num.Rational"
+
+  let to_writer n =
+
+    let rec list_of_pos acc n =
+      if eq_num n (Int 0) then
         match acc with
-        | [] -> [0x00]
+        | []                  -> [ 0x00 ]
         | x::_ when x >= 0x80 -> 0x00 :: acc
-        | _  -> acc else
-      if eq_big_int n neg_one then
+        | _                   -> acc
+      else list_of_pos (last_8 n :: acc) (asr_8 n)
+
+    and list_of_neg acc n =
+      if eq_num n (Int (-1)) then
         match acc with
-        | [] -> [0xff]
+        | []                 -> [ 0xff ]
         | x::_ when x < 0x80 -> 0xff :: acc
-        | _  -> acc
-      else
-        let b = int_of_big_int (extract_big_int n 0 8) in
-        loop (b :: acc) (shift_right_big_int n 8) in
-    loop [] n
+        | _                  -> acc
+      else list_of_neg (last_8 n :: acc) (asr_8 n) in
 
-  let to_writer = function
-    | `I n -> Writer.of_list (int_to_byte_list n)
-    | `B n -> Writer.of_list (big_to_byte_list n)
+    let chars =
+      if lt_num n (Int 0) then
+        list_of_neg [] n
+      else list_of_pos [] n in
 
-  let random =
-    let big_odds = 10 in fun () ->
-      let x = Random.int (big_odds + 1) in
-      if x <> big_odds then `I (x - x / 2)
-      else `I (Random.int max_r_int - max_r_int / 2)
+    Writer.of_list chars
+
+  let random () = num_of_int (Random.int max_r_int - max_r_int / 2)
+
+  (* XXX not BER safe *)
+  let nat_string_of_cs cs =
+    match Cstruct.get_uint8 cs 0 with
+    | 0x00            -> Cstruct.(to_string @@ shift cs 1)
+    | n when n < 0x80 -> Cstruct.to_string cs
+    | _ -> invalid_arg "nat_string_of_cs: negative integer; expecting nat"
+
+  let cs_of_nat_string str =
+    match int_of_char str.[0] >= 0x80 with
+    | false -> Cstruct.of_string str
+    | true  ->
+        let n  = String.length str in
+        let cs = Cstruct.create (n + 1) in
+        Cstruct.set_uint8 cs 0 0;
+        Cstruct.blit_from_string str 0 cs 1 n;
+        cs
 
 end
 

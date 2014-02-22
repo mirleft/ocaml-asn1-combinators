@@ -70,6 +70,11 @@ let bit_string' =
 and bit_string  =
   Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
 
+let big_natural =
+  let open Prim.Integer in
+  map nat_string_of_cs cs_of_nat_string @@
+      implicit ~cls:`Universal 0x02 octet_string
+
 let single a   = Last a
 and ( @) a b   = Pair (a, b)
 and (-@) a b   = Pair (a, Last b)

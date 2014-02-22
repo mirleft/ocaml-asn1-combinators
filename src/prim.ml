@@ -156,16 +156,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
     done;
     Cstruct.of_string str
 
-  let concat css =
-    let cs =
-      Cstruct.create
-        List.(fold_left (+) 0 @@ map Cstruct.len css) in
-    let _  =
-      List.fold_left
-        Cstruct.(fun i e ->
-          let n = len e in ( blit e 0 cs i n ; i + n ))
-        0 css in
-    cs
+  let concat = cs_concat
 
   let length = Cstruct.len
 

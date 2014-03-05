@@ -26,6 +26,12 @@ type time = Time.t
 
 (* /XXX *)
 
+exception Parse_error of string
+exception End_of_input
+exception Ambiguous_grammar
+
+val parse_error : string -> 'a
+
 type 'a t
 type 'a sequence
 type 'a element

@@ -233,10 +233,12 @@ module OID : sig
 
   include Prim
 
-  val (<|)    : t -> int -> t
-  val (<||)   : t -> int list -> t
-  val to_list : t -> int list
-  val base    : int -> int -> t
+  val (<|)      : t -> int -> t
+  val (<||)     : t -> int list -> t
+  val base      : int -> int -> t
+  val to_list   : t -> int list
+  val to_string : t -> string
+  val of_string : string -> t
 
 end = struct
 
@@ -281,6 +283,24 @@ end = struct
       | []    -> Writer.empty
       | v::vs -> Writer.(of_list (component [] v) <> values vs) in
     Writer.(of_byte (v1 * 40 + v2) <> values vs)
+
+  let to_string (Oid (v1, v2, vs)) =
+    let b = Buffer.create 16 in
+    let component x = Buffer.add_string b (string_of_int x)
+    and dot () = Buffer.add_char b '.' in
+    component v1;
+    List.iter (fun x -> dot () ; component x) (v2 :: vs);
+    Buffer.contents b
+
+  let of_string str =
+    try
+      let rec components str =
+        if String.length str = 0 then []
+        else Scanf.sscanf str ".%d%s" (fun v rest -> v :: components rest) in
+      let (v1, v2, rest) =
+        Scanf.sscanf str "%d.%d%s" (fun v1 v2 rest -> (v1, v2, rest)) in
+      base v1 v2 <|| components rest
+    with End_of_file -> invalid_arg "malformed oid"
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )

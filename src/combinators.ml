@@ -1,10 +1,10 @@
 open Core
 
-let arr_fold_right_i f z arr =
+let arr_fold_right_i ~f z arr =
   let rec loop r = function
     | -1 -> r
     |  i -> loop (f i arr.(i) r) (pred i) in
-  loop z Array.(length arr)
+  loop z Array.(length arr - 1)
 
 let rec filter_map f = function
   | []    -> []
@@ -89,11 +89,8 @@ let flags (type a) (xs : (int * a) list) =
   let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
   and m2 = List.fold_right (fun (i, x) -> M2.add x i) xs M2.empty in
   let f =
-    arr_fold_right_i
-      (fun i b xs ->
-        if b then try M1.find i m1 :: xs with Not_found -> xs
-        else xs)
-      []
+    arr_fold_right_i [] ~f:(fun i b xs ->
+      if b then (try M1.find i m1 :: xs with Not_found -> xs) else xs)
   and g list =
     let (ixs, n) =
       let rec loop ixs n = function

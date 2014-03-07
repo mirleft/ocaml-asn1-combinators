@@ -1,5 +1,17 @@
 open Core
 
+let arr_fold_right_i f z arr =
+  let rec loop r = function
+    | -1 -> r
+    |  i -> loop (f i arr.(i) r) (pred i) in
+  loop z Array.(length arr)
+
+let rec filter_map f = function
+  | []    -> []
+  | x::xs ->
+      match f x with
+      | None    ->       filter_map f xs
+      | Some x' -> x' :: filter_map f xs
 
 (* Horrible, horrible hack.
  * Extend the Core.asn type to fix. *)
@@ -69,6 +81,33 @@ let bit_string' =
   map snd (fun cs -> (0, cs)) (Prim Bits)
 and bit_string  =
   Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
+
+let flags (type a) (xs : (int * a) list) =
+  let module M1 = Map.Make (struct type t = int let compare = compare end) in
+  let module M2 = Map.Make (struct type t = a   let compare = compare end) in
+  let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
+  and m2 = List.fold_right (fun (i, x) -> M2.add x i) xs M2.empty in
+  let f =
+    arr_fold_right_i
+      (fun i b xs ->
+        if b then try M1.find i m1 :: xs with Not_found -> xs
+        else xs)
+      []
+  and g list =
+    let (ixs, n) =
+      let rec loop ixs n = function
+        | []    -> (ixs, n)
+        | x::xs ->
+            try
+              let ix = M2.find x m2 in
+              loop (ix :: ixs) (max n ix) xs
+            with Not_found -> loop ixs n xs in
+      loop [] 0 list in
+    let arr = Array.create (n + 1) false in
+    List.iter (fun ix -> arr.(ix) <- true) ixs;
+    arr
+  in
+  map f g bit_string
 
 let big_natural =
   let open Prim.Integer in

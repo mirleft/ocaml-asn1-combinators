@@ -138,6 +138,7 @@ val general_string   : string t
 val universal_string : string t
 val bmp_string       : string t
 
+val flags       : (int * 'a) list -> 'a list t
 val big_natural : string t
 val int         : int    t
 

@@ -83,6 +83,8 @@ let bit_string' =
 and bit_string  =
   Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
 
+(* XXX
+ * Encode clips array to highest set index. Maybe encode full range? *)
 let flags (type a) (xs : (int * a) list) =
   let module M1 = Map.Make (struct type t = int let compare = compare end) in
   let module M2 = Map.Make (struct type t = a   let compare = compare end) in
@@ -100,7 +102,7 @@ let flags (type a) (xs : (int * a) list) =
               let ix = M2.find x m2 in
               loop (ix :: ixs) (max n ix) xs
             with Not_found -> loop ixs n xs in
-      loop [] 0 list in
+      loop [] (-1) list in
     let arr = Array.create (n + 1) false in
     List.iter (fun ix -> arr.(ix) <- true) ixs;
     arr

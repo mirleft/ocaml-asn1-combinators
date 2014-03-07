@@ -34,6 +34,7 @@ struct
   let find k  = cast (Hashtbl.find cache @@ cast k)
 end
 
+
 type tag_class = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
@@ -43,9 +44,9 @@ let map f g asn = Iso (f, g, asn)
 let implicit, explicit =
   let tag = function
     | (None,              n) -> Context_specific n
-    | (Some `Application, n) -> Application n
-    | (Some `Private,     n) -> Private n
-    | (Some `Universal,   n) -> Universal n in
+    | (Some `Application, n) -> Application      n
+    | (Some `Private,     n) -> Private          n
+    | (Some `Universal,   n) -> Universal        n in
   (fun ?cls id asn -> Implicit (tag (cls, id), asn)) ,
   (fun ?cls id asn -> Explicit (tag (cls, id), asn))
 
@@ -204,9 +205,9 @@ let choice6 a b c d e f =
 
 
 (*
-  * Check tag ambiguity.
-  * XXX Maybe add no-implicit-over-choice check.
-  *)
+ * Check tag ambiguity.
+ * XXX Maybe add no-implicit-over-choice check.
+ *)
 
 let validate asn =
 
@@ -225,15 +226,22 @@ let validate asn =
     go List.(sort compare @@ concat tss)
 
   and ck_seq : type a. tags list * a sequence -> unit = function
-    | ts, Last (Optional (_, x))     -> check x ; disjunct (tag_set x :: ts)
-    | [], Last (Required (_, x))     -> check x
-    | ts, Last (Required (_, x))     -> check x ; disjunct (tag_set x :: ts)
-    | ts, Pair (Optional (_, x), xs) -> check x ; ck_seq (tag_set x :: ts, xs)
-    | [], Pair (Required (_, x), xs) -> check x ; ck_seq ([], xs)
-    | ts, Pair (Required (_, x), xs) ->
-        check x ; disjunct (tag_set x :: ts) ; ck_seq ([], xs)
+
+    | ts, Last (Optional (label, x)) ->
+        ( check x ; disjunct (tag_set x :: ts) )
+    | [], Last (Required (label, x)) ->
+        ( check x )
+    | ts, Last (Required (label, x)) ->
+        ( check x ; disjunct (tag_set x :: ts) )
+    | ts, Pair (Optional (label, x), xs) ->
+        ( check x ; ck_seq (tag_set x :: ts, xs) )
+    | [], Pair (Required (label, x), xs) ->
+        ( check x ; ck_seq ([], xs) )
+    | ts, Pair (Required (label, x), xs) ->
+        ( check x ; disjunct (tag_set x :: ts) ; ck_seq ([], xs) )
 
   and ck_set : type a. a sequence -> tags list = function
+
     | Last (Required (_, x))     -> check x ; [ tag_set x ]
     | Last (Optional (_, x))     -> check x ; [ tag_set x ]
     | Pair (Required (_, x), xs) -> check x ; tag_set x :: ck_set xs

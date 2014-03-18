@@ -196,23 +196,23 @@ module R = struct
 
   let accepts : type a. a asn -> header -> bool = fun asn ->
     match tag_set asn with
-    | [t]  -> fun { tag } -> tag = t
-    | tags -> fun { tag } -> List.mem tag tags
+    | [t]  -> fun { tag; _ } -> tag = t
+    | tags -> fun { tag; _ } -> List.mem tag tags
 
 
   let with_header = fun f1 f2 -> function
 
-    | { coding = Primitive n ; buf } ->
+    | { coding = Primitive n ; buf; _ } ->
         (f1 n buf, Cstruct.shift buf n)
 
-    | { coding = Constructed n ; buf } -> 
+    | { coding = Constructed n ; buf; _ } -> 
         let eof cs = Cstruct.len cs = 0 in
         let (b1, b2) = Cstruct.(sub buf 0 n, shift buf n) in
         let (a, b1') = f2 eof b1 in
         if eof b1' then (a, b2)
         else parse_error "definite constructed: leftovers"
 
-    | { coding = Constructed_indefinite ; buf } ->
+    | { coding = Constructed_indefinite ; buf; _ } ->
         let (a, buf') = f2 is_sequence_end buf in
         if is_sequence_end buf' then
           (a, drop_sequence_end buf')
@@ -240,7 +240,7 @@ module R = struct
     let module P = (val impl : Prim.String_primitive with type t = a) in
 
     let rec prs = function
-      | { coding = Primitive n ; buf } ->
+      | { coding = Primitive n ; buf; _ } ->
           (P.of_cstruct n buf, Cstruct.shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
     prs
@@ -321,7 +321,7 @@ module R = struct
           | Last e ->
               let prs = elt e in fun _ header ->
               ( match prs header with
-                | Pass a -> parse_error ~header "not all input consumed"
+                | Pass _ -> parse_error ~header "not all input consumed"
                 | Hit (a, buf') -> (a, buf') )
 
           | Pair (e, tl) ->

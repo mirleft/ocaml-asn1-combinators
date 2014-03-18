@@ -7,4 +7,6 @@ setup.log
 *.native
 *.byte
 
+.*.swp
+
 gmon.out

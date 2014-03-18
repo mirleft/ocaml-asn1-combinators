@@ -1,4 +1,5 @@
 
+
 module type Prim = sig
   type t
   val of_cstruct : int -> Cstruct.t -> t
@@ -209,7 +210,7 @@ struct
         (0, 0, 0)
         arr
     with
-    | (0, acc, _) -> (0, cs)
+    | (0, _acc, _) -> (0, cs)
     | (n, acc, i) ->
         Cstruct.set_uint8 cs i (acc lsl (8 - n));
         (8 - n, cs)
@@ -422,7 +423,7 @@ module Time = struct
       | '0', [] -> dump acc (pred i)
       | '.', [] -> []
       | '.', xs -> '.' :: take 3 xs
-      | c  , xs -> dump (c::acc) (pred i) in
+      | c  , _xs -> dump (c::acc) (pred i) in
     let digits = dump [] (String.length str - 1) in
     string_of_list digits
 

@@ -110,7 +110,7 @@ let rec tag_set : type a. a asn -> tags = function
 let rec tag : type a. a -> a asn -> tag = fun a -> function
 
   | Iso (_, g, asn) -> tag (g a) asn
-  | Fix f as fix    -> tag a fix
+  | Fix _ as fix    -> tag a fix
   | Sequence _      -> sequence_tag
   | Sequence_of _   -> sequence_tag
   | Set _           -> set_tag

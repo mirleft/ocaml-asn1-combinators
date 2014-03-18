@@ -138,6 +138,7 @@ module R = struct
     let rec loop acc i =
       let byte = Cstruct.get_uint8 buf i in
       let acc' = byte land 0x7f + acc in
+      ( if acc' < acc then parse_error "tag overflow" );
       match byte land 0x80 with
       | 0 -> (acc', succ i)
       | _ -> loop (acc' * 0x80) (succ i) in
@@ -145,10 +146,12 @@ module R = struct
 
   let p_big_length buf off n =
     let last = off + n in
-    let rec loop acc i =
-      if i > last then (acc, i)
-      else let byte = Cstruct.get_uint8 buf i in
-      loop (acc * 0x100 + byte) (succ i) in
+    let rec loop acc = function
+      | i when i > last -> (acc, i)
+      | i ->
+          let acc' = Cstruct.get_uint8 buf i + acc * 0x100 in
+          ( if acc' < acc then parse_error "length overflow" );
+          loop acc' (succ i) in
     loop 0 (succ off)
 
   let p_header_unsafe buf =

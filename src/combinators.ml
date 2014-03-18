@@ -226,17 +226,17 @@ let validate asn =
 
   and ck_seq : type a. tags list * a sequence -> unit = function
 
-    | ts, Last (Optional (label, x)) ->
+    | ts, Last (Optional (_label, x)) ->
         ( check x ; disjunct (tag_set x :: ts) )
-    | [], Last (Required (label, x)) ->
+    | [], Last (Required (_label, x)) ->
         ( check x )
-    | ts, Last (Required (label, x)) ->
+    | ts, Last (Required (_label, x)) ->
         ( check x ; disjunct (tag_set x :: ts) )
-    | ts, Pair (Optional (label, x), xs) ->
+    | ts, Pair (Optional (_label, x), xs) ->
         ( check x ; ck_seq (tag_set x :: ts, xs) )
-    | [], Pair (Required (label, x), xs) ->
+    | [], Pair (Required (_label, x), xs) ->
         ( check x ; ck_seq ([], xs) )
-    | ts, Pair (Required (label, x), xs) ->
+    | ts, Pair (Required (_label, x), xs) ->
         ( check x ; disjunct (tag_set x :: ts) ; ck_seq ([], xs) )
 
   and ck_set : type a. a sequence -> tags list = function

@@ -48,6 +48,8 @@ end
 
 module R = struct
 
+  open Cstruct
+
   type coding =
     | Primitive of int
     | Constructed of int
@@ -128,15 +130,14 @@ module R = struct
   end
 
 
-  let is_sequence_end buf =
-    Cstruct.BE.get_uint16 buf 0 = 0x00
+  let is_sequence_end buf = LE.get_uint16 buf 0 = 0x00
 
-  let drop_sequence_end buf = Cstruct.shift buf 2
+  let drop_sequence_end buf = shift buf 2
 
 
   let p_big_tag buf =
     let rec loop acc i =
-      let byte = Cstruct.get_uint8 buf i in
+      let byte = get_uint8 buf i in
       let acc' = (acc lsl 7) + (byte land 0x7f) in
       match byte land 0x80 with
       | _ when acc' < acc -> parse_error "tag overflow"
@@ -145,19 +146,18 @@ module R = struct
     loop 0 1
 
   let p_big_length buf off n =
-    let last = off + n in
+    let last = off + n - 1 in
     let rec loop acc = function
       | i when i > last -> (acc, i)
       | i ->
-          let byte = Cstruct.get_uint8 buf i in
-          let acc' = (acc lsl 8) + byte in
-          if acc' < acc then parse_error "length overflow"
-          else loop acc' (succ i) in
-    loop 0 (succ off)
+          match get_uint8 buf i + acc lsl 8 with
+          | acc' when acc' < acc -> parse_error "length overflow"
+          | acc'                 -> loop acc' (succ i) in
+    loop 0 off
 
   let p_header_unsafe buf =
 
-    let b0 = Cstruct.get_uint8 buf 0 in
+    let b0            = get_uint8 buf 0 in
     let t_class       = b0 land 0xc0
     and t_constructed = b0 land 0x20
     and t_tag         = b0 land 0x1f in
@@ -167,14 +167,14 @@ module R = struct
       | 0x1f -> p_big_tag buf
       | n    -> (n, 1) in
 
-    let l0 = Cstruct.get_uint8 buf length_off in
+    let l0       = get_uint8 buf length_off in
     let t_ltype  = l0 land 0x80
     and t_length = l0 land 0x7f in
 
     let length, contents_off =
       match t_ltype with
-      | 0 -> (t_length, succ length_off)
-      | _ -> p_big_length buf length_off t_length
+      | 0 -> (t_length, length_off + 1)
+      | _ -> p_big_length buf (length_off + 1) t_length
     in
 
     let tag = match t_class with
@@ -189,7 +189,7 @@ module R = struct
       | (_, 0x80) -> Constructed_indefinite
       | _         -> Constructed length
 
-    and rest = Cstruct.shift buf contents_off in
+    and rest = shift buf contents_off in
 
     { tag = tag ; coding = coding ; buf = rest }
 
@@ -207,11 +207,11 @@ module R = struct
   let with_header = fun f1 f2 -> function
 
     | { coding = Primitive n ; buf; _ } ->
-        (f1 n buf, Cstruct.shift buf n)
+        (f1 n buf, shift buf n)
 
     | { coding = Constructed n ; buf; _ } -> 
-        let eof cs = Cstruct.len cs = 0 in
-        let (b1, b2) = Cstruct.(sub buf 0 n, shift buf n) in
+        let eof cs = len cs = 0 in
+        let b1 = sub buf 0 n and b2 = shift buf n in
         let (a, b1') = f2 eof b1 in
         if eof b1' then (a, b2)
         else parse_error "definite constructed: leftovers"
@@ -245,15 +245,14 @@ module R = struct
 
     let rec prs = function
       | { coding = Primitive n ; buf; _ } ->
-          (P.of_cstruct n buf, Cstruct.shift buf n)
+          (P.of_cstruct n buf, shift buf n)
       | h -> ( sequence_of_parser prs >|= P.concat ) h in
     prs
 
 
   let parser_of_prim : type a. a prim -> a parser = function
 
-    | Bool -> primitive_n 1 @@ fun buf ->
-        Cstruct.get_uint8 buf 0 <> 0x00
+    | Bool -> primitive_n 1 @@ fun buf -> get_uint8 buf 0 <> 0x00
 
     | Int -> primitive Prim.Integer.of_cstruct
 

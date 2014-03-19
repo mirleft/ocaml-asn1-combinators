@@ -46,12 +46,19 @@ let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
 
 open OUnit2
 
-type testcase =
-  | TC : string * 'a Asn.t * ('a * int list) list -> testcase
+type test_case =
+  | TC : string * 'a Asn.t * ('a * int list) list -> test_case
 
-let case
-: type a. string -> a Asn.t -> (a * int list) list -> testcase
+let case :
+  type a. string -> a Asn.t -> (a * int list) list -> test_case
 = fun name asn examples -> TC (name, asn, examples)
+
+type test_anticase =
+  | ATC : string * 'a Asn.t * int list list -> test_anticase
+
+let anticase :
+  type a. string -> a Asn.t -> int list list -> test_anticase
+= fun name asn examples -> ATC (name, asn, examples)
 
 
 let assert_decode
@@ -80,7 +87,12 @@ let test_loop_decode ?(iter=10000) encoding asn _ =
     assert_decode ~example:a codec (Asn.encode codec a)
   done
 
-
+let test_no_decode encoding (ATC (_, asn, examples)) _ =
+  let codec = Asn.(codec encoding asn) in
+  examples |> List.iter @@ fun bytes ->
+    match Asn.decode codec (cstruct_of_list bytes) with
+    | None   -> ()
+    | Some _ -> assert_failure "zalgo he comes"
 
 
 let cases = [
@@ -537,6 +549,29 @@ let cases = [
 
 ]
 
+let anticases = [
+
+  (* thx @alpha-60 *)
+  anticase "tag overflow" Asn.bool [
+    [ 0x1f;
+      0xA0; 0x80;
+      0x80; 0x80;
+      0x80; 0x80;
+      0x80; 0x80;
+      0x80; 0x01;
+      0x01; 0xff
+    ]
+  ] ;
+
+  anticase "length overflow" Asn.bool [
+    [ 0x01;
+      0x88;
+      0x80;0x00;0x00;0x00;0x00;0x00;0x00;0x01;
+      0xff
+    ]
+  ] ;
+]
+
 let suite =
 
   "ASN.1" >::: [
@@ -545,6 +580,11 @@ let suite =
       List.map
         (fun (TC (name, _, _) as tc) -> name >:: test_decode Asn.ber tc)
         cases ;
+
+    "not @@ BER decoding" >:::
+      List.map
+        (fun (ATC (name, _, _) as atc) -> name >:: test_no_decode Asn.ber atc)
+        anticases ;
 
     "BER random encode->decode" >:::
       List.map

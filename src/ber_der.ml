@@ -136,14 +136,16 @@ module R = struct
 
 
   let p_big_tag buf =
+    let byte_at = get_uint8 buf in
     let rec loop acc i =
-      let byte = get_uint8 buf i in
+      let byte = byte_at i in
       let acc' = (acc lsl 7) + (byte land 0x7f) in
       match byte land 0x80 with
       | _ when acc' < acc -> parse_error "tag overflow"
       | 0                 -> (acc', succ i)
       | _                 -> loop acc' (succ i) in
-    loop 0 1
+    if (byte_at 1) land 0x7f == 0 then parse_error "leading zero"
+    else loop 0 1
 
   let p_big_length buf off n =
     let last = off + n - 1 in

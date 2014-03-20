@@ -134,28 +134,28 @@ module R = struct
 
   let drop_sequence_end buf = shift buf 2
 
+  (* XXX rigid 7-byte limits. *)
 
   let p_big_tag buf =
-    let byte_at = get_uint8 buf in
-    let rec loop acc i =
-      let byte = byte_at i in
-      let acc' = (acc lsl 7) + (byte land 0x7f) in
-      match byte land 0x80 with
-      | _ when acc' < acc -> parse_error "tag overflow"
-      | 0                 -> (acc', succ i)
-      | _                 -> loop acc' (succ i) in
-    if (byte_at 1) land 0x7f == 0 then parse_error "leading zero"
-    else loop 0 1
+    let rec loop acc = function
+      | 8 -> parse_error "tag overflow"
+      | i ->
+          let byte = get_uint8 buf i in
+          let flag = byte land 0x80
+          and n    = byte land 0x7f in
+          match (acc lsl 7 + n, flag) with
+          | (0  , _) -> parse_error "malformed tag"
+          | (acc, 0) -> (acc, succ i)
+          | (acc, _) -> loop acc (succ i) in
+    loop 0 1
 
   let p_big_length buf off n =
-    let last = off + n - 1 in
-    let rec loop acc = function
-      | i when i > last -> (acc, i)
-      | i ->
-          match get_uint8 buf i + acc lsl 8 with
-          | acc' when acc' < acc -> parse_error "length overflow"
-          | acc'                 -> loop acc' (succ i) in
-    loop 0 off
+    let stop = off + n in
+    let rec loop acc i =
+      if i = stop then (acc, i) else
+        let acc' = get_uint8 buf i + acc lsl 8 in
+        loop acc' (succ i) in
+    if n < 8 then loop 0 off else parse_error "length overflow"
 
   let p_header_unsafe buf =
 

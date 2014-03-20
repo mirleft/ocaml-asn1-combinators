@@ -567,7 +567,6 @@ let anticases = [
     [ 0x9f; 0x80; 0x7F; 0x01; 0xff]
   ];
 
-
   anticase "length overflow" Asn.bool [
     [ 0x01;
       0x88;

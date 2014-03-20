@@ -28,15 +28,12 @@ let random_size = function
   | None      -> Random.int 20
 
 let cs_concat list =
-  let cs =
-    Cstruct.create @@
-      List.fold_left (fun a e -> a + Cstruct.len e) 0 list in
-  let _ =
-    List.fold_left
-      (fun i e ->
-        let n = Cstruct.len e in
-        ( Cstruct.blit e 0 cs i n ; n + i ))
-      0 list in
+  let cs = Cstruct.(create @@ lenv list) in
+  let _  = List.fold_left
+    (fun i e ->
+      let n = Cstruct.len e in
+      ( Cstruct.blit e 0 cs i n ; n + i ))
+    0 list in
   cs
 
 

@@ -2,10 +2,10 @@
 open Prim
 open Core
 
-let replicate n f =
+let replicate n f a =
   let rec loop acc n =
     if n <= 0 then acc else
-      loop (f () :: acc) (pred n) in
+      loop (f a :: acc) (pred n) in
   loop [] n
 
 let r_prim : type a. a Core.prim -> a = function
@@ -45,7 +45,7 @@ and r_seq : type a. a sequence -> a = function
 
 and r_seq_of : type a. a asn -> a list = fun asn ->
 
-  replicate (Random.int 10) (fun () -> r_asn asn)
+  replicate Random.(int 10) r_asn asn
 
 and r_asn : type a. a asn -> a = function
 

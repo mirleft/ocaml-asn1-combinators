@@ -9,10 +9,8 @@ let bit_dump x =
 
 let cstruct_of_list list =
   let cs = Cstruct.create @@ List.length list in
-  let rec go i = function
-    | [] -> ()
-    | x::xs -> (Cstruct.set_uint8 cs i x ; go (succ i) xs) in
-  ( go 0 list ; cs )
+  List.iteri Cstruct.(set_uint8 cs) list ;
+  cs
 
 let verify_decode = function
   | None        -> `fail

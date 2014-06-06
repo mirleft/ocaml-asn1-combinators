@@ -4,7 +4,7 @@ Version:     0.0.4
 Synopsis:    Combinators for expressing ASN.1 grammars in OCaml
 Authors:     David Kaloper <david@numm.org>
 Maintainers: David Kaloper <david@numm.org>
-License:     BSD3
+License:     BSD-3-clause
 Homepage:    https://github.com/pqwy/ocaml-asn1-combinators
 Plugins:     META (0.4), DevFiles (0.4)
 BuildTools:      ocamlbuild
@@ -16,7 +16,7 @@ Library "asn1-combinators"
   Path:            src/
   Modules:         Asn
   InternalModules: Writer, Prim, Core, Asn_random, Combinators, Ber_der
-  BuildDepends:    cstruct, num
+  BuildDepends:    cstruct, num, sexplib
   ByteOpt:     -w A-4-33-40-41-42-43-34-44
 
 Library "testlib"

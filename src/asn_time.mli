@@ -7,4 +7,5 @@ val date_to_posix_time :
     time corresponding to the calendar date [y-m-d] at time [hh:ss:mm.ff] 
     with time zone offset [tz_mm] in minutes. 
 
-    {b Warning.} Does check ranges or that [y-m-d] is a valid calendar date. *)
+    {b Warning.} Does not check ranges or that [y-m-d] is a valid calendar 
+    date. *)

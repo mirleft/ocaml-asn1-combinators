@@ -73,7 +73,7 @@ module R = struct
     | None       -> "(unknown)"
     | Some label -> "'" ^ label ^ "'"
 
-  let eof_error () = raise End_of_input
+  let eof_error () = raise End_of_file
 
   let describe context prs header =
     try prs header with

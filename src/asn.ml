@@ -3,7 +3,6 @@ module OID  = Asn_oid
 module Time = Asn_time
 
 exception Parse_error       = Core.Parse_error
-exception End_of_input      = Core.End_of_input
 exception Ambiguous_grammar = Core.Ambiguous_grammar
 
 let parse_error reason = raise (Parse_error reason)
@@ -45,8 +44,7 @@ let encode_into (Codec (_, enc)) a =
 and decode_exn (Codec (dec, _)) b = dec b
 
 and decode (Codec (dec, _)) b =
-  try Some (dec b) with
-  ( Core.End_of_input | Core.Parse_error _ ) -> None
+  try Some (dec b) with End_of_file | Parse_error _ -> None
 
 
 let random = Asn_random.r_asn

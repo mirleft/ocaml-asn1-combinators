@@ -3,7 +3,6 @@ module OID  : module type of Asn_oid
 module Time : module type of Asn_time
 
 exception Parse_error of string
-exception End_of_input
 exception Ambiguous_grammar
 
 val parse_error : string -> 'a

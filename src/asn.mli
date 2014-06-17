@@ -13,15 +13,7 @@ end
 
 type oid = OID.t
 
-module Time : sig
-  type t = {
-    date : (int * int * int) ;
-    time : (int * int * int * float) ;
-    tz   : (int * int * [ `W | `E ]) option ;
-  }
-end
-
-type time = Time.t
+module Time : module type of Asn_time
 
 
 (* /XXX *)
@@ -123,8 +115,8 @@ val bit_string'      : Cstruct.t  t
 val octet_string     : Cstruct.t  t
 val null             : unit       t
 val oid              : oid        t
-val utc_time         : time       t
-val generalized_time : time       t
+val utc_time         : Time.t     t
+val generalized_time : Time.t     t
 
 val utf8_string      : string t
 val numeric_string   : string t

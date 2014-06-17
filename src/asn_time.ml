@@ -1,3 +1,5 @@
+
+
 (* Modified julian days. Algorithms from the Calendar FAQ: 
    http://www.tondering.dk/claus/calendar.html *)
 
@@ -29,27 +31,20 @@ let date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm =
   ff -.
   (float tz_mm) *. 60.
 
-let test () = (* round trip with result of Unix.gmtime  *)
-  let about_200_years = Int64.(mul 200L (mul 365L 86_400L)) in
-  let rtime span = Int64.(sub (Random.int64 (add span one)) (div span 2L)) in
-  let test () = 
-    let ti = rtime about_200_years (* around the unix epoch *) in
-    let t = Int64.to_float ti in
-    let tm = Unix.gmtime t in
-    let t' = date_to_posix_time 
-        ~y:(tm.Unix.tm_year + 1900)
-        ~m:(tm.Unix.tm_mon + 1) 
-        ~d:(tm.Unix.tm_mday)
-        ~hh:(tm.Unix.tm_hour)
-        ~mm:(tm.Unix.tm_min)
-        ~ss:(tm.Unix.tm_sec) 
-        ~ff:0.
-        ~tz_mm:0
-    in
-    if t <> t' then Printf.eprintf "Failure on posix time: %Ld\n%!" ti else
-    ()
-(*    Printf.eprintf "Success on posix time: %Ld\n%!" ti *)
-  in
-  for i = 1 to 1_000_000_000 do test () done
 
-let () = test ()
+
+type t = {
+  date : (int * int * int) ;
+  time : (int * int * int * float) ;
+  tz   : (int * int * [ `W | `E ]) option ;
+}
+
+let to_posix_time { date ; time ; tz } =
+  let (y, m, d)        = date
+  and (hh, mm, ss, ff) = time
+  and tz_mm =
+    match tz with
+    | Some (tzh, tzm, `W) -> - (tzh * 60 + tzm)
+    | Some (tzh, tzm, `E) -> tzh * 60 + tzm
+    | None                -> 0 in
+  date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm

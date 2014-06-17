@@ -8,7 +8,7 @@ type tBSCertificate = {
   serial     : Num.num ;
   signature  : oid ;
   issuer     : (oid * string) list list ;
-  validity   : time * time ;
+  validity   : Time.t * Time.t ;
   subject    : (oid * string) list list ;
   pk_info    : oid * bits ;
   issuer_id  : bits option ;

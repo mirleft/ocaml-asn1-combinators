@@ -4,8 +4,7 @@
 module OID = Prim.OID
 type oid = OID.t
 
-module Time = Prim.Time
-type time = Time.t
+module Time = Asn_time
 
 
 (* /XXX *)

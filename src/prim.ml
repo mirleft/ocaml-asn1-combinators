@@ -307,11 +307,9 @@ end
 
 module Time = struct
 
-  type t = {
-    date : (int * int * int) ;
-    time : (int * int * int * float) ;
-    tz   : (int * int * [ `W | `E ]) option ;
-  }
+  type t = Asn_time.t
+
+  open Asn_time
 
   module C = struct
     let is c d = c = d

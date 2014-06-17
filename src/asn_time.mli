@@ -1,4 +1,14 @@
 
+type t = {
+  date : (int * int * int) ;
+  time : (int * int * int * float) ;
+  tz   : (int * int * [ `W | `E ]) option ;
+}
+
+val to_posix_time : t -> float
+
+(* A generally useful utility. *)
+
 val date_to_posix_time :
   y:int -> m:int -> d:int ->
   hh:int -> mm:int -> ss:int ->

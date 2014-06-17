@@ -93,6 +93,30 @@ let test_no_decode encoding (ATC (_, asn, examples)) _ =
     | Some _ -> assert_failure "zalgo he comes"
 
 
+(* Prim tests *)
+
+let random_time_tests ~n _ = (* round trip with result of Unix.gmtime  *)
+  let about_200_years = Int64.(mul 200L (mul 365L 86_400L)) in
+  let rtime span = Int64.(sub (Random.int64 (succ span)) (div span 2L)) in
+  let test () = 
+    let ti = rtime about_200_years (* around the unix epoch *) in
+    let t  = Int64.to_float ti in
+    let tm = Unix.gmtime t in
+    let t' = Asn.Time.date_to_posix_time
+        ~y:(tm.Unix.tm_year + 1900)
+        ~m:(tm.Unix.tm_mon + 1) 
+        ~d:(tm.Unix.tm_mday)
+        ~hh:(tm.Unix.tm_hour)
+        ~mm:(tm.Unix.tm_min)
+        ~ss:(tm.Unix.tm_sec) 
+        ~ff:0.
+        ~tz_mm:0
+    in
+    assert_equal t t'
+  in
+  for i = 1 to n do test () done
+
+
 let cases = [
 
   case "bool" Asn.bool [
@@ -577,6 +601,8 @@ let anticases = [
 let suite =
 
   "ASN.1" >::: [
+
+    "Time normalization" >:: random_time_tests ~n:100000 ;
 
     "BER decoding" >:::
       List.map

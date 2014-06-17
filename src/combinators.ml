@@ -13,27 +13,6 @@ let rec filter_map f = function
       | None    ->       filter_map f xs
       | Some x' -> x' :: filter_map f xs
 
-(* Horrible, horrible hack.
- * Extend the Core.asn type to fix. *)
-module Fix_cache (T : sig type 'a t end) : sig
-  val cached : ('a asn -> 'a asn) -> (unit -> 'a T.t) -> 'a T.t
-  val add : ('a asn -> 'a asn) -> 'a T.t -> 'a T.t
-  val find : ('a asn -> 'a asn) -> 'a T.t
-end
-=
-struct
-  let cast = Obj.magic
-  let cache : (unit, unit) Hashtbl.t = Hashtbl.create 100
-  let cached key cons =
-    let key' = cast key in
-    try cast (Hashtbl.find cache key') with
-    | Not_found ->
-        let res = cons () in
-        ( Hashtbl.add cache key' (cast res) ; res )
-  let add k v = ( Hashtbl.add cache (cast k) (cast v) ; v )
-  let find k  = cast (Hashtbl.find cache @@ cast k)
-end
-
 
 type tag_class = [ `Universal | `Application | `Private ]
 
@@ -210,7 +189,10 @@ let choice6 a b c d e f =
 
 let validate asn =
 
-  let module C  = Fix_cache (struct type 'a t = unit end) in
+  let module C = Cache.Make ( struct
+    type 'a k = 'a asn -> 'a asn
+    type 'a v = unit
+  end ) in
 
   let rec disjunct tss =
     let rec go = function

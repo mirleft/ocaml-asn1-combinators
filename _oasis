@@ -15,7 +15,9 @@ Description:
 Library "asn1-combinators"
   Path:            src/
   Modules:         Asn
-  InternalModules: Asn_oid, Asn_time, Writer, Prim, Core, Asn_random, Combinators, Ber_der
+  InternalModules: Asn_oid, Asn_time,
+                   Cache, Writer, Prim,
+                   Core, Asn_random, Combinators, Ber_der
   BuildDepends:    cstruct, num, sexplib
   ByteOpt:         -w A-4-33-40-41-42-43-34-44
 

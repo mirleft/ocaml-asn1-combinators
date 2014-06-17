@@ -286,7 +286,10 @@ module R = struct
     | BMPString       -> string_like (module Prim.Gen_string)
 
 
-  module Cache = Combinators.Fix_cache (struct type 'a t = 'a parser end)
+  module Cache = Cache.Make ( struct
+    type 'a k = 'a asn -> 'a asn
+    type 'a v = 'a parser
+  end )
 
   let rec parser_of_asn : type a. a asn -> a parser = function
 

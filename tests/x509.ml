@@ -1,25 +1,23 @@
 
 open Asn
 
-type bits = Cstruct.t
-
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
-  signature  : oid ;
-  issuer     : (oid * string) list list ;
+  signature  : OID.t ;
+  issuer     : (OID.t * string) list list ;
   validity   : Time.t * Time.t ;
-  subject    : (oid * string) list list ;
-  pk_info    : oid * bits ;
-  issuer_id  : bits option ;
-  subject_id : bits option ;
-  extensions : (oid * bool * Cstruct.t) list option
+  subject    : (OID.t * string) list list ;
+  pk_info    : OID.t * Cstruct.t ;
+  issuer_id  : Cstruct.t option ;
+  subject_id : Cstruct.t option ;
+  extensions : (OID.t * bool * Cstruct.t) list option
 }
 
 type certificate = {
   tbs_cert       : tBSCertificate ;
-  signature_algo : oid ;
-  signature      : bits
+  signature_algo : OID.t ;
+  signature      : Cstruct.t
 }
 
 let def  x = function None -> x | Some y -> y

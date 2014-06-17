@@ -1,22 +1,6 @@
 
-(* XXX BOILERPLATE *)
-
-module OID : sig
-  type t
-  val (<|)      : t -> int -> t
-  val (<||)     : t -> int list -> t
-  val base      : int -> int -> t
-  val to_list   : t -> int list
-  val to_string : t -> string
-  val of_string : string -> t
-end
-
-type oid = OID.t
-
+module OID  : module type of Asn_oid
 module Time : module type of Asn_time
-
-
-(* /XXX *)
 
 exception Parse_error of string
 exception End_of_input
@@ -114,7 +98,7 @@ val bit_string       : bool array t
 val bit_string'      : Cstruct.t  t
 val octet_string     : Cstruct.t  t
 val null             : unit       t
-val oid              : oid        t
+val oid              : OID.t      t
 val utc_time         : Time.t     t
 val generalized_time : Time.t     t
 

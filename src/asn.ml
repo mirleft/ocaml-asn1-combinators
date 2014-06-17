@@ -1,13 +1,6 @@
 
-(* XXX BOILERPLATE *)
-
-module OID = Prim.OID
-type oid = OID.t
-
+module OID  = Asn_oid
 module Time = Asn_time
-
-
-(* /XXX *)
 
 exception Parse_error       = Core.Parse_error
 exception End_of_input      = Core.End_of_input

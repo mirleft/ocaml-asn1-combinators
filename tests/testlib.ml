@@ -44,12 +44,14 @@ let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
 
 open OUnit2
 
+type 'a cmp = 'a -> 'a -> bool
+
 type test_case =
-  | TC : string * 'a Asn.t * ('a * int list) list -> test_case
+  | TC : string * 'a cmp option * 'a Asn.t * ('a * int list) list -> test_case
 
 let case :
-  type a. string -> a Asn.t -> (a * int list) list -> test_case
-= fun name asn examples -> TC (name, asn, examples)
+  type a. string -> ?cmp:(a cmp) -> a Asn.t -> (a * int list) list -> test_case
+= fun name ?cmp asn examples -> TC (name, cmp, asn, examples)
 
 type test_anticase =
   | ATC : string * 'a Asn.t * int list list -> test_anticase
@@ -60,8 +62,8 @@ let anticase :
 
 
 let assert_decode
-: type a. ?example:a -> a Asn.codec -> Cstruct.t -> unit
-= fun ?example codec bytes ->
+: type a. ?example:a -> ?cmp:(a cmp) -> a Asn.codec -> Cstruct.t -> unit
+= fun ?example ?cmp codec bytes ->
   match Asn.decode codec bytes with
   | None -> assert_failure "decode failed"
   | Some (x, buf) ->
@@ -69,20 +71,20 @@ let assert_decode
         assert_failure "not all input consumed"
       else
         match example with
-        | Some a -> assert_equal a x
+        | Some a -> assert_equal ?cmp a x
         | None   -> ()
 
-let test_decode encoding (TC (_, asn, examples)) _ =
+let test_decode encoding (TC (_, cmp, asn, examples)) _ =
   let codec = Asn.(codec encoding asn) in
   examples |> List.iter @@ fun (a, bytes) ->
     let arr = cstruct_of_list bytes in
-    assert_decode ~example:a codec arr
+    assert_decode ~example:a ?cmp codec arr
 
-let test_loop_decode ?(iter=10000) encoding asn _ =
+let test_loop_decode ?(iter=10000) ?cmp encoding asn _ =
   let codec = Asn.(codec encoding asn) in
   for i = 1 to iter do
     let a = Asn.random asn in
-    assert_decode ~example:a codec (Asn.encode codec a)
+    assert_decode ~example:a ?cmp codec (Asn.encode codec a)
   done
 
 let test_no_decode encoding (ATC (_, asn, examples)) _ =
@@ -606,7 +608,7 @@ let suite =
 
     "BER decoding" >:::
       List.map
-        (fun (TC (name, _, _) as tc) -> name >:: test_decode Asn.ber tc)
+        (fun (TC (name, _, _, _) as tc) -> name >:: test_decode Asn.ber tc)
         cases ;
 
     "not @@ BER decoding" >:::
@@ -616,12 +618,12 @@ let suite =
 
     "BER random encode->decode" >:::
       List.map
-        (fun (TC (name, asn, _)) -> name >:: test_loop_decode Asn.ber asn)
+        (fun (TC (name, cmp, asn, _)) -> name >:: test_loop_decode ?cmp Asn.ber asn)
         cases ;
 
     "DER random encode->decode" >:::
       List.map
-        (fun (TC (name, asn, _)) -> name >:: test_loop_decode Asn.der asn)
+        (fun (TC (name, cmp, asn, _)) -> name >:: test_loop_decode ?cmp Asn.der asn)
         cases ;
 
     "X509 decode" >:::

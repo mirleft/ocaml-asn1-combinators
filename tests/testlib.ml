@@ -556,12 +556,12 @@ let cases = [
 
   case "utc time" Asn.utc_time [
 
-    ( Asn.Time.({ date = (91, 5, 6); time = (23, 45, 40, 0.); tz = None }),
+    ( Asn.Time.({ date = (1991, 5, 6); time = (23, 45, 40, 0.); tz = None }),
       [ 0x17; 0x0d; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36;
         0x32; 0x33; 0x34; 0x35; 0x34; 0x30; 0x5a ] ) ;
 
     ( Asn.Time.({
-        date = (91, 5, 6)  ;
+        date = (1991, 5, 6)  ;
         time = (16, 45, 40, 0.);
         tz   = Some (7, 0, `W) }) ,
       [ 0x17; 0x11; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31; 0x36;

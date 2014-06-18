@@ -39,6 +39,8 @@ type t = {
   tz   : (int * int * [ `W | `E ]) option ;
 }
 
+(* XXX Hide repr, add validating ctor. *)
+
 let to_posix_time { date ; time ; tz } =
   let (y, m, d)        = date
   and (hh, mm, ss, ff) = time

@@ -268,10 +268,10 @@ module R = struct
 
     | UTCTime   ->
         Prim.Time.(string_like (module Str) >?=
-                     (utc_time_of_string, "malformed UTCTime"))
+                     (time_of_string_utc, "malformed UTCTime"))
     | GeneralizedTime ->
         Prim.Time.(string_like (module Str) >?=
-                     (gen_time_of_string, "malformed GeneralizedTime"))
+                     (time_of_string_gen, "malformed GeneralizedTime"))
 
     | UTF8String      -> string_like (module Prim.Gen_string)
     | NumericString   -> string_like (module Prim.Gen_string)
@@ -601,10 +601,10 @@ module W = struct
     | OID     -> encode @@ Prim.OID.to_writer a
 
     | UTCTime -> 
-        encode Prim.Time.(Str.to_writer @@ utc_time_to_string a)
+        encode Prim.Time.(Str.to_writer @@ time_to_string_utc a)
 
     | GeneralizedTime ->
-        encode Prim.Time.(Str.to_writer @@ gen_time_to_string a)
+        encode Prim.Time.(Str.to_writer @@ time_to_string_gen a)
 
     | UTF8String      -> encode @@ Prim.Gen_string.to_writer a
     | NumericString   -> encode @@ Prim.Gen_string.to_writer a

@@ -270,130 +270,82 @@ module Time = struct
 
   open Asn_time
 
-  module C = struct
-    let is c d = c = d
-    let digit c = c >= '0' && c <= '9'
-  end
+  let catch fn = try Some (fn ()) with _ -> None
 
-  module S = struct
-    open String
-    let drop n str =
-      let len = length str in
-      if n >= len then "" else sub str n (len - n)
-    let pred_at p str n = length str > n && p str.[n]
-    let length = length
-  end
+  let frac f = f -. floor f
 
-  let pn2, pn3, pn4 =
-    Printf.(sprintf "%02d", sprintf "%03d", sprintf "%04d")
+  let round f =
+    int_of_float @@ if frac f < 0.5 then floor f else ceil f
 
-  let rnn n str off = int_of_string (String.sub str off n)
-  let rn1, rn2, rn3, rn4 = rnn 1, rnn 2, rnn 3, rnn 4
+  let tz_of_string_exn = function
+    | "Z"|"" -> None
+    | str    ->
+        Scanf.sscanf str "%1[+-]%02u%02u%!" @@
+          fun sgn h m -> match sgn with
+            | "+" -> Some (h, m, `E)
+            | "-" -> Some (h, m, `W)
+            | _   -> None
+
+  let time_of_string_utc str = catch @@ fun () ->
+    Scanf.sscanf str
+    "%02u%02u%02u%02u%02u%s" @@
+    fun y m d hh mm rest ->
+      let (ss, tz) =
+        try Scanf.sscanf rest "%02u%s" @@ fun ss rest' ->
+          (ss, tz_of_string_exn rest')
+        with _ ->
+          (0, tz_of_string_exn rest)
+      in
+      let y = if y < 50 then 2000 + y else 1900 + y in
+      { date = (y, m, d) ; time = (hh, mm, ss, 0.) ; tz }
+
+  let time_of_string_gen str = catch @@ fun () ->
+    Scanf.sscanf str "%04u%02u%02u%02u%02u%s" @@
+    fun y m d hh mm rest ->
+      let (ssff, tz) =
+        try Scanf.sscanf rest "%f%s" @@ fun ssff rest' ->
+          (ssff, tz_of_string_exn rest')
+        with _ ->
+          (0., tz_of_string_exn rest)
+      in
+      let ss = int_of_float ssff
+      and ff = frac ssff in
+      { date = (y, m, d) ; time = (hh, mm, ss, ff) ; tz }
+
 
   let tz_to_string = function
-    | None              -> "Z"
-    | Some (0, 0, _)    -> "Z"
-    | Some (hh, mm, `W) -> "-" ^ pn2 hh ^ pn2 mm
-    | Some (hh, mm, `E) -> "+" ^ pn2 hh ^ pn2 mm
+    | None             -> "Z"
+    | Some (h, m, sgn) ->
+        Printf.sprintf "%c%02d%02d"
+          (match sgn with `E -> '+' | `W -> '-') h m
 
-  let tz_of_string str =
-    let pack = function
-      | (0, 0, _) -> None
-      | triple    -> Some triple in
-    match str.[0] with
-    | 'Z' | 'z' -> None
-    | '+' -> pack (rn2 str 1, rn2 str 3, `E)
-    | '-' -> pack (rn2 str 1, rn2 str 3, `W)
-    | _   -> failwith ""
-
-  let tz_of_string_optional str =
-    if S.length str = 0 then None
-    else tz_of_string str
-
-  let try_ fn =
-    try Some (fn ()) with
-    | Failure _ | Invalid_argument _ -> None
-
-  let utc_time_of_string str = try_ @@ fun () ->
-    let yy = rn2 str 0
-    and mm = rn2 str 2
-    and dd = rn2 str 4
-    and hh = rn2 str 6
-    and mi = rn2 str 8 in
-    let (ss, tz_off) =
-      match S.pred_at C.digit str 10 with
-      | false -> (0, 10)
-      | true  -> (rn2 str 10, 12) in
-    let tz = tz_of_string (S.drop tz_off str)
-    in
-    { date = (yy, mm, dd) ; time = (hh, mi, ss, 0.) ; tz }
-
-  let utc_time_to_string { date = (yy, mm, dd); time = (hh, mi, ss, _); tz } =
-    String.concat "" [
-      pn2 yy ; pn2 mm ; pn2 dd ; pn2 hh ; pn2 mi ;
-      ( if ss = 0 then "" else pn2 ss ) ;
-      tz_to_string tz
-    ]
-
-  let gen_time_of_string str = try_ @@ fun () ->
-    let yy = rn4 str 0
-    and mm = rn2 str 4
-    and dd = rn2 str 6
-    and hh = rn2 str 8
-    and mi = rn2 str 10 in
-    let (ss, sf, tz_off) =
-      match S.pred_at C.digit str 12 with
-      | false -> (0, 0., 12)
-      | true  ->
-          let ss = rn2 str 12 in
-          match S.pred_at C.(is '.') str 14 with
-          | false -> (ss, 0., 14)
-          | true  ->
-              let rec scan_f acc e i =
-                if S.pred_at C.digit str i then
-                  scan_f (acc * 10 + rn1 str i) (e * 10) (succ i)
-                else (ss, float acc /. float e, i) in
-              scan_f 0 1 15 in
-    let tz = tz_of_string_optional (S.drop tz_off str)
-    in
-    { date = (yy, mm, dd) ; time = (hh, mi, ss, sf) ; tz }
-
-  let string_of_list list =
-    let b  = Buffer.create 16 in
-    let () = List.iter (Buffer.add_char b) list in
-    Buffer.contents b
-
-  let rec take n = function
-    | []    -> []
-    | x::xs -> if n > 0 then x :: take (pred n) xs else []
+  let time_to_string_utc t =
+    let (y, m, d)       = t.date
+    and (hh, mm, ss, _) = t.time in
+    Printf.sprintf "%02d%02d%02d%02d%02d%02d%s"
+      (y mod 100) m d hh mm ss (tz_to_string t.tz)
 
   (* The most ridiculously convoluted way to print three decimal digits.
-   * When in doubt, multiply 0.57 by 100.  *)
+   * When in doubt, multiply 0.57 by 100. *)
+  (* XXX Assumes x = a * 10^(-n) + epsilon for natural a, n. *)
+  let string_of_frac n x =
+    let i   = round (frac x *. 10. ** float n) in
+    let str = string_of_int i in
+    let rec rstrip_0 = function
+      | 0 -> ""
+      | i ->
+          match str.[i - 1] with
+          | '0' -> rstrip_0 (pred i)
+          | _   -> "." ^ String.sub str 0 i in
+    rstrip_0 String.(length str)
 
-  let pf3 f =
-    let str = Printf.sprintf "%.03f" f in
-    let rec dump acc i =
-      match (str.[i], acc) with
-      | '0', [] -> dump acc (pred i)
-      | '.', [] -> []
-      | '.', xs -> '.' :: take 3 xs
-      | c  , _xs -> dump (c::acc) (pred i) in
-    let digits = dump [] (String.length str - 1) in
-    string_of_list digits
-
-  let gen_time_to_string ?(ber=false) t =
-    match (ber, t.tz) with
-    | (false, _) | (true, None) | (true, Some (0, 0, _)) ->
-        let (yy, mm, dd)     = t.date
-        and (hh, mi, ss, sf) = t.time in
-        String.concat "" [
-          pn4 yy ; pn2 mm ; pn2 dd ; pn2 hh ; pn2 mi ;
-          ( if ss = 0 && sf = 0. then "" else
-            if sf = 0. then pn2 ss
-            else pn2 ss ^ pf3 sf ) ;
-          tz_to_string t.tz
-        ]
-    | _ -> invalid_arg "GeneralizedTime: can't encode time in non-GMT zone"
+  (* XXX BER-times must be UTC-normalized. Not sure whether optional ss and ff
+   * are allowed to be zero-only.  *)
+  let time_to_string_gen t =
+    let (y, m, d)        = t.date
+    and (hh, mm, ss, ff) = t.time in
+    Printf.sprintf "%04d%02d%02d%02d%02d%02d%s%s"
+      y m d hh mm ss (string_of_frac 3 ff) (tz_to_string t.tz)
 
 
   let random ?(fraction=false) () =
@@ -402,11 +354,11 @@ module Time = struct
     and sec_f = if fraction then float (Random.int 1000) /. 1000. else 0.
     and tz    = match Random.int 3 with
       | 0 -> None
-      | 1 -> Some (num 12, num 59, `E)
-      | 2 -> Some (num 12, num 59, `W)
+      | 1 -> Some (num 11, num 59, `E)
+      | 2 -> Some (num 11, num 59, `W)
       | _ -> assert false
     in
-    { date = (num 99, num 12, num 30) ;
+    { date = (1950 + num 99, num 12, num 30) ;
       time = (num 23, num 59, sec, sec_f) ;
       tz   = tz }
 

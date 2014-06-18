@@ -17,7 +17,7 @@ let r_prim : type a. a Core.prim -> a = function
   | Null            -> ()
   | OID             -> OID.random ()
   | UTCTime         -> Time.random ()
-  | GeneralizedTime -> Time.random ~fraction:true ()
+  | GeneralizedTime -> Time.random ()
 
   | UTF8String      -> Gen_string.random ()
   | NumericString   -> Gen_string.random ()

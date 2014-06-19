@@ -14,9 +14,11 @@ type tags = tag list
 exception Ambiguous_grammar
 exception Parse_error of string
 
+type 'a rand = unit -> 'a
+
 type _ asn =
 
-  | Iso : ('a -> 'b) * ('b -> 'a) * 'a asn -> 'b asn
+  | Iso : ('a -> 'b) * ('b -> 'a) * 'b rand option * 'a asn -> 'b asn
   | Fix : ('a asn -> 'a asn) -> 'a asn
 
   | Sequence    : 'a sequence -> 'a asn
@@ -71,8 +73,8 @@ let tag_of_p : type a. a prim -> tag = function
 
 let rec tag_set : type a. a asn -> tags = function
 
-  | Iso (_, _, asn) -> tag_set asn
-  | Fix f as fix    -> tag_set (f fix)
+  | Iso (_, _, _, asn) -> tag_set asn
+  | Fix f as fix       -> tag_set (f fix)
 
   | Sequence    _ -> [ sequence_tag ]
   | Sequence_of _ -> [ sequence_tag ]
@@ -87,16 +89,16 @@ let rec tag_set : type a. a asn -> tags = function
 
 let rec tag : type a. a -> a asn -> tag = fun a -> function
 
-  | Iso (_, g, asn) -> tag (g a) asn
-  | Fix _ as fix    -> tag a fix
-  | Sequence _      -> sequence_tag
-  | Sequence_of _   -> sequence_tag
-  | Set _           -> set_tag
-  | Set_of _        -> set_tag
-  | Choice (a1, a2) -> (match a with L a' -> tag a' a1 | R b' -> tag b' a2)
-  | Implicit (t, _) -> t
-  | Explicit (t, _) -> t
-  | Prim p          -> tag_of_p p
+  | Iso (_, g, _, asn) -> tag (g a) asn
+  | Fix _ as fix       -> tag a fix
+  | Sequence _         -> sequence_tag
+  | Sequence_of _      -> sequence_tag
+  | Set _              -> set_tag
+  | Set_of _           -> set_tag
+  | Choice (a1, a2)    -> (match a with L a' -> tag a' a1 | R b' -> tag b' a2)
+  | Implicit (t, _)    -> t
+  | Explicit (t, _)    -> t
+  | Prim p             -> tag_of_p p
 
 
 let string_of_tag tag =

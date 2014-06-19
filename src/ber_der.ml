@@ -277,7 +277,7 @@ module R = struct
 
   let rec parser_of_asn : type a. a asn -> a parser = function
 
-    | Iso (f, _, asn) -> parser_of_asn asn >|= f
+    | Iso (f, _, _, asn) -> parser_of_asn asn >|= f
 
     | Fix fasn as fix ->
       ( try Cache.find fasn with Not_found ->
@@ -507,7 +507,7 @@ module W = struct
   let rec encode : type a. conf -> tag option -> a -> a asn -> Writer.t
   = fun conf tag a -> function
 
-    | Iso (_, g, asn) -> encode conf tag (g a) asn
+    | Iso (_, g, _, asn) -> encode conf tag (g a) asn
 
     | Fix asn as fix -> encode conf tag a (asn fix)
 

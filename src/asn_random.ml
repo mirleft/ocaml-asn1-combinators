@@ -38,7 +38,9 @@ and r_seq_of : type a. a asn -> a list = fun asn ->
 
 and r_asn : type a. a asn -> a = function
 
-  | Iso (f, _, asn) -> f @@ r_asn asn
+  | Iso (f, _, None, asn)   -> f @@ r_asn asn
+  | Iso (_, _, Some rnd, _) -> rnd ()
+
   | Fix f as fix    -> r_asn (f fix)
 
   | Sequence asns   -> r_seq asns

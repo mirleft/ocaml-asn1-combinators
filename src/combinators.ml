@@ -233,7 +233,7 @@ let validate asn =
 
   and check : type a. a asn -> unit = function
 
-    | Iso (_, _, asn) -> check asn
+    | Iso (_, _, _, asn) -> check asn
     | Fix f as fix ->
       ( try C.find f with Not_found -> C.add f () ; check (f fix) )
 

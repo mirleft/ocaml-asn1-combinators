@@ -6,13 +6,6 @@ let arr_fold_right_i ~f z arr =
     |  i -> loop (f i arr.(i) r) (pred i) in
   loop z Array.(length arr - 1)
 
-let rec filter_map f = function
-  | []    -> []
-  | x::xs ->
-      match f x with
-      | None    ->       filter_map f xs
-      | Some x' -> x' :: filter_map f xs
-
 let parse_error reason = raise (Parse_error reason)
 
 type tag_class = [ `Universal | `Application | `Private ]

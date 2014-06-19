@@ -91,12 +91,6 @@ module R = struct
   let (>|=) prs f header =
     let (a, buf') = prs header in (f a, buf')
 
-  let (>?=) prs (f, err_desc) header =
-    let (a, buf') = prs header in
-    match f a with
-    | None    -> parse_error err_desc
-    | Some a' -> (a', buf')
-
 
   module Partial = struct
     module C = Core
@@ -261,13 +255,6 @@ module R = struct
     | Null       -> primitive_n 0 @@ fun _ -> ()
     | OID        -> primitive Prim.OID.of_cstruct
     | UTF8String -> string_like (module Prim.Gen_string)
-
-    | UTCTime   ->
-        Prim.Time.(string_like (module Str) >?=
-                     (time_of_string_utc, "malformed UTCTime"))
-    | GeneralizedTime ->
-        Prim.Time.(string_like (module Str) >?=
-                     (time_of_string_gen, "malformed GeneralizedTime"))
 
 
   module Cache = Cache.Make ( struct
@@ -579,11 +566,6 @@ module W = struct
     | Null       -> encode Writer.empty
     | OID        -> encode @@ Prim.OID.to_writer a
     | UTF8String -> encode @@ Prim.Gen_string.to_writer a
-
-    | UTCTime -> 
-        encode Prim.Time.(Str.to_writer @@ time_to_string_utc a)
-    | GeneralizedTime ->
-        encode Prim.Time.(Str.to_writer @@ time_to_string_gen a)
 
 
   let ber_to_writer asn a = encode { der = false } None a asn

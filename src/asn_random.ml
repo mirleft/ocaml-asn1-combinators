@@ -16,8 +16,6 @@ let r_prim : type a. a Core.prim -> a = function
   | Octets          -> Octets.random ()
   | Null            -> ()
   | OID             -> OID.random ()
-  | UTCTime         -> Time.random ()
-  | GeneralizedTime -> Time.random ()
   | UTF8String      -> Gen_string.random ()
 
 let rec r_element : type a. a element -> a = function

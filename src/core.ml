@@ -51,8 +51,6 @@ and _ prim =
   | Null            : unit         prim
   | OID             : OID.t        prim
   | UTF8String      : Gen_string.t prim
-  | UTCTime         : Time.t       prim
-  | GeneralizedTime : Time.t       prim
 
 
 let sequence_tag = Universal 0x10
@@ -67,8 +65,6 @@ let tag_of_p : type a. a prim -> tag = function
   | Null            -> Universal 0x05
   | OID             -> Universal 0x06
   | UTF8String      -> Universal 0x0c
-  | UTCTime         -> Universal 0x17
-  | GeneralizedTime -> Universal 0x18
 
 
 let rec tag_set : type a. a asn -> tags = function

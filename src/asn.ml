@@ -5,8 +5,6 @@ module Time = Asn_time
 exception Parse_error       = Core.Parse_error
 exception Ambiguous_grammar = Core.Ambiguous_grammar
 
-let parse_error reason = raise (Parse_error reason)
-
 type 'a t        = 'a Core.asn
 type 'a element  = 'a Core.element
 type 'a sequence = 'a Core.sequence

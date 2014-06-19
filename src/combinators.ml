@@ -13,12 +13,15 @@ let rec filter_map f = function
       | None    ->       filter_map f xs
       | Some x' -> x' :: filter_map f xs
 
+let parse_error reason = raise (Parse_error reason)
 
 type tag_class = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
 
-let map f g asn = Iso (f, g, asn)
+let map f g asn = Iso (f, g, None, asn)
+
+let map_ext ?rand f g asn = Iso (f, g, rand, asn)
 
 let implicit, explicit =
   let tag = function
@@ -34,8 +37,6 @@ and integer             = Prim Int
 and octet_string        = Prim Octets
 and null                = Prim Null
 and oid                 = Prim OID
-and utc_time            = Prim UTCTime
-and generalized_time    = Prim GeneralizedTime
 let utf8_string         = Prim UTF8String
 
 let string tag = implicit ~cls:`Universal tag utf8_string
@@ -50,6 +51,20 @@ and visible_string   = string 0x1a
 and general_string   = string 0x1b
 and universal_string = string 0x1c
 and bmp_string       = string 0x1e
+
+let (utc_time, generalized_time) =
+  let open Prim.Time in
+  let time name (f, g) fraction tag =
+    let f' s =
+      match f s with
+      | None   -> parse_error @@ "malformed " ^ name
+      | Some x -> x
+    in
+    map_ext ~rand:(random ~fraction) f' g
+      (implicit ~cls:`Universal tag utf8_string)
+  in
+  time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
+  time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
 
 
 let int =

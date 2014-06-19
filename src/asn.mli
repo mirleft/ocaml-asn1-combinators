@@ -15,7 +15,7 @@ type tag_class = [ `Universal | `Application | `Private ]
 
 val fix : ('a t -> 'a t) -> 'a t
 
-val map : ('a -> 'b) -> ('b -> 'a) -> 'a t -> 'b t
+val map : ?random:(unit -> 'b) -> ('a -> 'b) -> ('b -> 'a) -> 'a t -> 'b t
 
 val implicit : ?cls:tag_class -> int -> 'a t -> 'a t
 val explicit : ?cls:tag_class -> int -> 'a t -> 'a t

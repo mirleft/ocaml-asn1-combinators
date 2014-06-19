@@ -12,9 +12,7 @@ type tag_class = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
 
-let map f g asn = Iso (f, g, None, asn)
-
-let map_ext ?rand f g asn = Iso (f, g, rand, asn)
+let map ?random f g asn = Iso (f, g, random, asn)
 
 let implicit, explicit =
   let tag = function
@@ -53,7 +51,7 @@ let (utc_time, generalized_time) =
       | None   -> parse_error @@ "malformed " ^ name
       | Some x -> x
     in
-    map_ext ~rand:(random ~fraction) f' g
+    map ~random:(random ~fraction) f' g
       (implicit ~cls:`Universal tag utf8_string)
   in
   time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,

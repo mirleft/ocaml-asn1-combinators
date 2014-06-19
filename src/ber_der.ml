@@ -254,17 +254,13 @@ module R = struct
 
   let parser_of_prim : type a. a prim -> a parser = function
 
-    | Bool -> primitive_n 1 @@ fun buf -> get_uint8 buf 0 <> 0x00
-
-    | Int -> primitive Prim.Integer.of_cstruct
-
-    | Bits -> string_like (module Prim.Bits)
-
-    | Octets -> string_like (module Prim.Octets)
-
-    | Null -> primitive_n 0 @@ fun _ -> ()
-
-    | OID -> primitive Prim.OID.of_cstruct
+    | Bool       -> primitive_n 1 @@ fun buf -> get_uint8 buf 0 <> 0x00
+    | Int        -> primitive Prim.Integer.of_cstruct
+    | Bits       -> string_like (module Prim.Bits)
+    | Octets     -> string_like (module Prim.Octets)
+    | Null       -> primitive_n 0 @@ fun _ -> ()
+    | OID        -> primitive Prim.OID.of_cstruct
+    | UTF8String -> string_like (module Prim.Gen_string)
 
     | UTCTime   ->
         Prim.Time.(string_like (module Str) >?=
@@ -272,18 +268,6 @@ module R = struct
     | GeneralizedTime ->
         Prim.Time.(string_like (module Str) >?=
                      (time_of_string_gen, "malformed GeneralizedTime"))
-
-    | UTF8String      -> string_like (module Prim.Gen_string)
-    | NumericString   -> string_like (module Prim.Gen_string)
-    | PrintableString -> string_like (module Prim.Gen_string)
-    | TeletexString   -> string_like (module Prim.Gen_string)
-    | VideotexString  -> string_like (module Prim.Gen_string)
-    | IA5String       -> string_like (module Prim.Gen_string)
-    | GraphicString   -> string_like (module Prim.Gen_string)
-    | VisibleString   -> string_like (module Prim.Gen_string)
-    | GeneralString   -> string_like (module Prim.Gen_string)
-    | UniversalString -> string_like (module Prim.Gen_string)
-    | BMPString       -> string_like (module Prim.Gen_string)
 
 
   module Cache = Cache.Make ( struct
@@ -588,35 +572,18 @@ module W = struct
       encode (P.to_writer a) in
 
     match prim with
-    | Bool    -> encode @@ Writer.of_byte (if a then 0xff else 0x00)
-
-    | Int     -> encode @@ Prim.Integer.to_writer a
-
-    | Bits    -> encode @@ Prim.Bits.to_writer a
-
-    | Octets  -> encode_s a (module Prim.Octets)
-
-    | Null    -> encode Writer.empty
-
-    | OID     -> encode @@ Prim.OID.to_writer a
+    | Bool       -> encode @@ Writer.of_byte (if a then 0xff else 0x00)
+    | Int        -> encode @@ Prim.Integer.to_writer a
+    | Bits       -> encode @@ Prim.Bits.to_writer a
+    | Octets     -> encode_s a (module Prim.Octets)
+    | Null       -> encode Writer.empty
+    | OID        -> encode @@ Prim.OID.to_writer a
+    | UTF8String -> encode @@ Prim.Gen_string.to_writer a
 
     | UTCTime -> 
         encode Prim.Time.(Str.to_writer @@ time_to_string_utc a)
-
     | GeneralizedTime ->
         encode Prim.Time.(Str.to_writer @@ time_to_string_gen a)
-
-    | UTF8String      -> encode @@ Prim.Gen_string.to_writer a
-    | NumericString   -> encode @@ Prim.Gen_string.to_writer a
-    | PrintableString -> encode @@ Prim.Gen_string.to_writer a
-    | TeletexString   -> encode @@ Prim.Gen_string.to_writer a
-    | VideotexString  -> encode @@ Prim.Gen_string.to_writer a
-    | IA5String       -> encode @@ Prim.Gen_string.to_writer a
-    | GraphicString   -> encode @@ Prim.Gen_string.to_writer a
-    | VisibleString   -> encode @@ Prim.Gen_string.to_writer a
-    | GeneralString   -> encode @@ Prim.Gen_string.to_writer a
-    | UniversalString -> encode @@ Prim.Gen_string.to_writer a
-    | BMPString       -> encode @@ Prim.Gen_string.to_writer a
 
 
   let ber_to_writer asn a = encode { der = false } None a asn

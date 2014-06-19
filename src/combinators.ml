@@ -36,18 +36,21 @@ and null                = Prim Null
 and oid                 = Prim OID
 and utc_time            = Prim UTCTime
 and generalized_time    = Prim GeneralizedTime
-
 let utf8_string         = Prim UTF8String
-and numeric_string      = Prim NumericString
-and printable_string    = Prim PrintableString
-and teletex_string      = Prim TeletexString
-and videotex_string     = Prim VideotexString
-and ia5_string          = Prim IA5String
-and graphic_string      = Prim GraphicString
-and visible_string      = Prim VisibleString
-and general_string      = Prim GeneralString
-and universal_string    = Prim UniversalString
-and bmp_string          = Prim BMPString
+
+let string tag = implicit ~cls:`Universal tag utf8_string
+
+let numeric_string   = string 0x12
+and printable_string = string 0x13
+and teletex_string   = string 0x14
+and videotex_string  = string 0x15
+and ia5_string       = string 0x16
+and graphic_string   = string 0x19
+and visible_string   = string 0x1a
+and general_string   = string 0x1b
+and universal_string = string 0x1c
+and bmp_string       = string 0x1e
+
 
 let int =
   let f n =

@@ -18,18 +18,7 @@ let r_prim : type a. a Core.prim -> a = function
   | OID             -> OID.random ()
   | UTCTime         -> Time.random ()
   | GeneralizedTime -> Time.random ()
-
   | UTF8String      -> Gen_string.random ()
-  | NumericString   -> Gen_string.random ()
-  | PrintableString -> Gen_string.random ()
-  | TeletexString   -> Gen_string.random ()
-  | VideotexString  -> Gen_string.random ()
-  | IA5String       -> Gen_string.random ()
-  | GraphicString   -> Gen_string.random ()
-  | VisibleString   -> Gen_string.random ()
-  | GeneralString   -> Gen_string.random ()
-  | UniversalString -> Gen_string.random ()
-  | BMPString       -> Gen_string.random ()
 
 let rec r_element : type a. a element -> a = function
 

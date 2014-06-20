@@ -18,7 +18,7 @@ Library "asn1-combinators"
   InternalModules: Asn_oid, Asn_time,
                    Cache, Writer, Prim,
                    Core, Asn_random, Combinators, Ber_der
-  BuildDepends:    cstruct, num, sexplib
+  BuildDepends:    cstruct, zarith, num, sexplib
   ByteOpt:         -w A-4-33-40-41-42-43-34-44
 
 Library "testlib"

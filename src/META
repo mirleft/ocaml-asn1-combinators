@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 06007c524cfb72ceb7e1e988d26eb1b7)
+# DO NOT EDIT (digest: bc71a86cd92f75933de0c690a65018bf)
 version = "0.0.4"
 description = "Combinators for expressing ASN.1 grammars in OCaml"
-requires = "cstruct num sexplib"
+requires = "cstruct zarith num sexplib"
 archive(byte) = "asn1-combinators.cma"
 archive(byte, plugin) = "asn1-combinators.cma"
 archive(native) = "asn1-combinators.cmxa"

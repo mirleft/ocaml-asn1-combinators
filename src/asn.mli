@@ -92,9 +92,8 @@ val choice6 :
 
 
 val bool             : bool       t
-val integer          : Num.num    t
+val integer          : Z.t        t
 val bit_string       : bool array t
-val bit_string'      : Cstruct.t  t
 val octet_string     : Cstruct.t  t
 val null             : unit       t
 val oid              : OID.t      t
@@ -113,9 +112,9 @@ val general_string   : string t
 val universal_string : string t
 val bmp_string       : string t
 
-val flags       : (int * 'a) list -> 'a list t
-val big_natural : string t
-val int         : int    t
+val int : int t
+val bit_string_cs    : Cstruct.t  t
+val bit_string_flags : (int * 'a) list -> 'a list t
 
 type encoding
 val ber : encoding

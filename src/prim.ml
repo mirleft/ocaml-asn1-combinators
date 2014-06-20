@@ -36,84 +36,49 @@ let cs_concat list =
     0 list in
   cs
 
+module Integer : Prim with type t = Z.t = struct
 
-module Integer : sig
-  include Prim with type t = Num.num
-  val cs_of_nat_string : string -> Cstruct.t
-  val nat_string_of_cs : Cstruct.t -> string
-end
-  =
-struct
-
-  open Num
-
-  type t = num
+  type t = Z.t
 
   let of_cstruct n buf =
     let rec loop acc = function
       | i when i = n -> acc
       | i ->
           let x = Cstruct.get_uint8 buf i in
-          loop ((acc */ Int 0x100) +/ Int x) (succ i)
+          loop Z.((acc lsl 8) + of_int x) (succ i)
     in
-    let x = loop (Int 0) 0 in
+    let x = loop Z.zero 0 in
     match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
-    | _ -> x -/ power_num (Int 2) (Int (n * 8))
+    | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
 
-  let asr_8 = function
-    | Big_int x -> Big_int (Big_int.shift_right_big_int x 8)
-    | Int     x -> Int     (x asr 8)
-    | Ratio   _ -> invalid_arg "Asn: Num.Rational"
+  let last8 z = Z.(to_int @@ extract z 0 8)
 
-  let last_8 = function
-    | Big_int x -> Big_int.(int_of_big_int @@ extract_big_int x 0 8)
-    | Int     x -> x land 0xff
-    | Ratio   _ -> invalid_arg "Asn: Num.Rational"
+  let minus_one = Z.of_int (-1)
 
   let to_writer n =
+    let sz  = Z.size n * 8 + 1 in
+    let sz1 = sz - 1 in
+    let buf = Cstruct.create sz in
 
-    let rec list_of_pos acc n =
-      if eq_num n (Int 0) then
-        match acc with
-        | []                  -> [ 0x00 ]
-        | x::_ when x >= 0x80 -> 0x00 :: acc
-        | _                   -> acc
-      else list_of_pos (last_8 n :: acc) (asr_8 n)
+    let rec write i n =
+      if n = minus_one || n = Z.zero then i
+      else
+        ( Cstruct.set_uint8 buf i (last8 n) ;
+          write (pred i) Z.(n asr 8) ) in
 
-    and list_of_neg acc n =
-      if eq_num n (Int (-1)) then
-        match acc with
-        | []                 -> [ 0xff ]
-        | x::_ when x < 0x80 -> 0xff :: acc
-        | _                  -> acc
-      else list_of_neg (last_8 n :: acc) (asr_8 n) in
+    let (bad_b0, padding) =
+      if n >= Z.zero then ((<=) 0x80, 0x00)
+      else ((>) 0x80, 0xff) in
+    let off =
+      let i = write sz1 n in
+      if i = sz1 || bad_b0 (Cstruct.get_uint8 buf (succ i)) then
+        ( Cstruct.set_uint8 buf i padding ; i )
+      else succ i in
+    Writer.of_cstruct Cstruct.(sub buf off (sz - off))
 
-    let chars =
-      if lt_num n (Int 0) then
-        list_of_neg [] n
-      else list_of_pos [] n in
 
-    Writer.of_list chars
-
-  let random () = num_of_int (Random.int max_r_int - max_r_int / 2)
-
-  (* XXX not BER safe *)
-  let nat_string_of_cs cs =
-    match Cstruct.get_uint8 cs 0 with
-    | 0x00            -> Cstruct.(to_string @@ shift cs 1)
-    | n when n < 0x80 -> Cstruct.to_string cs
-    | _ -> invalid_arg "nat_string_of_cs: negative integer; expecting nat"
-
-  let cs_of_nat_string str =
-    match int_of_char str.[0] >= 0x80 with
-    | false -> Cstruct.of_string str
-    | true  ->
-        let n  = String.length str in
-        let cs = Cstruct.create (n + 1) in
-        Cstruct.set_uint8 cs 0 0;
-        Cstruct.blit_from_string str 0 cs 1 n;
-        cs
+  let random () = Z.of_int (Random.int max_r_int - max_r_int / 2)
 
 end
 

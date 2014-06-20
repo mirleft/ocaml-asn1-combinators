@@ -57,23 +57,21 @@ let (utc_time, generalized_time) =
   time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
   time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
 
-
 let int =
   let f n =
-    try Num.int_of_num n with Failure _ ->
-      raise (Parse_error ("int: too large: " ^ Num.string_of_num n))
+    try Z.to_int n with Z.Overflow -> parse_error "int: overflow"
   in
-  map f Num.num_of_int integer
+  map f Z.of_int integer
 
 
-let bit_string' =
-  map snd (fun cs -> (0, cs)) (Prim Bits)
-and bit_string  =
+let bit_string  =
   Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
+and bit_string_cs =
+  map snd (fun cs -> (0, cs)) (Prim Bits)
 
 (* XXX
  * Encode clips array to highest set index. Maybe encode full range? *)
-let flags (type a) (xs : (int * a) list) =
+let bit_string_flags (type a) (xs : (int * a) list) =
   let module M1 = Map.Make (struct type t = int let compare = compare end) in
   let module M2 = Map.Make (struct type t = a   let compare = compare end) in
   let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
@@ -97,10 +95,6 @@ let flags (type a) (xs : (int * a) list) =
   in
   map f g bit_string
 
-let big_natural =
-  let open Prim.Integer in
-  map nat_string_of_cs cs_of_nat_string @@
-      implicit ~cls:`Universal 0x02 octet_string
 
 let single a   = Last a
 and ( @) a b   = Pair (a, b)

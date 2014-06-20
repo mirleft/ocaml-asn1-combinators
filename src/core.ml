@@ -44,13 +44,13 @@ and _ sequence =
 
 and _ prim =
 
-  | Bool            : bool         prim
-  | Int             : Integer.t    prim
-  | Bits            : Bits.t       prim
-  | Octets          : Octets.t     prim
-  | Null            : unit         prim
-  | OID             : OID.t        prim
-  | UTF8String      : Gen_string.t prim
+  | Bool       : bool         prim
+  | Int        : Integer.t    prim
+  | Bits       : Bits.t       prim
+  | Octets     : Octets.t     prim
+  | Null       : unit         prim
+  | OID        : OID.t        prim
+  | CharString : Gen_string.t prim
 
 
 let sequence_tag = Universal 0x10
@@ -58,13 +58,13 @@ and set_tag      = Universal 0x11
 
 let tag_of_p : type a. a prim -> tag = function
 
-  | Bool            -> Universal 0x01
-  | Int             -> Universal 0x02
-  | Bits            -> Universal 0x03
-  | Octets          -> Universal 0x04
-  | Null            -> Universal 0x05
-  | OID             -> Universal 0x06
-  | UTF8String      -> Universal 0x0c
+  | Bool       -> Universal 0x01
+  | Int        -> Universal 0x02
+  | Bits       -> Universal 0x03
+  | Octets     -> Universal 0x04
+  | Null       -> Universal 0x05
+  | OID        -> Universal 0x06
+  | CharString -> Universal 0x1d
 
 
 let rec tag_set : type a. a asn -> tags = function

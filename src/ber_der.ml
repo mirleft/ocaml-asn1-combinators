@@ -254,7 +254,7 @@ module R = struct
     | Octets     -> string_like (module Prim.Octets)
     | Null       -> primitive_n 0 @@ fun _ -> ()
     | OID        -> primitive Prim.OID.of_cstruct
-    | UTF8String -> string_like (module Prim.Gen_string)
+    | CharString -> string_like (module Prim.Gen_string)
 
 
   module Cache = Cache.Make ( struct
@@ -565,7 +565,7 @@ module W = struct
     | Octets     -> encode_s a (module Prim.Octets)
     | Null       -> encode Writer.empty
     | OID        -> encode @@ Prim.OID.to_writer a
-    | UTF8String -> encode @@ Prim.Gen_string.to_writer a
+    | CharString -> encode @@ Prim.Gen_string.to_writer a
 
 
   let ber_to_writer asn a = encode { der = false } None a asn

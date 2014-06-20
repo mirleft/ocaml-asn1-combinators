@@ -28,10 +28,11 @@ and integer             = Prim Int
 and octet_string        = Prim Octets
 and null                = Prim Null
 and oid                 = Prim OID
-let utf8_string         = Prim UTF8String
+and character_string    = Prim CharString
 
-let string tag = implicit ~cls:`Universal tag utf8_string
+let string tag = implicit ~cls:`Universal tag character_string
 
+let utf8_string      = string 0x0c
 let numeric_string   = string 0x12
 and printable_string = string 0x13
 and teletex_string   = string 0x14
@@ -52,7 +53,7 @@ let (utc_time, generalized_time) =
       | Some x -> x
     in
     map ~random:(random ~fraction) f' g
-      (implicit ~cls:`Universal tag utf8_string)
+      (implicit ~cls:`Universal tag character_string)
   in
   time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
   time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18

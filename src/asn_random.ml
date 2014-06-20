@@ -10,13 +10,13 @@ let replicate n f a =
 
 let r_prim : type a. a Core.prim -> a = function
 
-  | Bool            -> Random.bool ()
-  | Int             -> Integer.random ()
-  | Bits            -> Bits.random ()
-  | Octets          -> Octets.random ()
-  | Null            -> ()
-  | OID             -> OID.random ()
-  | UTF8String      -> Gen_string.random ()
+  | Bool       -> Random.bool ()
+  | Int        -> Integer.random ()
+  | Bits       -> Bits.random ()
+  | Octets     -> Octets.random ()
+  | Null       -> ()
+  | OID        -> OID.random ()
+  | CharString -> Gen_string.random ()
 
 let rec r_element : type a. a element -> a = function
 

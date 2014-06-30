@@ -1,6 +1,6 @@
 (* #use this to setup the interactive environment. *)
 
-#require "cstruct,num,oUnit";;
+#require "cstruct,zarith,sexplib,oUnit";;
 
 #directory "_build/src";;
 #load "asn1-combinators.cma";;

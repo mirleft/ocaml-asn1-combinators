@@ -1,17 +1,25 @@
 
 type t = Oid of int * int * int list
 
-let (<| ) (Oid (v1, v2, vs)) vn  = Oid (v1, v2, vs @ [vn])
-let (<||) (Oid (v1, v2, vs)) vs' = Oid (v1, v2, vs @ vs')
+let assert_positive name x =
+  if x < 0 then
+    invalid_arg ("OID." ^ name ^ ": component out of range")
+
+let (<|) (Oid (v1, v2, vs)) vn =
+  assert_positive "<|" vn ;
+  Oid (v1, v2, vs @ [vn])
+
+let (<||) (Oid (v1, v2, vs)) vs' =
+  List.iter (assert_positive "<||") vs' ;
+  Oid (v1, v2, vs @ vs')
 
 let to_list (Oid (v1, v2, vs)) = v1 :: v2 :: vs
 
 let base v1 v2 =
-  if v1 < 0 || v1 > 2  then
-    invalid_arg "OID.base: component 1 not 0..2" else
-  if v2 < 0 || v2 > 39 then
-    invalid_arg "OID.base: component 2 not 0..39"
-  else Oid (v1, v2, [])
+  match v1 with
+  | 0|1 when v2 >= 0 && v2 < 40 -> Oid (v1, v2, [])
+  | 2   when v2 >= 0            -> Oid (v1, v2, [])
+  | _ -> invalid_arg "OID.base: component out of range"
 
 let to_string (Oid (v1, v2, vs)) =
   let b = Buffer.create 16 in

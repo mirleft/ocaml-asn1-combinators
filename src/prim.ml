@@ -41,13 +41,25 @@ module Integer : Prim with type t = Z.t = struct
   type t = Z.t
 
   let of_cstruct n buf =
-    let rec loop acc = function
-      | i when i = n -> acc
-      | i ->
-          let x = Cstruct.get_uint8 buf i in
-          loop Z.((acc lsl 8) + of_int x) (succ i)
+    let open Cstruct in
+    let rec loop acc i = function
+      | n when n >= 8 ->
+          let x = BE.get_uint64 buf i in
+          let x = Z.of_int64 Int64.(shift_right_logical x 8) in
+          loop Z.(x lor (acc lsl 56)) (i + 7) (n - 7)
+      | 4|5|6|7 as n ->
+          let x = BE.get_uint32 buf i in
+          let x = Z.of_int32 Int32.(shift_right_logical x 8) in
+          loop Z.(x lor (acc lsl 24)) (i + 3) (n - 3)
+      | 2|3 as n ->
+          let x = Z.of_int (BE.get_uint16 buf i) in
+          loop Z.(x lor (acc lsl 16)) (i + 2) (n - 2)
+      | 1 ->
+          let x = Z.of_int (get_uint8 buf i) in
+          Z.(x lor (acc lsl 8))
+      | _ -> acc
     in
-    let x = loop Z.zero 0 in
+    let x = loop Z.zero 0 n in
     match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
     | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)

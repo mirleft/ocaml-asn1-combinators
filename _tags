@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 70a286ffa01b6cc2668e1d2b1ca58bc0)
+# DO NOT EDIT (digest: 7f4454bf97297a65f99f48ce1aafeca3)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -18,7 +18,6 @@
 <src/asn1-combinators.{cma,cmxa}>: oasis_library_asn1_combinators_byte
 <src/*.ml{,i}>: oasis_library_asn1_combinators_byte
 <src/*.ml{,i}>: pkg_cstruct
-<src/*.ml{,i}>: pkg_sexplib
 <src/*.ml{,i}>: pkg_zarith
 # Library testlib
 "tests/testlib.cmxs": use_testlib
@@ -26,7 +25,6 @@
 <tests/testrunner.{native,byte}>: pkg_cstruct
 <tests/testrunner.{native,byte}>: pkg_cstruct.unix
 <tests/testrunner.{native,byte}>: pkg_oUnit
-<tests/testrunner.{native,byte}>: pkg_sexplib
 <tests/testrunner.{native,byte}>: pkg_zarith
 <tests/testrunner.{native,byte}>: use_asn1-combinators
 <tests/testrunner.{native,byte}>: use_testlib
@@ -34,14 +32,12 @@
 "tests/bench.native": pkg_cstruct
 "tests/bench.native": pkg_cstruct.unix
 "tests/bench.native": pkg_oUnit
-"tests/bench.native": pkg_sexplib
 "tests/bench.native": pkg_zarith
 "tests/bench.native": use_asn1-combinators
 "tests/bench.native": use_testlib
 <tests/*.ml{,i}>: pkg_cstruct
 <tests/*.ml{,i}>: pkg_cstruct.unix
 <tests/*.ml{,i}>: pkg_oUnit
-<tests/*.ml{,i}>: pkg_sexplib
 <tests/*.ml{,i}>: pkg_zarith
 <tests/*.ml{,i}>: use_asn1-combinators
 <tests/*.ml{,i}>: use_testlib

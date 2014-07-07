@@ -1,6 +1,6 @@
 OASISFormat: 0.4
 Name:        asn1-combinators
-Version:     0.0.4
+Version:     0.1.0
 Synopsis:    Combinators for expressing ASN.1 grammars in OCaml
 Authors:     David Kaloper <david@numm.org>
 Maintainers: David Kaloper <david@numm.org>
@@ -18,7 +18,7 @@ Library "asn1-combinators"
   InternalModules: Asn_oid, Asn_time,
                    Cache, Writer, Prim,
                    Core, Asn_random, Combinators, Ber_der
-  BuildDepends:    cstruct, zarith, sexplib
+  BuildDepends:    cstruct, zarith
   ByteOpt:         -w A-4-33-40-41-42-43-34-44
 
 Library "testlib"

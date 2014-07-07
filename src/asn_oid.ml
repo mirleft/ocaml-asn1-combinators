@@ -1,4 +1,8 @@
 
+(* XXX
+ * OIDs being just ints means not being to represent the full range.
+ * Rarely used in practice, but maybe switch to bignums.
+ *)
 type t = Oid of int * int * int list
 
 let assert_positive name x =

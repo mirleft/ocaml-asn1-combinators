@@ -231,19 +231,23 @@ module OID = struct
   include Asn_oid
 
   let of_cstruct n buf =
+    let open Cstruct in
 
     let rec values i =
       if i = n then []
-      else let (i', v) = component 0 i in v :: values i'
+      else let (i, v) = component 0L i 0 in v :: values i
 
-    and component acc i =
-      let byte = Cstruct.get_uint8 buf i in
-      let acc' = acc lor (byte land 0x7f) in
-      match byte land 0x80 with
-      | 0 -> (succ i, acc')
-      | _ -> component (acc' lsl 7) (succ i) in
+    and component acc off = function
+      | 8 -> invalid_arg "OID: overflow"
+      | i ->
+          let byte = get_uint8 buf (off + i) in
+          let b7   = byte land 0x7f in
+          let acc  = Int64.(acc lor (of_int b7)) in
+          match byte land 0x80 with
+          | 0 -> (off + i + 1, Int64.to_nat acc)
+          | _ -> component Int64.(acc lsl 7) off (succ i) in
 
-    let b1 = Cstruct.get_uint8 buf 0 in
+    let b1 = get_uint8 buf 0 in
     let (v1, v2) = (b1 / 40, b1 mod 40) in
 
     base v1 v2 <|| values 1

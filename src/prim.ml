@@ -36,6 +36,28 @@ let cs_concat list =
     0 list in
   cs
 
+module Int64 = struct
+
+  include Int64
+
+  let ( + )  = add
+  and ( - )  = sub
+  and ( * )  = mul
+  and ( / )  = div
+  and (lsl)  = shift_left
+  and (lsr)  = shift_right_logical
+  and (asr)  = shift_right
+  and (lor)  = logor
+  and (land) = logand
+
+  let to_nat =
+    let max_int = Int64.of_int Pervasives.max_int in
+    fun i64 ->
+      if (i64 < 0L) || (i64 > max_int) then
+        invalid_arg "int64 -> int: overflow" ;
+      Int64.to_int i64
+end
+
 module Integer : Prim with type t = Z.t = struct
 
   type t = Z.t

@@ -1,13 +1,13 @@
-OASISFormat: 0.4
-Name:        asn1-combinators
-Version:     0.1.0
-Synopsis:    Combinators for expressing ASN.1 grammars in OCaml
-Authors:     David Kaloper <david@numm.org>
-Maintainers: David Kaloper <david@numm.org>
-License:     FreeBSD
-Homepage:    https://github.com/pqwy/ocaml-asn1-combinators
-Plugins:     META (0.4), DevFiles (0.4)
-BuildTools:      ocamlbuild
+OASISFormat:  0.4
+Name:         asn1-combinators
+Version:      0.1.1
+Synopsis:     Combinators for expressing ASN.1 grammars in OCaml
+Authors:      David Kaloper <david@numm.org>
+Maintainers:  David Kaloper <david@numm.org>
+License:      FreeBSD
+Homepage:     https://github.com/mirleft/ocaml-asn1-combinators
+Plugins:      META (0.4), DevFiles (0.4)
+BuildTools:   ocamlbuild
 Description:
   Express ASN.1 grammars directly in OCaml, combinator-style, then use them to
   parse or encode.
@@ -26,7 +26,7 @@ Library "testlib"
   Modules:      Testlib, X509
   Install:      false
   Build$:       flag(tests)
-  BuildDepends: asn1-combinators, oUnit, cstruct.unix
+  BuildDepends: asn1-combinators, oUnit, cstruct
 
 Executable "test_runner"
   Path:           tests/
@@ -47,5 +47,5 @@ Executable "bench"
   CompiledObject: native
   MainIs:         bench.ml
   Build$:         flag(tests)
-  BuildDepends:   testlib
+  BuildDepends:   testlib, cstruct.unix
 

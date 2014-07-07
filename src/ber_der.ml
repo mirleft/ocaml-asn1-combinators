@@ -2,10 +2,12 @@
 open Core
 
 type 'a endo   = 'a -> 'a
+
 let id x       = x
 let const x _  = x
 let comp f g x = f (g x)
 
+module Int64 = Prim.Int64
 
 module RichMap (M : Map.OrderedType) = struct
   module Impl = Map.Make (M)
@@ -128,28 +130,27 @@ module R = struct
 
   let drop_sequence_end buf = shift buf 2
 
-  (* XXX rigid 7-byte limits. *)
-
   let p_big_tag buf =
     let rec loop acc = function
-      | 8 -> parse_error "tag overflow"
+      | 9 -> parse_error "tag overflow"
       | i ->
           let byte = get_uint8 buf i in
           let flag = byte land 0x80
           and n    = byte land 0x7f in
-          match (acc lsl 7 + n, flag) with
-          | (0  , _) -> parse_error "malformed tag"
-          | (acc, 0) -> (acc, succ i)
+          match (Int64.(acc lsl 7 + of_int n), flag) with
+          | (0L , _) -> parse_error "malformed tag"
+          | (acc, 0) -> (Int64.to_nat acc, succ i)
           | (acc, _) -> loop acc (succ i) in
-    loop 0 1
+    loop 0L 1
 
   let p_big_length buf off n =
     let stop = off + n in
     let rec loop acc i =
-      if i = stop then (acc, i) else
-        let acc' = get_uint8 buf i + acc lsl 8 in
-        loop acc' (succ i) in
-    if n < 8 then loop 0 off else parse_error "length overflow"
+      if i = stop then (Int64.to_nat acc, i) else
+        let byte = get_uint8 buf i in
+        let acc  = Int64.(acc lsl 8 + of_int byte) in
+        loop acc (succ i) in
+    if n < 8 then loop 0L off else parse_error "length overflow"
 
   let p_header_unsafe buf =
 

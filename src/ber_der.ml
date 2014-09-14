@@ -132,7 +132,7 @@ module R = struct
 
   let p_big_tag buf =
     let rec loop acc = function
-      | 9 -> parse_error "tag overflow"
+      | 8 -> parse_error "tag overflow"
       | i ->
           let byte = get_uint8 buf i in
           let flag = byte land 0x80
@@ -141,16 +141,15 @@ module R = struct
           | (0L , _) -> parse_error "malformed tag"
           | (acc, 0) -> (Int64.to_nat acc, succ i)
           | (acc, _) -> loop acc (succ i) in
-    loop 0L 1
+    loop 0L 0
 
-  let p_big_length buf off n =
-    let stop = off + n in
+  let p_big_length buf n =
     let rec loop acc i =
-      if i = stop then (Int64.to_nat acc, i) else
-        let byte = get_uint8 buf i in
-        let acc  = Int64.(acc lsl 8 + of_int byte) in
+      if i = n then Int64.to_nat acc else
+        let b   = get_uint8 buf i in
+        let acc = Int64.(acc lsl 8 + of_int b) in
         loop acc (succ i) in
-    if n < 8 then loop 0L off else parse_error "length overflow"
+    if n < 8 then loop 0L 0 else parse_error "length overflow"
 
   let p_header_unsafe buf =
 
@@ -159,20 +158,20 @@ module R = struct
     and t_constructed = b0 land 0x20
     and t_tag         = b0 land 0x1f in
 
-    let tagn, length_off =
+    let (tagn, length_off) =
       match t_tag with
-      | 0x1f -> p_big_tag buf
+      | 0x1f -> let (t, size) = p_big_tag (shift buf 1) in (t, size + 1)
       | n    -> (n, 1) in
 
     let l0       = get_uint8 buf length_off in
     let t_ltype  = l0 land 0x80
     and t_length = l0 land 0x7f in
 
-    let length, contents_off =
+    let (length, contents_off) =
+      let off = length_off + 1 in
       match t_ltype with
-      | 0 -> (t_length, length_off + 1)
-      | _ -> p_big_length buf (length_off + 1) t_length
-    in
+      | 0 -> (t_length, off)
+      | _ -> (p_big_length (shift buf off) t_length, off + t_length) in
 
     let tag = match t_class with
       | 0x00 -> Universal tagn

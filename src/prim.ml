@@ -240,10 +240,10 @@ module OID = struct
     and component acc off = function
       | 8 -> invalid_arg "OID: overflow"
       | i ->
-          let byte = get_uint8 buf (off + i) in
-          let b7   = byte land 0x7f in
-          let acc  = Int64.(acc lor (of_int b7)) in
-          match byte land 0x80 with
+          let b   = get_uint8 buf (off + i) in
+          let b7  = b land 0x7f in
+          let acc = Int64.(acc lor (of_int b7)) in
+          match b land 0x80 with
           | 0 -> (off + i + 1, Int64.to_nat acc)
           | _ -> component Int64.(acc lsl 7) off (succ i) in
 

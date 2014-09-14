@@ -50,7 +50,7 @@ module Int64 = struct
   and (lor)  = logor
   and (land) = logand
 
-  let to_nat =
+  let to_int_checked =
     let max_int = Int64.of_int Pervasives.max_int in
     fun i64 ->
       if (i64 < 0L) || (i64 > max_int) then
@@ -244,7 +244,7 @@ module OID = struct
           let b7  = b land 0x7f in
           let acc = Int64.(acc lor (of_int b7)) in
           match b land 0x80 with
-          | 0 -> (off + i + 1, Int64.to_nat acc)
+          | 0 -> (off + i + 1, Int64.to_int_checked acc)
           | _ -> component Int64.(acc lsl 7) off (succ i) in
 
     let b1 = get_uint8 buf 0 in

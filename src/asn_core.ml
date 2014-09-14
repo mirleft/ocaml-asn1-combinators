@@ -1,6 +1,10 @@
 
 open Asn_prim
 
+let id x      = x
+let const x _ = x
+let o f g x   = f (g x)
+
 type ('a, 'b) sum = L of 'a | R of 'b
 
 type tag =

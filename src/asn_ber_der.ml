@@ -1,17 +1,12 @@
 
 open Asn_core
 
-type 'a endo   = 'a -> 'a
-
-let id x       = x
-let const x _  = x
-let comp f g x = f (g x)
+type 'a endo = 'a -> 'a
 
 module Int64 = Asn_prim.Int64
 
 module RichMap (M : Map.OrderedType) = struct
-  module Impl = Map.Make (M)
-  include Impl
+  include Map.Make (M)
 
   let of_list xs =
     List.fold_left (fun m (k, e) -> add k e m) empty xs
@@ -22,9 +17,8 @@ module RichMap (M : Map.OrderedType) = struct
   let union m1 m2 =
     let right _ a b =
       match (a, b) with
-      | _, Some e  -> Some e
-      | Some e, _  -> Some e
-      | None, None -> None in
+      | (_, Some e) | (Some e, _) -> Some e
+      | (None, None)              -> None in
     merge right m1 m2
 
   let unions ms = List.fold_left union empty ms
@@ -139,13 +133,13 @@ module R = struct
           and n    = byte land 0x7f in
           match (Int64.(acc lsl 7 + of_int n), flag) with
           | (0L , _) -> parse_error "malformed tag"
-          | (acc, 0) -> (Int64.to_nat acc, succ i)
+          | (acc, 0) -> (Int64.to_int_checked acc, succ i)
           | (acc, _) -> loop acc (succ i) in
     loop 0L 0
 
   let p_big_length buf n =
     let rec loop acc i =
-      if i = n then Int64.to_nat acc else
+      if i = n then Int64.to_int_checked acc else
         let b   = get_uint8 buf i in
         let acc = Int64.(acc lsl 8 + of_int b) in
         loop acc (succ i) in
@@ -366,7 +360,7 @@ module R = struct
                 | P.Pair (v, tl) -> P.Pair (v, f tl)
                 | _               -> assert false
               and (tags, prs1) = partial_e e in
-              (tags, prs1 >|= comp k put) :: setters wrap rest 
+              (tags, prs1 >|= o k put) :: setters wrap rest 
 
         in
         let parsers =
@@ -414,7 +408,7 @@ module R = struct
 
     | Explicit (_, asn) ->
         describe "explicit" @@
-          constructed @@ const (comp (parser_of_asn asn) p_header)
+          constructed @@ const (o (parser_of_asn asn) p_header)
 
     | Prim p -> describe "primitive" @@ parser_of_prim p
 

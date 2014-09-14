@@ -1,6 +1,6 @@
 
-open Prim
-open Core
+open Asn_prim
+open Asn_core
 
 let replicate n f a =
   let rec loop acc n =
@@ -8,7 +8,7 @@ let replicate n f a =
       loop (f a :: acc) (pred n) in
   loop [] n
 
-let r_prim : type a. a Core.prim -> a = function
+let r_prim : type a. a prim -> a = function
 
   | Bool       -> Random.bool ()
   | Int        -> Integer.random ()

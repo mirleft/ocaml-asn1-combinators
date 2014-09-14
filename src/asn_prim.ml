@@ -3,7 +3,7 @@
 module type Prim = sig
   type t
   val of_cstruct : int -> Cstruct.t -> t
-  val to_writer  : t -> Writer.t
+  val to_writer  : t -> Asn_writer.t
   val random     : unit -> t
 end
 
@@ -109,7 +109,7 @@ module Integer : Prim with type t = Z.t = struct
       if i = sz1 || bad_b0 (Cstruct.get_uint8 buf (succ i)) then
         ( Cstruct.set_uint8 buf i padding ; i )
       else succ i in
-    Writer.of_cstruct Cstruct.(sub buf off (sz - off))
+    Asn_writer.of_cstruct Cstruct.(sub buf off (sz - off))
 
 
   let random () = Z.of_int (Random.int max_r_int - max_r_int / 2)
@@ -122,7 +122,7 @@ module Gen_string : String_primitive with type t = string = struct
 
   let of_cstruct n buf = Cstruct.(to_string @@ sub buf 0 n)
 
-  let to_writer = Writer.of_string
+  let to_writer = Asn_writer.of_string
 
   let random ?size () =
     let n = random_size size in
@@ -143,7 +143,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
     Cstruct.(of_bigarray @@
       Bigarray.Array1.sub cs'.buffer cs'.off cs'.len)
 
-  let to_writer = Writer.of_cstruct
+  let to_writer = Asn_writer.of_cstruct
 
   let random ?size () =
     let n   = random_size size in
@@ -179,7 +179,7 @@ struct
     let write off buf =
       Cstruct.set_uint8 buf off unused;
       Cstruct.blit cs 0 buf (off + 1) size in
-    Writer.immediate (size + 1) write
+    Asn_writer.immediate (size + 1) write
 
 
   let array_of_pair (unused, cs) =
@@ -258,9 +258,9 @@ module OID = struct
       if x < 0x80 then cons x xs
       else component (cons (x land 0x7f) xs) (x lsr 7)
     and values = function
-      | []    -> Writer.empty
-      | v::vs -> Writer.(of_list (component [] v) <> values vs) in
-    Writer.(of_byte (v1 * 40 + v2) <> values vs)
+      | []    -> Asn_writer.empty
+      | v::vs -> Asn_writer.(of_list (component [] v) <> values vs) in
+    Asn_writer.(of_byte (v1 * 40 + v2) <> values vs)
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )

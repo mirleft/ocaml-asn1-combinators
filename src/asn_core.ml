@@ -1,5 +1,5 @@
 
-open Prim
+open Asn_prim
 
 type ('a, 'b) sum = L of 'a | R of 'b
 

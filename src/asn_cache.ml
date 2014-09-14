@@ -1,7 +1,7 @@
 
 (*
  * Evil, horrible hack used for caching the HOAS-stype fixpoint combinator.
- * Core.asn should be represented as a partial fold to eliminate this.
+ * Asn_core.asn should be represented as a partial fold to eliminate this.
  *)
 module Make (T : sig type 'a k type 'a v end) : sig
   val cached : 'a T.k -> (unit -> 'a T.v) -> 'a T.v

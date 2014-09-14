@@ -1,4 +1,4 @@
-open Core
+open Asn_core
 
 let arr_fold_right_i ~f z arr =
   let rec loop r = function
@@ -45,7 +45,7 @@ and universal_string = string 0x1c
 and bmp_string       = string 0x1e
 
 let (utc_time, generalized_time) =
-  let open Prim.Time in
+  let open Asn_prim.Time in
   let time name (f, g) fraction tag =
     let f' s =
       match f s with
@@ -66,7 +66,7 @@ let int =
 
 
 let bit_string  =
-  Prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
+  Asn_prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
 and bit_string_cs =
   map snd (fun cs -> (0, cs)) (Prim Bits)
 
@@ -193,7 +193,7 @@ let choice6 a b c d e f =
 
 let validate asn =
 
-  let module C = Cache.Make ( struct
+  let module C = Asn_cache.Make ( struct
     type 'a k = 'a asn -> 'a asn
     type 'a v = unit
   end ) in

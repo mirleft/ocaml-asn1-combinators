@@ -1,5 +1,5 @@
 
-open Core
+open Asn_core
 
 type 'a endo   = 'a -> 'a
 
@@ -7,7 +7,7 @@ let id x       = x
 let const x _  = x
 let comp f g x = f (g x)
 
-module Int64 = Prim.Int64
+module Int64 = Asn_prim.Int64
 
 module RichMap (M : Map.OrderedType) = struct
   module Impl = Map.Make (M)
@@ -95,7 +95,7 @@ module R = struct
 
 
   module Partial = struct
-    module C = Core
+    module C = Asn_core
 
     exception Missing of string option
 
@@ -237,7 +237,7 @@ module R = struct
       scan [] buf0
 
   let string_like (type a) impl =
-    let module P = (val impl : Prim.String_primitive with type t = a) in
+    let module P = (val impl : Asn_prim.String_primitive with type t = a) in
 
     let rec prs = function
       | { coding = Primitive n ; buf; _ } ->
@@ -249,15 +249,15 @@ module R = struct
   let parser_of_prim : type a. a prim -> a parser = function
 
     | Bool       -> primitive_n 1 @@ fun buf -> get_uint8 buf 0 <> 0x00
-    | Int        -> primitive Prim.Integer.of_cstruct
-    | Bits       -> string_like (module Prim.Bits)
-    | Octets     -> string_like (module Prim.Octets)
+    | Int        -> primitive Asn_prim.Integer.of_cstruct
+    | Bits       -> string_like (module Asn_prim.Bits)
+    | Octets     -> string_like (module Asn_prim.Octets)
     | Null       -> primitive_n 0 @@ fun _ -> ()
-    | OID        -> primitive Prim.OID.of_cstruct
-    | CharString -> string_like (module Prim.Gen_string)
+    | OID        -> primitive Asn_prim.OID.of_cstruct
+    | CharString -> string_like (module Asn_prim.Gen_string)
 
 
-  module Cache = Cache.Make ( struct
+  module Cache = Asn_cache.Make ( struct
     type 'a k = 'a asn -> 'a asn
     type 'a v = 'a parser
   end )
@@ -431,7 +431,9 @@ end
 
 module W = struct
 
-  let (<>) = Writer.(<>)
+  module Wr = Asn_writer
+
+  let (<>) = Wr.(<>)
 
   let e_big_tag tag =
     let cons x = function [] -> [x] | xs -> (x lor 0x80)::xs in
@@ -459,16 +461,16 @@ module W = struct
       | `Constructed -> 0x20 in
 
     ( if tagn < 0x1f then
-        Writer.of_byte (klass lor constructed lor tagn)
+        Wr.of_byte (klass lor constructed lor tagn)
       else
-        Writer.of_byte (klass lor constructed lor 0x1f) <>
-        Writer.of_list (e_big_tag tagn) )
+        Wr.of_byte (klass lor constructed lor 0x1f) <>
+        Wr.of_list (e_big_tag tagn) )
     <>
     ( if len <= 0x7f then
-        Writer.of_byte len
+        Wr.of_byte len
       else
-        let body = Writer.of_list (e_big_length len) in
-        Writer.of_byte (0x80 lor Writer.len body) <> body )
+        let body = Wr.of_list (e_big_length len) in
+        Wr.of_byte (0x80 lor Wr.len body) <> body )
 
 
   type conf = { der : bool }
@@ -477,10 +479,10 @@ module W = struct
     match o with | None -> def | Some x -> x
 
   let e_constructed tag body =
-    e_header tag `Constructed (Writer.len body) <> body
+    e_header tag `Constructed (Wr.len body) <> body
 
   let e_primitive tag body =
-    e_header tag `Primitive (Writer.len body) <> body
+    e_header tag `Primitive (Wr.len body) <> body
 
   let assert_length constr len_f a =
     match constr with
@@ -491,7 +493,7 @@ module W = struct
           invalid_arg @@
           Printf.sprintf "bad length: constraint: %d actual: %d" s len
 
-  let rec encode : type a. conf -> tag option -> a -> a asn -> Writer.t
+  let rec encode : type a. conf -> tag option -> a -> a asn -> Wr.t
   = fun conf tag a -> function
 
     | Iso (_, g, _, asn) -> encode conf tag (g a) asn
@@ -503,13 +505,13 @@ module W = struct
 
     | Sequence_of asn -> (* size/stack? *)
         e_constructed (tag @? sequence_tag) @@
-          Writer.concat (List.map (fun e -> encode conf None e asn) a)
+          Wr.concat (List.map (fun e -> encode conf None e asn) a)
 
     | Set asns ->
         let h_sorted conf a asns =
           let fn = { Seq.f = fun a asn xs ->
-                      ( Core.tag a asn, encode conf None a asn ) :: xs } in
-          Writer.concat @@
+            ( Asn_core.tag a asn, encode conf None a asn ) :: xs } in
+          Wr.concat @@
             List.( map snd @@
               sort (fun (t1, _) (t2, _) -> compare t1 t2) @@
                 Seq.fold_with_value fn [] a asns )
@@ -520,11 +522,11 @@ module W = struct
     | Set_of asn ->
         let ws = List.map (fun e -> encode conf None e asn) a in
         let body =
-          Writer.concat @@
+          Wr.concat @@
             if conf.der then
-              List.( ws |> map  Writer.to_cstruct
-                        |> sort Writer.cs_compare
-                        |> map  Writer.of_cstruct )
+              List.( ws |> map  Wr.to_cstruct
+                        |> sort Wr.cs_compare
+                        |> map  Wr.of_cstruct )
             else ws
         in
         e_constructed (tag @? set_tag) body
@@ -542,11 +544,11 @@ module W = struct
 
     | Prim p -> e_prim tag a p
 
-  and e_seq : type a. conf -> a -> a sequence -> Writer.t = fun conf ->
+  and e_seq : type a. conf -> a -> a sequence -> Wr.t = fun conf ->
     let f = { Seq.f = fun e asn w -> encode conf None e asn <> w } in
-    Seq.fold_with_value f Writer.empty
+    Seq.fold_with_value f Wr.empty
 
-  and e_prim : type a. tag option -> a -> a prim -> Writer.t
+  and e_prim : type a. tag option -> a -> a prim -> Wr.t
   = fun tag a prim ->
 
     let encode =
@@ -554,18 +556,18 @@ module W = struct
         (match tag with Some x -> x | None -> tag_of_p prim) in
 
     let encode_s (type a) ?size a impl =
-      let module P = (val impl : Prim.String_primitive with type t = a) in
+      let module P = (val impl : Asn_prim.String_primitive with type t = a) in
       assert_length size P.length a;
       encode (P.to_writer a) in
 
     match prim with
-    | Bool       -> encode @@ Writer.of_byte (if a then 0xff else 0x00)
-    | Int        -> encode @@ Prim.Integer.to_writer a
-    | Bits       -> encode @@ Prim.Bits.to_writer a
-    | Octets     -> encode_s a (module Prim.Octets)
-    | Null       -> encode Writer.empty
-    | OID        -> encode @@ Prim.OID.to_writer a
-    | CharString -> encode @@ Prim.Gen_string.to_writer a
+    | Bool       -> encode @@ Wr.of_byte (if a then 0xff else 0x00)
+    | Int        -> encode @@ Asn_prim.Integer.to_writer a
+    | Bits       -> encode @@ Asn_prim.Bits.to_writer a
+    | Octets     -> encode_s a (module Asn_prim.Octets)
+    | Null       -> encode Wr.empty
+    | OID        -> encode @@ Asn_prim.OID.to_writer a
+    | CharString -> encode @@ Asn_prim.Gen_string.to_writer a
 
 
   let ber_to_writer asn a = encode { der = false } None a asn

@@ -2,42 +2,42 @@
 module OID  = Asn_oid
 module Time = Asn_time
 
-exception Parse_error       = Core.Parse_error
-exception Ambiguous_grammar = Core.Ambiguous_grammar
+exception Parse_error       = Asn_core.Parse_error
+exception Ambiguous_grammar = Asn_core.Ambiguous_grammar
 
-type 'a t        = 'a Core.asn
-type 'a element  = 'a Core.element
-type 'a sequence = 'a Core.sequence
+type 'a t        = 'a Asn_core.asn
+type 'a element  = 'a Asn_core.element
+type 'a sequence = 'a Asn_core.sequence
 
-include Combinators
+include Asn_combinators
 
 type encoding = {
   mk_decoder : 'a. 'a t -> Cstruct.t -> 'a * Cstruct.t;
-  mk_encoder : 'a. 'a t -> 'a -> Writer.t
+  mk_encoder : 'a. 'a t -> 'a -> Asn_writer.t
 }
 
 let ber = {
-  mk_decoder = Ber_der.R.parser ;
-  mk_encoder = Ber_der.W.ber_to_writer ;
+  mk_decoder = Asn_ber_der.R.parser ;
+  mk_encoder = Asn_ber_der.W.ber_to_writer ;
 }
 
 let der = {
-  mk_decoder = Ber_der.R.parser ;
-  mk_encoder = Ber_der.W.der_to_writer ;
+  mk_decoder = Asn_ber_der.R.parser ;
+  mk_encoder = Asn_ber_der.W.der_to_writer ;
 }
 
 type 'a codec =
-  Codec of (Cstruct.t -> ('a * Cstruct.t)) * ('a -> Writer.t)
+  Codec of (Cstruct.t -> ('a * Cstruct.t)) * ('a -> Asn_writer.t)
 
 let codec { mk_encoder ; mk_decoder } asn =
   let () = validate asn in
   Codec (mk_decoder asn, mk_encoder asn)
 
 let encode (Codec (_, enc)) a =
-  Writer.to_cstruct (enc a)
+  Asn_writer.to_cstruct (enc a)
 
 let encode_into (Codec (_, enc)) a =
-  Writer.to_writer (enc a)
+  Asn_writer.to_writer (enc a)
 
 and decode_exn (Codec (dec, _)) b = dec b
 

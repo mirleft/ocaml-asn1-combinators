@@ -60,10 +60,10 @@ module R = struct
       | None   -> reason
       | Some h ->
           Printf.sprintf "%s (header: %s)"
-            reason (string_of_tag h.tag) in
+            reason (Tag.to_string h.tag) in
     raise (Parse_error message)
 
-  let i_wanted asn = "expected: " ^ string_of_tags (tag_set asn)
+  let i_wanted asn = "expected: " ^ Tag.set_to_string (tag_set asn)
 
   let field = function
     | None       -> "(unknown)"
@@ -167,7 +167,9 @@ module R = struct
       | 0 -> (t_length, off)
       | _ -> (p_big_length (shift buf off) t_length, off + t_length) in
 
-    let tag = match t_class with
+    let tag =
+      let open Tag in
+      match t_class with
       | 0x00 -> Universal tagn
       | 0x40 -> Application tagn
       | 0x80 -> Context_specific tagn
@@ -190,8 +192,8 @@ module R = struct
 
   let accepts : type a. a asn -> header -> bool = fun asn ->
     match tag_set asn with
-    | [t]  -> fun { tag; _ } -> tag = t
-    | tags -> fun { tag; _ } -> List.mem tag tags
+    | [t]  -> fun { tag; _ } -> Tag.eq tag t
+    | tags -> fun { tag; _ } -> List.exists (fun t -> Tag.eq tag t) tags
 
 
   let with_header = fun f1 f2 -> function
@@ -326,9 +328,7 @@ module R = struct
     | Set asns ->
 
         let module P  = Partial in
-        let module TM = RichMap ( struct
-          type t = tag let compare = compare
-        end ) in
+        let module TM = RichMap (Tag) in
 
         let rec partial_e : type a. a element -> tags * a P.element parser
           = function
@@ -444,7 +444,9 @@ module W = struct
 
   let e_header tag mode len =
 
-    let (klass, tagn) = match tag with
+    let (klass, tagn) =
+      let open Tag in
+      match tag with
       | Universal n        -> (0x00, n)
       | Application n      -> (0x40, n)
       | Context_specific n -> (0x80, n)

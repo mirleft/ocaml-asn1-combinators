@@ -15,6 +15,7 @@ let fix f = Fix f
 let map ?random f g asn = Iso (f, g, random, asn)
 
 let implicit, explicit =
+  let open Tag in
   let tag = function
     | (None,              n) -> Context_specific n
     | (Some `Application, n) -> Application      n
@@ -204,7 +205,7 @@ let validate asn =
           if t <> u then go ts else (
             (* XXX USE LABELS TO REPORT *)
             Printf.printf "bad at: %s\n%!" @@
-              String.concat "  " @@ List.map string_of_tags tss ;
+              String.concat "  " @@ List.map Tag.set_to_string tss ;
             raise Ambiguous_grammar
           )
       | [] | [_] -> () in

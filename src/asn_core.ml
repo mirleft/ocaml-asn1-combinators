@@ -7,13 +7,51 @@ let o f g x   = f (g x)
 
 type ('a, 'b) sum = L of 'a | R of 'b
 
-type tag =
-  | Universal of int
-  | Application of int
-  | Context_specific of int
-  | Private of int
+module Tag = struct
 
-type tags = tag list
+  type t =
+    | Universal        of int
+    | Application      of int
+    | Context_specific of int
+    | Private          of int
+
+  (* Specialized compare and an inlined eq give a significant speed boost in
+   * BER/DER. *)
+
+  let compare t1 t2 =
+    match (t1, t2) with
+    | (Universal        a, Universal        b)
+    | (Application      a, Application      b)
+    | (Context_specific a, Context_specific b)
+    | (Private          a, Private          b) -> compare a b
+    | (Universal        _, _)
+    | (Application      _, (Context_specific _ | Private _))
+    | (Context_specific _, Private _) -> -1
+    | _ -> 1
+
+  let eq t1 t2 =
+    match (t1, t2) with
+    | (Universal        a, Universal        b)
+    | (Application      a, Application      b)
+    | (Context_specific a, Context_specific b)
+    | (Private          a, Private          b) -> a = b
+    | _ -> false
+
+  let to_string tag =
+    let p = Printf.sprintf "(%s %d)" in
+    match tag with
+    | Universal n        -> p "univ" n
+    | Application n      -> p "app" n
+    | Context_specific n -> p "context" n
+    | Private n          -> p "private" n
+
+  let set_to_string tags =
+    "(" ^ (String.concat " " @@ List.map to_string tags) ^ ")"
+
+end
+
+type tag  = Tag.t
+type tags = Tag.t list
 
 exception Ambiguous_grammar
 exception Parse_error of string
@@ -57,11 +95,11 @@ and _ prim =
   | CharString : Gen_string.t prim
 
 
-let sequence_tag = Universal 0x10
-and set_tag      = Universal 0x11
+let sequence_tag = Tag.Universal 0x10
+and set_tag      = Tag.Universal 0x11
 
-let tag_of_p : type a. a prim -> tag = function
-
+let tag_of_p : type a. a prim -> tag =
+  let open Tag in function
   | Bool       -> Universal 0x01
   | Int        -> Universal 0x02
   | Bits       -> Universal 0x03
@@ -99,16 +137,4 @@ let rec tag : type a. a -> a asn -> tag = fun a -> function
   | Implicit (t, _)    -> t
   | Explicit (t, _)    -> t
   | Prim p             -> tag_of_p p
-
-
-let string_of_tag tag =
-  let p = Printf.sprintf "(%s %d)" in
-  match tag with
-  | Universal n        -> p "univ" n
-  | Application n      -> p "app" n
-  | Context_specific n -> p "context" n
-  | Private n          -> p "private" n
-
-let string_of_tags tags =
-  "(" ^ (String.concat " " @@ List.map string_of_tag tags) ^ ")"
 

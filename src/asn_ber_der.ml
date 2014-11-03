@@ -144,23 +144,18 @@ module R = struct
 
   let string_like (type a) tag impl =
     let module P = (val impl : Asn_prim.String_primitive with type t = a) in
-(*     let rec p g = unpack tag P.of_cstruct (P.concat &. List.map) g in *)
-    let rec p g =
-      unpack tag
-        (fun cs -> P.of_cstruct (Cstruct.len cs) cs) (* <- len redundant *)
-        (P.concat &. List.map p)
-        g in
+    let rec p g = unpack tag P.of_cstruct (P.concat &. List.map p) g in
     p
 
   let c_prim : type a. tag -> a prim -> generic -> a = fun tag ->
     let ck_len n cs = if Cstruct.len cs <> n then fail "xx" in
     function
-      | Bool       -> primitive tag @@ fun cs -> ck_len 1 cs ; Cstruct.get_uint8 cs 0 <> 0
-      | Int        -> primitive tag @@ fun cs -> Asn_prim.Integer.of_cstruct (Cstruct.len cs) cs
+(*       | Bool       -> primitive tag @@ fun cs -> ck_len 1 cs ; Cstruct.get_uint8 cs 0 <> 0 *)
+      | Int        -> primitive tag Asn_prim.Integer.of_cstruct
       | Bits       -> string_like tag (module Asn_prim.Bits)
       | Octets     -> string_like tag (module Asn_prim.Octets)
-      | Null       -> primitive tag @@ fun cs -> ck_len 0 cs
-      | OID        -> primitive tag @@ fun cs -> Asn_prim.OID.of_cstruct (Cstruct.len cs) cs
+(*       | Null       -> primitive tag @@ fun cs -> ck_len 0 cs *)
+      | OID        -> primitive tag Asn_prim.OID.of_cstruct
       | CharString -> string_like tag (module Asn_prim.Gen_string)
 
   let peek asn =

@@ -2,7 +2,7 @@
 
 module type Prim = sig
   type t
-  val of_cstruct : int -> Cstruct.t -> t
+  val of_cstruct : Cstruct.t -> t
   val to_writer  : t -> Asn_writer.t
   val random     : unit -> t
 end
@@ -62,7 +62,7 @@ module Integer : Prim with type t = Z.t = struct
 
   type t = Z.t
 
-  let of_cstruct n buf =
+  let of_cstruct buf =
     let open Cstruct in
     (* XXX -> N-1 byte shifts?? *)
     let rec loop acc i = function
@@ -82,6 +82,7 @@ module Integer : Prim with type t = Z.t = struct
           Z.(x lor (acc lsl 8))
       | _ -> acc
     in
+    let n = buf.Cstruct.len in
     let x = loop Z.zero 0 n in
     match (Cstruct.get_uint8 buf 0) land 0x80 with
     | 0 -> x
@@ -121,7 +122,7 @@ module Gen_string : String_primitive with type t = string = struct
 
   type t = string
 
-  let of_cstruct n buf = Cstruct.(to_string @@ sub buf 0 n)
+  let of_cstruct = Cstruct.to_string
 
   let to_writer = Asn_writer.of_string
 
@@ -138,11 +139,9 @@ module Octets : String_primitive with type t = Cstruct.t = struct
 
   type t = Cstruct.t
 
-  let of_cstruct n buf =
-    let cs' = Cstruct.sub buf 0 n in
+  let of_cstruct { Cstruct.buffer; off; len } =
     (* mumbo jumbo to retain cs equality *)
-    Cstruct.(of_bigarray @@
-      Bigarray.Array1.sub cs'.buffer cs'.off cs'.len)
+    Cstruct.of_bigarray @@ Bigarray.Array1.sub buffer off len
 
   let to_writer = Asn_writer.of_cstruct
 
@@ -170,9 +169,9 @@ struct
 
   type t = int * Cstruct.t
 
-  let of_cstruct n buf =
+  let of_cstruct buf =
     let unused = Cstruct.get_uint8 buf 0
-    and octets = Octets.of_cstruct (n - 1) (Cstruct.shift buf 1) in
+    and octets = Octets.of_cstruct (Cstruct.shift buf 1) in
     (unused, octets)
 
   let to_writer (unused, cs) =
@@ -231,11 +230,11 @@ module OID = struct
 
   include Asn_oid
 
-  let of_cstruct n buf =
+  let of_cstruct buf =
     let open Cstruct in
 
     let rec values i =
-      if i = n then []
+      if i = buf.len then []
       else let (i, v) = component 0L i 0 in v :: values i
 
     and component acc off = function

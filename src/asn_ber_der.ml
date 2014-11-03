@@ -41,7 +41,6 @@ module Seq = struct
         | (Some a1, a2) -> f.f a1 asn (fold_with_value f r a2 asns)
 end
 
-
 module R = struct
 
   open Cstruct
@@ -360,7 +359,7 @@ module R = struct
                 | P.Pair (v, tl) -> P.Pair (v, f tl)
                 | _               -> assert false
               and (tags, prs1) = partial_e e in
-              (tags, prs1 >|= o k put) :: setters wrap rest 
+              (tags, prs1 >|= (k &. put)) :: setters wrap rest
 
         in
         let parsers =
@@ -408,7 +407,7 @@ module R = struct
 
     | Explicit (_, asn) ->
         describe "explicit" @@
-          constructed @@ const (o (parser_of_asn asn) p_header)
+          constructed @@ const (parser_of_asn asn &. p_header)
 
     | Prim p -> describe "primitive" @@ parser_of_prim p
 
@@ -420,6 +419,277 @@ module R = struct
       let header = p_header buf0 in
       if acpt header then prs header
       else parse_error ~header "unexpected header"
+
+end
+
+module R2 = struct
+
+  type coding =
+    | Primitive of int
+    | Constructed of int
+    | Constructed_indefinite
+
+  type generic =
+    | GCons of tag * generic list
+    | GPrim of tag * Cstruct.t
+
+  type config = { strict : bool }
+
+  let fail msg = raise (Parse_error msg)
+
+  let g_tag = function GCons (t, _) -> t | GPrim (t, _) -> t
+
+  let p_header cfg cs =
+    let open Cstruct in
+
+    let ck_redundant cfg n limit =
+      if cfg.strict && n < limit then
+        fail "header: illegal redundant form"
+
+    and p_big_tag cs =
+      let rec go acc = function
+        | 8 -> fail "tag too large"
+        | i ->
+            let b = get_uint8 cs i in
+            let x = Int64.of_int (b land 0x7f) in
+            match (Int64.(acc lsl 7 + x), b land 0x80) with
+            | (0L,  _) -> fail "leading 0"
+            | (acc, 0) -> (Int64.to_int_checked acc, succ i)
+            | (acc, _) -> go acc (succ i) in
+      go 0L 0
+
+    and p_big_len cs n =
+      let rec go acc i =
+        if i = n then acc else
+          go Int64.(acc lsl 8 + of_int (get_uint8 cs i)) (succ i) in
+      Int64.to_int_checked @@ go 0L 0 in
+
+    let p_header_unsafe cfg cs =
+
+      let t0 = get_uint8 cs 0 in
+      let (tag_v, off_len) =
+        match t0 land 0x1f with
+        | 0x1f ->
+            let (n, i) = p_big_tag (shift cs 1) in
+            ck_redundant cfg n 0x1f;
+            (n, i + 1)
+        | x -> (x, 1) in
+
+      let l0    = get_uint8 cs off_len in
+      let lbody = l0 land 0x7f in
+      let (len, off_end) =
+        if l0 land 0x80 = 0 then
+          (lbody, off_len + 1)
+        else
+          let n = p_big_len (shift cs (off_len + 1)) lbody in
+          ck_redundant cfg n 0x7f;
+          (n, off_len + 1 + lbody) in
+
+      let tag =
+        let open Tag in
+        match t0 land 0xc0 with
+        | 0x00 -> Universal        tag_v
+        | 0x40 -> Application      tag_v
+        | 0x80 -> Context_specific tag_v
+        | _    -> Private          tag_v
+
+      and coding =
+        match (t0 land 0x20, l0) with
+        | (0, _   ) -> Primitive len
+        | (_, 0x80) -> Constructed_indefinite
+        | _         -> Constructed len
+
+      and tail = shift cs off_end in
+
+      (tag, coding, tail) in
+
+    try p_header_unsafe cfg cs with Invalid_argument _ ->
+      fail "header: not enough bytes"
+
+  let rec p_generic cfg cs =
+
+    let eof1 cs = Cstruct.len cs = 0
+    and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0 in
+
+    let rec collect eof acc cs =
+      if eof cs then (List.rev acc, cs) else
+        let (g, cs') = p_generic cfg cs in
+        collect eof (g::acc) cs' in
+
+    let (tag, coding, cs') = p_header cfg cs in
+    match coding with
+    | Primitive n ->
+        let (hd, tl) = Cstruct.split cs' n in
+        (GPrim (tag, hd), tl)
+    | Constructed n ->
+        let (hd, tl) = Cstruct.split cs' n in
+        let (xs, _ ) = collect eof1 [] hd in
+        (GCons (tag, xs), tl)
+    | Constructed_indefinite when cfg.strict ->
+        fail "illegal constructed indefinite form"
+    | Constructed_indefinite ->
+        let (xs, tl) = collect eof2 [] cs' in
+        (GCons (tag, xs), Cstruct.shift tl 2)
+
+
+  module TM = Map.Make (Tag)
+
+  let unpack tag f1 f2 = function
+    | GPrim (tag', bs) when Tag.eq tag tag' -> f1 bs
+    | GCons (tag', gs) when Tag.eq tag tag' -> f2 gs
+    | _ -> fail "tag mismatch"
+
+  let primitive   t f = unpack t f (fun _ -> fail "expected primitive")
+  and constructed t f = unpack t (fun _ -> fail "expected constructed") f
+
+  let string_like (type a) tag impl =
+    let module P = (val impl : Asn_prim.String_primitive with type t = a) in
+(*     let rec p g = unpack tag P.of_cstruct (P.concat &. List.map) g in *)
+    let rec p g =
+      unpack tag
+        (fun cs -> P.of_cstruct (Cstruct.len cs) cs) (* <- len redundant *)
+        (P.concat &. List.map p)
+        g in
+    p
+
+  let c_prim : type a. tag -> a prim -> generic -> a = fun tag ->
+    let ck_len n cs = if Cstruct.len cs <> n then fail "xx" in
+    function
+      | Bool       -> primitive tag @@ fun cs -> ck_len 1 cs ; Cstruct.get_uint8 cs 0 <> 0
+      | Int        -> primitive tag @@ fun cs -> Asn_prim.Integer.of_cstruct (Cstruct.len cs) cs
+      | Bits       -> string_like tag (module Asn_prim.Bits)
+      | Octets     -> string_like tag (module Asn_prim.Octets)
+      | Null       -> primitive tag @@ fun cs -> ck_len 0 cs
+      | OID        -> primitive tag @@ fun cs -> Asn_prim.OID.of_cstruct (Cstruct.len cs) cs
+      | CharString -> string_like tag (module Asn_prim.Gen_string)
+
+  let peek asn =
+    match tag_set asn with
+    | [tag] -> fun g -> g_tag g = tag
+    | tags  -> fun g ->
+        let tag = g_tag g in List.exists (fun t -> Tag.eq t tag) tags
+
+  let (@?) oa a = match oa with Some x -> x | None -> a
+
+  let rec c_asn : type a. a asn -> generic -> a = fun asn ->
+    let rec go : type a. tag option -> a asn -> generic -> a =
+    fun t -> function
+      | Iso (f, _, _, a) -> f &. go t a
+      | Sequence s       -> constructed (t @? sequence_tag) (c_seq s)
+      | Sequence_of a    -> constructed (t @? sequence_tag) (List.map (c_asn a))
+      | Set s            -> constructed (t @? set_tag) (c_set s)
+      | Set_of a         -> constructed (t @? set_tag) (List.map (c_asn a))
+      | Implicit (t0, a) -> go (Some (t @? t0)) a
+      | Explicit (t0, a) ->
+          let p = c_asn a in
+          constructed (t @? t0) (function [g] -> p g | _ -> fail "xxx")
+      | Choice (a1, a2)  ->
+          let (p1, p2) = (c_asn a1, c_asn a2)
+          and accepts1 = peek a1 in
+          fun g -> if accepts1 g then L (p1 g) else R (p2 g)
+(*           ( match t with
+            | None   -> fun g -> if accepts1 g then L (p1 g) else R (p2 g)
+            | Some _ -> raise Ambiguous_grammar ) *)
+      | Prim p -> c_prim (t @? tag_of_p p) p in
+    go None asn
+
+  and c_seq : type a. a sequence -> generic list -> a = fun s ->
+
+    let rec seq : type a. a sequence -> generic list -> a = function
+      | Last e ->
+          let p = element e in
+          (fun gs -> match p gs with (a, []) -> a | _ -> fail "xxx")
+      | Pair (e, s) ->
+          let (p1, p2) = (element e, c_seq s) in
+          fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
+
+    and element : type a. a element -> generic list -> a * generic list = function
+      | Required (_, a) ->
+          let p = c_asn a in
+          (function g::gs -> (p g, gs) | [] -> fail "missing")
+      | Optional (_, a) ->
+          let (p, accepts) = (c_asn a, peek a) in
+          function | g::gs when accepts g -> (Some (p g), gs)
+                   | gs                   -> (None, gs)
+    in seq s
+
+  and c_set : type a. a sequence -> generic list -> a = fun s ->
+
+    let module P = struct
+
+      module C = Asn_core
+
+      type 'a or_missing = Found of 'a | Miss of string option
+
+      type _ element =
+        | Required : 'a or_missing -> 'a element
+        | Optional : 'a or_missing -> 'a option element
+
+      type _ sequence =
+        | Last : 'a element -> 'a sequence
+        | Pair : 'a element * 'b sequence -> ('a * 'b) sequence
+
+      let rec of_sequence : type a. a C.sequence -> a sequence = function
+        | C.Last (C.Required (lbl, _))    -> Last (Required (Miss lbl))
+        | C.Last (C.Optional (lbl, _))    -> Last (Optional (Miss lbl))
+        | C.Pair (C.Required (lbl, _), t) -> Pair (Required (Miss lbl), of_sequence t)
+        | C.Pair (C.Optional (lbl, _), t) -> Pair (Optional (Miss lbl), of_sequence t)
+
+      let to_tuple =
+        let rec element : type a. a element -> a = function
+          | Required (Miss  lbl) -> fail "miss"
+          | Required (Found a  ) -> a
+          | Optional (Miss  _  ) -> None
+          | Optional (Found a  ) -> Some a
+        and seq : type a. a sequence -> a = function
+          | Last e       -> element e
+          | Pair (e, tl) -> (element e, seq tl) in
+        seq
+
+      let found_r a = Required (Found a)
+      and found_o a = Optional (Found a)
+    end in
+
+    let put  r = function P.Pair (_, tl) -> P.Pair (r,   tl) | _ -> assert false
+    and wrap f = function P.Pair (e, tl) -> P.Pair (e, f tl) | _ -> assert false in
+
+    let rec element : type a. a element -> tags * (generic -> a P.element) = function
+      | Required (_, a) -> (tag_set a, P.found_r &. c_asn a)
+      | Optional (_, a) -> (tag_set a, P.found_o &. c_asn a)
+
+    and seq :
+      type a b. (a P.sequence endo -> b P.sequence endo)
+             -> a sequence -> (tags * (generic -> b P.sequence endo)) list =
+      fun k -> function
+      | Last e ->
+          let (tags, p) = element e in
+          [(tags, (fun e' -> k (fun _ -> P.Last e')) &. p)]
+      | Pair (e, tl) ->
+          let (tags, p) = element e in
+          (tags, k &. put &. p) :: seq (k &. wrap) tl in
+
+    let parsers =
+      List.fold_right (fun (tags, p) ->
+          List.fold_right (fun tag -> TM.add tag p) tags)
+        (seq id s) TM.empty in
+
+    let rec step acc ps = function
+      | []    -> P.to_tuple acc
+      | g::gs ->
+          let p =
+            try TM.find (g_tag g) ps
+            with Not_found -> fail "unexpected tag" in
+          step (p g acc) (TM.remove (g_tag g) ps) gs in
+
+    step (P.of_sequence s) parsers
+
+
+  let (compile_ber, compile_der) =
+    let compile cfg asn =
+      let p = c_asn asn in
+      fun cs -> let (g, cs') = p_generic cfg cs in (p g, cs') in
+    (fun asn -> compile { strict = false } asn),
+    (fun asn -> compile { strict = true  } asn)
 
 end
 

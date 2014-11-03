@@ -64,6 +64,7 @@ module Integer : Prim with type t = Z.t = struct
 
   let of_cstruct n buf =
     let open Cstruct in
+    (* XXX -> N-1 byte shifts?? *)
     let rec loop acc i = function
       | n when n >= 8 ->
           let x = BE.get_uint64 buf i in

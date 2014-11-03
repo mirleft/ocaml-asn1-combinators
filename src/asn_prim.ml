@@ -1,9 +1,10 @@
 
+module Writer = Asn_writer
 
 module type Prim = sig
   type t
   val of_cstruct : Cstruct.t -> t
-  val to_writer  : t -> Asn_writer.t
+  val to_writer  : t -> Writer.t
   val random     : unit -> t
 end
 
@@ -67,7 +68,7 @@ module Boolean : Prim with type t = bool = struct
       Cstruct.get_uint8 cs 0 <> 0x00
     else invalid_arg "malfomed boolean"
 
-  let to_writer b = Asn_writer.of_byte (if b then 0xff else 0x00)
+  let to_writer b = Writer.of_byte (if b then 0xff else 0x00)
 
   let random = Random.bool
 end
@@ -78,7 +79,7 @@ module Null : Prim with type t = unit = struct
 
   let of_cstruct cs = if cs.Cstruct.len <> 0 then invalid_arg "malformed unit"
 
-  let to_writer () = Asn_writer.empty
+  let to_writer () = Writer.empty
 
   let random () = ()
 end
@@ -87,29 +88,29 @@ module Integer : Prim with type t = Z.t = struct
 
   type t = Z.t
 
-  let of_cstruct buf =
+  let of_cstruct cs =
     let open Cstruct in
     (* XXX -> N-1 byte shifts?? *)
     let rec loop acc i = function
       | n when n >= 8 ->
-          let x = BE.get_uint64 buf i in
+          let x = BE.get_uint64 cs i in
           let x = Z.of_int64 Int64.(shift_right_logical x 8) in
           loop Z.(x lor (acc lsl 56)) (i + 7) (n - 7)
       | 4|5|6|7 as n ->
-          let x = BE.get_uint32 buf i in
+          let x = BE.get_uint32 cs i in
           let x = Z.of_int32 Int32.(shift_right_logical x 8) in
           loop Z.(x lor (acc lsl 24)) (i + 3) (n - 3)
       | 2|3 as n ->
-          let x = Z.of_int (BE.get_uint16 buf i) in
+          let x = Z.of_int (BE.get_uint16 cs i) in
           loop Z.(x lor (acc lsl 16)) (i + 2) (n - 2)
       | 1 ->
-          let x = Z.of_int (get_uint8 buf i) in
+          let x = Z.of_int (get_uint8 cs i) in
           Z.(x lor (acc lsl 8))
       | _ -> acc
     in
-    let n = buf.Cstruct.len in
+    let n = cs.Cstruct.len in
     let x = loop Z.zero 0 n in
-    match (Cstruct.get_uint8 buf 0) land 0x80 with
+    match (Cstruct.get_uint8 cs 0) land 0x80 with
     | 0 -> x
     | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
 
@@ -120,12 +121,12 @@ module Integer : Prim with type t = Z.t = struct
   let to_writer n =
     let sz  = Z.size n * 8 + 1 in
     let sz1 = sz - 1 in
-    let buf = Cstruct.create sz in
+    let cs  = Cstruct.create sz in
 
     let rec write i n =
       if n = minus_one || n = Z.zero then i
       else
-        ( Cstruct.set_uint8 buf i (last8 n) ;
+        ( Cstruct.set_uint8 cs i (last8 n) ;
           write (pred i) Z.(n asr 8) ) in
 
     let (bad_b0, padding) =
@@ -133,10 +134,10 @@ module Integer : Prim with type t = Z.t = struct
       else ((>) 0x80, 0xff) in
     let off =
       let i = write sz1 n in
-      if i = sz1 || bad_b0 (Cstruct.get_uint8 buf (succ i)) then
-        ( Cstruct.set_uint8 buf i padding ; i )
+      if i = sz1 || bad_b0 (Cstruct.get_uint8 cs (succ i)) then
+        ( Cstruct.set_uint8 cs i padding ; i )
       else succ i in
-    Asn_writer.of_cstruct Cstruct.(sub buf off (sz - off))
+    Writer.of_cstruct Cstruct.(sub cs off (sz - off))
 
 
   let random () = Z.of_int (Random.int max_r_int - max_r_int / 2)
@@ -149,7 +150,7 @@ module Gen_string : String_primitive with type t = string = struct
 
   let of_cstruct = Cstruct.to_string
 
-  let to_writer = Asn_writer.of_string
+  let to_writer = Writer.of_string
 
   let random ?size () =
     let n = random_size size in
@@ -168,7 +169,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
     (* mumbo jumbo to retain cs equality *)
     Cstruct.of_bigarray @@ Bigarray.Array1.sub buffer off len
 
-  let to_writer = Asn_writer.of_cstruct
+  let to_writer = Writer.of_cstruct
 
   let random ?size () =
     let n   = random_size size in
@@ -194,17 +195,17 @@ struct
 
   type t = int * Cstruct.t
 
-  let of_cstruct buf =
-    let unused = Cstruct.get_uint8 buf 0
-    and octets = Octets.of_cstruct (Cstruct.shift buf 1) in
+  let of_cstruct cs =
+    let unused = Cstruct.get_uint8 cs 0
+    and octets = Octets.of_cstruct (Cstruct.shift cs 1) in
     (unused, octets)
 
   let to_writer (unused, cs) =
     let size = Cstruct.len cs in
-    let write off buf =
-      Cstruct.set_uint8 buf off unused;
-      Cstruct.blit cs 0 buf (off + 1) size in
-    Asn_writer.immediate (size + 1) write
+    let write off cs' =
+      Cstruct.set_uint8 cs' off unused;
+      Cstruct.blit cs 0 cs' (off + 1) size in
+    Writer.immediate (size + 1) write
 
 
   let array_of_pair (unused, cs) =
@@ -255,24 +256,24 @@ module OID = struct
 
   include Asn_oid
 
-  let of_cstruct buf =
+  let of_cstruct cs =
     let open Cstruct in
 
     let rec values i =
-      if i = buf.len then []
+      if i = cs.len then []
       else let (i, v) = component 0L i 0 in v :: values i
 
     and component acc off = function
       | 8 -> invalid_arg "OID: overflow"
       | i ->
-          let b   = get_uint8 buf (off + i) in
+          let b   = get_uint8 cs (off + i) in
           let b7  = b land 0x7f in
           let acc = Int64.(acc lor (of_int b7)) in
           match b land 0x80 with
           | 0 -> (off + i + 1, Int64.to_int_checked acc)
           | _ -> component Int64.(acc lsl 7) off (succ i) in
 
-    let b1 = get_uint8 buf 0 in
+    let b1 = get_uint8 cs 0 in
     let (v1, v2) = (b1 / 40, b1 mod 40) in
 
     base v1 v2 <|| values 1
@@ -283,9 +284,9 @@ module OID = struct
       if x < 0x80 then cons x xs
       else component (cons (x land 0x7f) xs) (x lsr 7)
     and values = function
-      | []    -> Asn_writer.empty
-      | v::vs -> Asn_writer.(of_list (component [] v) <> values vs) in
-    Asn_writer.(of_byte (v1 * 40 + v2) <> values vs)
+      | []    -> Writer.empty
+      | v::vs -> Writer.(of_list (component [] v) <+> values vs) in
+    Writer.(of_byte (v1 * 40 + v2) <+> values vs)
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )

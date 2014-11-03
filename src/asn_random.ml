@@ -10,7 +10,7 @@ let replicate n f a =
 
 let r_prim : type a. a prim -> a = function
 
-  | Bool       -> Random.bool ()
+  | Bool       -> Boolean.random ()
   | Int        -> Integer.random ()
   | Bits       -> Bits.random ()
   | Octets     -> Octets.random ()

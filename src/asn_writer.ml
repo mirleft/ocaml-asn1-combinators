@@ -20,16 +20,16 @@ let len (n, _) = n
 
 let empty = (0, (fun _ _ -> ()))
 
-let (<>) (l1, w1) (l2, w2) =
+let (<+>) (l1, w1) (l2, w2) =
   let w off buf =
     ( w1 off buf ; w2 (off + l1) buf ) in
   (l1 + l2, w)
 
-let append = (<>)
+let append = (<+>)
 
 let rec concat = function
   | []    -> empty
-  | w::ws -> w <> concat ws
+  | w::ws -> w <+> concat ws
 
 let of_list lst =
   let open List in

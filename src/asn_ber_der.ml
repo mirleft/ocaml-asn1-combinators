@@ -150,11 +150,11 @@ module R = struct
   let c_prim : type a. tag -> a prim -> generic -> a = fun tag ->
     let ck_len n cs = if Cstruct.len cs <> n then fail "xx" in
     function
-(*       | Bool       -> primitive tag @@ fun cs -> ck_len 1 cs ; Cstruct.get_uint8 cs 0 <> 0 *)
+      | Bool       -> primitive tag Asn_prim.Boolean.of_cstruct
       | Int        -> primitive tag Asn_prim.Integer.of_cstruct
       | Bits       -> string_like tag (module Asn_prim.Bits)
       | Octets     -> string_like tag (module Asn_prim.Octets)
-(*       | Null       -> primitive tag @@ fun cs -> ck_len 0 cs *)
+      | Null       -> primitive tag Asn_prim.Null.of_cstruct
       | OID        -> primitive tag Asn_prim.OID.of_cstruct
       | CharString -> string_like tag (module Asn_prim.Gen_string)
 
@@ -422,11 +422,11 @@ module W = struct
       encode (P.to_writer a) in
 
     match prim with
-    | Bool       -> encode @@ Wr.of_byte (if a then 0xff else 0x00)
+    | Bool       -> encode @@ Asn_prim.Boolean.to_writer a
     | Int        -> encode @@ Asn_prim.Integer.to_writer a
     | Bits       -> encode @@ Asn_prim.Bits.to_writer a
     | Octets     -> encode_s a (module Asn_prim.Octets)
-    | Null       -> encode Wr.empty
+    | Null       -> encode @@ Asn_prim.Null.to_writer a
     | OID        -> encode @@ Asn_prim.OID.to_writer a
     | CharString -> encode @@ Asn_prim.Gen_string.to_writer a
 

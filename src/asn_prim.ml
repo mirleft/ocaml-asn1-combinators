@@ -58,6 +58,31 @@ module Int64 = struct
       Int64.to_int i64
 end
 
+module Boolean : Prim with type t = bool = struct
+
+  type t = bool
+
+  let of_cstruct cs =
+    if cs.Cstruct.len = 1 then
+      Cstruct.get_uint8 cs 0 <> 0x00
+    else invalid_arg "malfomed boolean"
+
+  let to_writer b = Asn_writer.of_byte (if b then 0xff else 0x00)
+
+  let random = Random.bool
+end
+
+module Null : Prim with type t = unit = struct
+
+  type t = unit
+
+  let of_cstruct cs = if cs.Cstruct.len <> 0 then invalid_arg "malformed unit"
+
+  let to_writer () = Asn_writer.empty
+
+  let random () = ()
+end
+
 module Integer : Prim with type t = Z.t = struct
 
   type t = Z.t

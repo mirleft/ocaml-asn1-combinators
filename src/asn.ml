@@ -17,12 +17,12 @@ type encoding = {
 }
 
 let ber = {
-  mk_decoder = Asn_ber_der.R.parser ;
+  mk_decoder = Asn_ber_der.R.compile_ber ;
   mk_encoder = Asn_ber_der.W.ber_to_writer ;
 }
 
 let der = {
-  mk_decoder = Asn_ber_der.R.parser ;
+  mk_decoder = Asn_ber_der.R.compile_der ;
   mk_encoder = Asn_ber_der.W.der_to_writer ;
 }
 

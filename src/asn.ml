@@ -1,13 +1,14 @@
 
+module Core = Asn_core
 module OID  = Asn_oid
 module Time = Asn_time
 
-exception Parse_error       = Asn_core.Parse_error
-exception Ambiguous_grammar = Asn_core.Ambiguous_grammar
+exception Parse_error       = Core.Parse_error
+exception Ambiguous_grammar = Core.Ambiguous_grammar
 
-type 'a t        = 'a Asn_core.asn
-type 'a element  = 'a Asn_core.element
-type 'a sequence = 'a Asn_core.sequence
+type 'a t        = 'a Core.asn
+type 'a element  = 'a Core.element
+type 'a sequence = 'a Core.sequence
 
 include Asn_combinators
 

@@ -187,8 +187,8 @@ end
 
 module Bits : sig
   include String_primitive with type t = int * Cstruct.t
-  val array_of_pair : t -> bool array
-  val pair_of_array : bool array -> t
+  val array_of_t : t -> bool array
+  val t_of_array : bool array -> t
 end
   =
 struct
@@ -208,7 +208,7 @@ struct
     Writer.immediate (size + 1) write
 
 
-  let array_of_pair (unused, cs) =
+  let array_of_t (unused, cs) =
     Array.init (Cstruct.len cs * 8 - unused) @@ fun i ->
       let byte = (Cstruct.get_uint8 cs (i / 8)) lsl (i mod 8) in
       byte land 0x80 = 0x80
@@ -217,7 +217,7 @@ struct
     | true  -> (n lsl 1) lor 1
     | false -> (n lsl 1)
 
-  let pair_of_array arr =
+  let t_of_array arr =
     let cs =
       Cstruct.create
         ( match Array.length arr with

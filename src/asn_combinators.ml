@@ -60,16 +60,12 @@ let (utc_time, generalized_time) =
   time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
 
 let int =
-  let f n =
-    try Z.to_int n with Z.Overflow -> parse_error "int: overflow"
-  in
+  let f n = try Z.to_int n with Z.Overflow -> parse_error "int: overflow" in
   map f Z.of_int integer
 
 
-let bit_string  =
-  Asn_prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
-and bit_string_cs =
-  map snd (fun cs -> (0, cs)) (Prim Bits)
+let bit_string    = Asn_prim.Bits.(map array_of_t t_of_array (Prim Bits))
+and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
 
 (* XXX
  * Encode clips array to highest set index. Maybe encode full range? *)

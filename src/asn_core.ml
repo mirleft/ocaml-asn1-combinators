@@ -5,6 +5,8 @@ let id x      = x
 let const x _ = x
 let (&.) f g x = f (g x)
 
+type 'a endo = 'a -> 'a
+
 type ('a, 'b) sum = L of 'a | R of 'b
 
 module Tag = struct
@@ -95,8 +97,8 @@ and _ prim =
   | CharString : Gen_string.t prim
 
 
-let sequence_tag = Tag.Universal 0x10
-and set_tag      = Tag.Universal 0x11
+let seq_tag = Tag.Universal 0x10
+and set_tag = Tag.Universal 0x11
 
 let tag_of_p : type a. a prim -> tag =
   let open Tag in function
@@ -114,8 +116,8 @@ let rec tag_set : type a. a asn -> tags = function
   | Iso (_, _, _, asn) -> tag_set asn
   | Fix f as fix       -> tag_set (f fix)
 
-  | Sequence    _ -> [ sequence_tag ]
-  | Sequence_of _ -> [ sequence_tag ]
+  | Sequence    _ -> [ seq_tag ]
+  | Sequence_of _ -> [ seq_tag ]
   | Set _         -> [ set_tag ]
   | Set_of _      -> [ set_tag ]
   | Choice (asn1, asn2) -> tag_set asn1 @ tag_set asn2
@@ -129,8 +131,8 @@ let rec tag : type a. a -> a asn -> tag = fun a -> function
 
   | Iso (_, g, _, asn) -> tag (g a) asn
   | Fix _ as fix       -> tag a fix
-  | Sequence _         -> sequence_tag
-  | Sequence_of _      -> sequence_tag
+  | Sequence _         -> seq_tag
+  | Sequence_of _      -> seq_tag
   | Set _              -> set_tag
   | Set_of _           -> set_tag
   | Choice (a1, a2)    -> (match a with L a' -> tag a' a1 | R b' -> tag b' a2)

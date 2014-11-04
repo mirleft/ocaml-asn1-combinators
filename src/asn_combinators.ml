@@ -187,6 +187,11 @@ let choice6 a b c d e f =
       (choice (choice (choice a b) c) (choice (choice d e) f))
 
 
+module Cache = Asn_cache.Make ( struct
+  type 'a k = 'a asn -> 'a asn
+  type 'a v = unit
+end )
+
 (*
  * Check tag ambiguity.
  * XXX Maybe add no-implicit-over-choice check.
@@ -194,10 +199,7 @@ let choice6 a b c d e f =
 
 let validate asn =
 
-  let module C = Asn_cache.Make ( struct
-    type 'a k = 'a asn -> 'a asn
-    type 'a v = unit
-  end ) in
+  let cache = Cache.create () in
 
   let rec disjunct tss =
     let rec go = function
@@ -236,8 +238,9 @@ let validate asn =
   and check : type a. a asn -> unit = function
 
     | Iso (_, _, _, asn) -> check asn
-    | Fix f as fix ->
-      ( try C.find f with Not_found -> C.add f () ; check (f fix) )
+    | Fix f as fix       ->
+      ( try Cache.find cache f with Not_found ->
+          Cache.add cache f () ; check (f fix) )
 
     | Sequence asns   -> ck_seq ([], asns)
     | Set      asns   -> disjunct @@ ck_set asns

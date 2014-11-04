@@ -135,6 +135,11 @@ module R = struct
 
   module TM = Map.Make (Tag)
 
+  module Cache = Asn_cache.Make ( struct
+    type 'a k = 'a asn endo
+    type 'a v = generic -> 'a
+  end )
+
   let unpack tag f1 f2 = function
     | GPrim (tag', bs) when Tag.eq tag tag' -> f1 bs
     | GCons (tag', gs) when Tag.eq tag tag' -> f2 gs
@@ -166,49 +171,55 @@ module R = struct
 
   let (@?) oa a = match oa with Some x -> x | None -> a
 
-  let rec c_asn : type a. a asn -> generic -> a = fun asn ->
-    let rec go : type a. tag option -> a asn -> generic -> a =
-    fun t -> function
+  type opt = Cache.t
+
+  let rec c_asn : type a. opt -> a asn -> generic -> a = fun opt asn ->
+
+    let rec go : type a. tag option -> a asn -> generic -> a = fun t -> function
       | Iso (f, _, _, a) -> f &. go t a
-      | Sequence s       -> constructed (t @? sequence_tag) (c_seq s)
-      | Sequence_of a    -> constructed (t @? sequence_tag) (List.map (c_asn a))
-      | Set s            -> constructed (t @? set_tag) (c_set s)
-      | Set_of a         -> constructed (t @? set_tag) (List.map (c_asn a))
+      | Fix fa as fix    ->
+          Cache.once opt fa @@ fun () ->
+            let p = lazy (go t (fa fix)) in fun g -> Lazy.force p g
+      | Sequence s       -> constructed (t @? sequence_tag) (c_seq opt s)
+      | Sequence_of a    -> constructed (t @? sequence_tag) (List.map (c_asn opt a))
+      | Set s            -> constructed (t @? set_tag) (c_set opt s)
+      | Set_of a         -> constructed (t @? set_tag) (List.map (c_asn opt a))
       | Implicit (t0, a) -> go (Some (t @? t0)) a
       | Explicit (t0, a) ->
-          let p = c_asn a in
+          let p = c_asn opt a in
           constructed (t @? t0) (function [g] -> p g | _ -> fail "xxx")
       | Choice (a1, a2)  ->
-          let (p1, p2) = (c_asn a1, c_asn a2)
+          let (p1, p2) = (c_asn opt a1, c_asn opt a2)
           and accepts1 = peek a1 in
           fun g -> if accepts1 g then L (p1 g) else R (p2 g)
 (*           ( match t with
             | None   -> fun g -> if accepts1 g then L (p1 g) else R (p2 g)
             | Some _ -> raise Ambiguous_grammar ) *)
       | Prim p -> c_prim (t @? tag_of_p p) p in
+
     go None asn
 
-  and c_seq : type a. a sequence -> generic list -> a = fun s ->
+  and c_seq : type a. opt -> a sequence -> generic list -> a = fun opt s ->
 
     let rec seq : type a. a sequence -> generic list -> a = function
       | Last e ->
           let p = element e in
           (fun gs -> match p gs with (a, []) -> a | _ -> fail "xxx")
       | Pair (e, s) ->
-          let (p1, p2) = (element e, c_seq s) in
+          let (p1, p2) = (element e, c_seq opt s) in
           fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
 
     and element : type a. a element -> generic list -> a * generic list = function
       | Required (_, a) ->
-          let p = c_asn a in
+          let p = c_asn opt a in
           (function g::gs -> (p g, gs) | [] -> fail "missing")
       | Optional (_, a) ->
-          let (p, accepts) = (c_asn a, peek a) in
+          let (p, accepts) = (c_asn opt a, peek a) in
           function | g::gs when accepts g -> (Some (p g), gs)
                    | gs                   -> (None, gs)
     in seq s
 
-  and c_set : type a. a sequence -> generic list -> a = fun s ->
+  and c_set : type a. opt -> a sequence -> generic list -> a = fun opt s ->
 
     let module P = struct
 
@@ -249,8 +260,8 @@ module R = struct
     and wrap f = function P.Pair (e, tl) -> P.Pair (e, f tl) | _ -> assert false in
 
     let rec element : type a. a element -> tags * (generic -> a P.element) = function
-      | Required (_, a) -> (tag_set a, P.found_r &. c_asn a)
-      | Optional (_, a) -> (tag_set a, P.found_o &. c_asn a)
+      | Required (_, a) -> (tag_set a, P.found_r &. c_asn opt a)
+      | Optional (_, a) -> (tag_set a, P.found_o &. c_asn opt a)
 
     and seq :
       type a b. (a P.sequence endo -> b P.sequence endo)
@@ -281,7 +292,7 @@ module R = struct
 
   let (compile_ber, compile_der) =
     let compile cfg asn =
-      let p = c_asn asn in
+      let p = c_asn Cache.(create ()) asn in
       fun cs -> let (g, cs') = p_generic cfg cs in (p g, cs') in
     (fun asn -> compile { strict = false } asn),
     (fun asn -> compile { strict = true  } asn)
@@ -434,4 +445,3 @@ module W = struct
   let der_to_writer asn a = encode { der = true } None a asn
 
 end
-

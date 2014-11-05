@@ -140,3 +140,68 @@ let rec tag : type a. a -> a asn -> tag = fun a -> function
   | Explicit (t, _)    -> t
   | Prim p             -> tag_of_p p
 
+
+(* Check tag ambiguity.
+ * XXX: Would be _epic_ to move this to the type-checker.
+ *)
+
+module FSet = struct
+  type f = Fn : ('a -> 'b) -> f
+  include Set.Make ( struct
+    type t = f
+    let compare (Fn f1) (Fn f2) = Hashtbl.(compare (hash f1) (hash f2))
+  end )
+  let mem f s = mem (Fn f) s
+  and add f s = add (Fn f) s
+end
+
+let validate asn =
+
+  let rec check : type a. ?tag:tag -> FSet.t -> a asn -> unit =
+    fun ?tag fs -> function
+    | Iso (_, _, _, a)         -> check ?tag fs a
+    | Fix f when FSet.mem f fs -> ()
+    | Fix f as fix             -> check ?tag FSet.(add f fs) (f fix)
+
+    | Sequence s    -> disjoint_seq s ; check_s fs s
+    | Set s         -> disjoint (seq_tags s) ; check_s fs s
+    | Sequence_of a -> check fs a
+    | Set_of      a -> check fs a
+
+(*     | Choice (a1, a2) when tag <> None -> raise Ambiguous_grammar *)
+    | Choice (a1, a2) ->
+        disjoint [tag_set a1; tag_set a2] ; check fs a1 ; check fs a2
+
+    | Implicit (t, a) -> check ~tag:t fs a
+    | Explicit (_, a) -> check fs a
+    | Prim _          -> ()
+
+  and check_s : type a. FSet.t -> a sequence -> unit = fun fs -> function
+    | Last (Required (_, a))    -> check fs a
+    | Last (Optional (_, a))    -> check fs a
+    | Pair (Required (_, a), s) -> check fs a ; check_s fs s
+    | Pair (Optional (_, a), s) -> check fs a ; check_s fs s
+
+  and seq_tags : type a. a sequence -> tags list = function
+    | Last (Required (_, a))    -> [tag_set a]
+    | Last (Optional (_, a))    -> [tag_set a]
+    | Pair (Required (_, a), s) -> tag_set a :: seq_tags s
+    | Pair (Optional (_, a), s) -> tag_set a :: seq_tags s
+
+  and disjoint_seq : type a. a sequence -> unit = fun s ->
+    let f1 : type a. tags list -> a element -> tags list = fun tss -> function
+      | Required (_, a) -> disjoint (tag_set a :: tss) ; []
+      | Optional (_, a) -> disjoint (tag_set a :: tss) ; tag_set a :: tss in
+    let rec f2 : type a. tags list -> a sequence -> unit = fun tss -> function
+      | Last e      -> ignore (f1 tss e)
+      | Pair (e, s) -> f2 (f1 tss e) s in
+    f2 [] s
+
+  and disjoint tss =
+    let rec go = function
+      | t::(u::_ as ts) ->
+          if Tag.eq t u then raise Ambiguous_grammar else go ts
+      | _ -> () in
+    go List.(sort Tag.compare @@ concat tss) in
+
+  check FSet.empty asn

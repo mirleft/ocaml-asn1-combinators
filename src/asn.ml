@@ -31,7 +31,7 @@ type 'a codec =
   Codec of (Cstruct.t -> ('a * Cstruct.t)) * ('a -> Asn_writer.t)
 
 let codec { mk_encoder ; mk_decoder } asn =
-  let () = validate asn in
+  let () = Core.validate asn in
   Codec (mk_decoder asn, mk_encoder asn)
 
 let encode (Codec (_, enc)) a =

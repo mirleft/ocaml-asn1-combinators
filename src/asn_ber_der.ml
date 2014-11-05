@@ -190,9 +190,6 @@ module R = struct
           let (p1, p2) = (c_asn a1 ~opt, c_asn a2 ~opt)
           and accepts1 = peek a1 in
           fun g -> if accepts1 g then L (p1 g) else R (p2 g)
-(*           ( match t with
-            | None   -> fun g -> if accepts1 g then L (p1 g) else R (p2 g)
-            | Some _ -> raise Ambiguous_grammar ) *)
       | Prim p -> c_prim (t @? tag_of_p p) p in
 
     go asn

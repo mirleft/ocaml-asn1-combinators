@@ -163,7 +163,7 @@ module R = struct
 
   let peek asn =
     match tag_set asn with
-    | [tag] -> fun g -> g_tag g = tag
+    | [tag] -> fun g -> Tag.eq (g_tag g) tag
     | tags  -> fun g ->
         let tag = g_tag g in List.exists (fun t -> Tag.eq t tag) tags
 

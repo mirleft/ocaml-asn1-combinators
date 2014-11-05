@@ -40,6 +40,7 @@ module R = struct
 
   let p_header cfg cs =
     let open Cstruct in
+    (* [cfg] is explicitly passed around because it's faster that way. *)
 
     let ck_redundant cfg (n : int) limit =
       if cfg.strict && n < limit then
@@ -63,8 +64,7 @@ module R = struct
           go Int64.(acc lsl 8 + of_int (get_uint8 cs i)) (succ i) in
       Int64.to_int_checked @@ go 0L 0 in
 
-    let p_header_unsafe cfg cs =
-
+    let p_core cfg cs =
       let t0 = get_uint8 cs 0 in
       let (tag_v, off_len) =
         match t0 land 0x1f with
@@ -102,33 +102,37 @@ module R = struct
 
       (tag, coding, tail) in
 
-    try p_header_unsafe cfg cs with Invalid_argument _ ->
-      fail "header: not enough bytes"
+    p_core cfg cs
 
-  let rec p_generic cfg cs =
+
+  let p_generic cfg cs =
 
     let eof1 cs = Cstruct.len cs = 0
     and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0 in
 
-    let rec collect eof acc cs =
+    let rec p_children eof acc cs =
       if eof cs then (List.rev acc, cs) else
-        let (g, cs') = p_generic cfg cs in
-        collect eof (g::acc) cs' in
+        let (g, cs') = p_node cs in
+        p_children eof (g::acc) cs'
 
-    let (tag, coding, cs') = p_header cfg cs in
-    match coding with
-    | Primitive n ->
-        let (hd, tl) = Cstruct.split cs' n in
-        (GPrim (tag, hd), tl)
-    | Constructed n ->
-        let (hd, tl) = Cstruct.split cs' n in
-        let (xs, _ ) = collect eof1 [] hd in
-        (GCons (tag, xs), tl)
-    | Constructed_indefinite when cfg.strict ->
-        fail "illegal constructed indefinite form"
-    | Constructed_indefinite ->
-        let (xs, tl) = collect eof2 [] cs' in
-        (GCons (tag, xs), Cstruct.shift tl 2)
+    and p_node cs =
+      let (tag, coding, cs') = p_header cfg cs in
+      match coding with
+      | Primitive n ->
+          let (hd, tl) = Cstruct.split cs' n in
+          (GPrim (tag, hd), tl)
+      | Constructed n ->
+          let (hd, tl) = Cstruct.split cs' n in
+          let (gs, _ ) = p_children eof1 [] hd in
+          (GCons (tag, gs), tl)
+      | Constructed_indefinite when cfg.strict ->
+          fail "illegal constructed indefinite form"
+      | Constructed_indefinite ->
+          let (gs, tl) = p_children eof2 [] cs' in
+          (GCons (tag, gs), Cstruct.shift tl 2) in
+
+    try p_node cs with Invalid_argument _ ->
+      fail "structure: unexpected end of input"
 
 
   module TM = Map.Make (Tag)

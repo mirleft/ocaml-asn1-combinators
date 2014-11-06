@@ -34,11 +34,28 @@ let to_string (Oid (v1, v2, vs)) =
   Buffer.contents b
 
 let of_string str =
+  let rec components str =
+    if String.length str = 0 then []
+    else Scanf.sscanf str ".%d%s" (fun v rest -> v :: components rest) in
   try
-    let rec components str =
-      if String.length str = 0 then []
-      else Scanf.sscanf str ".%d%s" (fun v rest -> v :: components rest) in
     let (v1, v2, rest) =
       Scanf.sscanf str "%d.%d%s" (fun v1 v2 rest -> (v1, v2, rest)) in
     base v1 v2 <|| components rest
   with End_of_file -> invalid_arg "malformed oid"
+
+let compare (Oid (v1, v2, vs)) (Oid (v1', v2', vs')) =
+  let rec cmp (xs : int list) (ys : int list) =
+    match (xs, ys) with
+    | ([], []) ->  0
+    | ([], _ ) -> -1
+    | (_ , []) ->  1
+    | (x::xs, y::ys) -> match compare x y with 0 -> cmp xs ys | r -> r in
+  match compare v1 v1' with
+  | 0 -> ( match compare v2 v2' with 0 -> cmp vs vs' | r -> r )
+  | r -> r
+
+let equal o1 o2 = compare o1 o2 = 0
+
+let hash (Oid (v1, v2, vs)) =
+  List.fold_left Hashtbl.seeded_hash (Hashtbl.seeded_hash v1 v2) vs
+

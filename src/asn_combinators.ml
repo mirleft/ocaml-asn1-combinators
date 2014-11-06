@@ -67,28 +67,21 @@ let int =
 let bit_string    = Asn_prim.Bits.(map array_of_t t_of_array (Prim Bits))
 and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
 
-(* XXX
- * Encode clips array to highest set index. Maybe encode full range? *)
 let bit_string_flags (type a) (xs : (int * a) list) =
-  let module M1 = Map.Make (struct type t = int let compare = compare end) in
-  let module M2 = Map.Make (struct type t = a   let compare = compare end) in
-  let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
-  and m2 = List.fold_right (fun (i, x) -> M2.add x i) xs M2.empty in
-  let f =
-    arr_fold_right_i [] ~f:(fun i b xs ->
-      if b then (try M1.find i m1 :: xs with Not_found -> xs) else xs)
-  and g list =
-    let (ixs, n) =
-      let rec loop ixs n = function
-        | []    -> (ixs, n)
-        | x::xs ->
-            try
-              let ix = M2.find x m2 in
-              loop (ix :: ixs) (max n ix) xs
-            with Not_found -> loop ixs n xs in
-      loop [] (-1) list in
-    let arr = Array.create (n + 1) false in
-    List.iter (fun ix -> arr.(ix) <- true) ixs;
+  let module M = Map.Make (struct type t = a let compare = compare end) in
+  let ixs = List.fold_right (fun (i, x) -> M.add x i) xs M.empty in
+  let n   = List.fold_right (fun (i, _) -> max (i + 1)) xs 0 in
+  let f = match xs with
+    | []        -> fun _ -> []
+    | (_, x)::_ ->
+        let items = Array.make n x in
+        xs |> List.iter (fun (i, x) -> items.(i) <- x) ;
+        arr_fold_right_i [] ~f:(fun i b rs ->
+          if b && i < n then items.(i) :: rs else rs)
+  and g es =
+    let arr = Array.make n false in
+    es |> List.iter (fun e ->
+      try arr.(M.find e ixs) <- true with Not_found -> ()) ;
     arr
   in
   map f g bit_string

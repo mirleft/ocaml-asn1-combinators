@@ -143,8 +143,8 @@ module R = struct
   end )
 
   let unpack tag f1 f2 = function
-    | GPrim (tag', bs) when Tag.eq tag tag' -> f1 bs
-    | GCons (tag', gs) when Tag.eq tag tag' -> f2 gs
+    | GPrim (tag', bs) when Tag.equal tag tag' -> f1 bs
+    | GCons (tag', gs) when Tag.equal tag tag' -> f2 gs
     | _ -> fail "tag mismatch"
 
   let primitive   t f = unpack t f (fun _ -> fail "expected primitive")
@@ -167,9 +167,9 @@ module R = struct
 
   let peek asn =
     match tag_set asn with
-    | [tag] -> fun g -> Tag.eq (g_tag g) tag
+    | [tag] -> fun g -> Tag.equal (g_tag g) tag
     | tags  -> fun g ->
-        let tag = g_tag g in List.exists (fun t -> Tag.eq t tag) tags
+        let tag = g_tag g in List.exists (fun t -> Tag.equal t tag) tags
 
   let (@?) oa a = match oa with Some x -> x | None -> a
 

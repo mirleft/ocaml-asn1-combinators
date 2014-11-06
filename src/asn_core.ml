@@ -31,7 +31,7 @@ module Tag = struct
     | (Context_specific _, Private _) -> -1
     | _ -> 1
 
-  let eq t1 t2 =
+  let equal t1 t2 =
     match (t1, t2) with
     | (Universal        a, Universal        b)
     | (Application      a, Application      b)
@@ -200,7 +200,7 @@ let validate asn =
   and disjoint tss =
     let rec go = function
       | t::(u::_ as ts) ->
-          if Tag.eq t u then raise Ambiguous_grammar else go ts
+          if Tag.equal t u then raise Ambiguous_grammar else go ts
       | _ -> () in
     go List.(sort Tag.compare @@ concat tss) in
 

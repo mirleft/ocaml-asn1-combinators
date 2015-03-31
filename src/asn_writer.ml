@@ -6,7 +6,7 @@ let cs_compare cs1 cs2 =
       compare s1 s2
     else
       match
-        Cstruct.(compare (get_uint8 cs1 i) (get_uint8 cs2 i))
+        compare (Cstruct.get_uint8 cs1 i) (Cstruct.get_uint8 cs2 i)
       with
       | 0 -> go (succ i) lim
       | n -> n in

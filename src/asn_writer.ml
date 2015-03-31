@@ -1,6 +1,4 @@
 
-let cs_compare = Cstruct.compare
-
 type t = int * (int -> Cstruct.t -> unit)
 
 let immediate n f = (n, f)

@@ -521,7 +521,7 @@ module W = struct
           Wr.concat @@
             if conf.der then
               List.( ws |> map  Wr.to_cstruct
-                        |> sort Wr.cs_compare
+                        |> sort Cstruct.compare
                         |> map  Wr.of_cstruct )
             else ws
         in

@@ -40,8 +40,8 @@ module R = struct
 
   let p_header cfg cs =
     let open Cstruct in
-    (* [cfg] is explicitly passed around because it's faster that way. *)
 
+    (* [cfg] is explicitly passed because speed. *)
     let ck_redundant cfg (n : int) limit =
       if cfg.strict && n < limit then
         fail "header: illegal redundant form"
@@ -107,7 +107,7 @@ module R = struct
 
   let p_generic cfg cs =
 
-    let eof1 cs = Cstruct.len cs = 0
+    let eof1 cs = cs.Cstruct.len = 0
     and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0 in
 
     let rec p_children eof acc cs =

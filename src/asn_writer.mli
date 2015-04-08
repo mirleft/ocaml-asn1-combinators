@@ -1,5 +1,5 @@
 
-val cs_compare : Cstruct.t -> Cstruct.t -> int
+val cs_lex_compare : Cstruct.t -> Cstruct.t -> int
 
 type t
 

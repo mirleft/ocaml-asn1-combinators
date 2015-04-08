@@ -1,13 +1,11 @@
 
-let cs_compare cs1 cs2 =
+let cs_lex_compare cs1 cs2 =
   let (s1, s2) = Cstruct.(len cs1, len cs2) in
   let rec go i lim =
     if i = lim then
       compare s1 s2
     else
-      match
-        compare (Cstruct.get_uint8 cs1 i) (Cstruct.get_uint8 cs2 i)
-      with
+      match compare (Cstruct.get_uint8 cs1 i) (Cstruct.get_uint8 cs2 i) with
       | 0 -> go (succ i) lim
       | n -> n in
   go 0 (min s1 s2)

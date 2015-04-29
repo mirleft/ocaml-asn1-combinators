@@ -1,6 +1,5 @@
 opam-version: "1.2"
 name:         "asn1-combinators"
-version:      "0.1.1"
 homepage:     "https://github.com/mirleft/ocaml-asn1-combinators"
 dev-repo:     "https://github.com/mirleft/ocaml-asn1-combinators.git"
 bug-reports:  "https://github.com/mirleft/ocaml-asn1-combinators/issues"

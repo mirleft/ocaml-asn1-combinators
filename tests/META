@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 66cf11b7e9704ca054495057bc6c45f7)
-version = "0.1.1"
+# DO NOT EDIT (digest: d55b709c4411c3616ace5f970ef2b74b)
+version = "0.1.2"
 description = "Combinators for expressing ASN.1 grammars in OCaml"
 requires = "asn1-combinators oUnit cstruct"
 archive(byte) = "testlib.cma"

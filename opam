@@ -18,6 +18,14 @@ depends: [
   "ocamlfind"
   "cstruct" {>= "1.2.0"}
   "zarith"
+  "ounit" {test}
 ]
+
+build-test: [
+  ["ocaml" "setup.ml" "-configure" "--enable-tests"]
+  ["ocaml" "setup.ml" "-build"]
+  ["ocaml" "setup.ml" "-test"]
+]
+
 tags: [ "org:mirage" ]
 available: [ ocaml-version >= "4.01.0" ]

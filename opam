@@ -8,12 +8,11 @@ maintainer:   "David Kaloper <david@numm.org>"
 license:      "BSD2"
 
 build: [
-  ["ocaml" "setup.ml" "-configure" "--prefix" prefix
-      "--%{ounit:enable}%-tests" ]
-  ["ocaml" "setup.ml" "-build"]
+  [ "./configure" "--prefix" prefix ]
+  [ make ]
 ]
-install: ["ocaml" "setup.ml" "-install"]
-remove: ["ocamlfind" "remove" "asn1-combinators"]
+install: [ make "install"]
+remove: [ "ocamlfind" "remove" "asn1-combinators" ]
 
 depends: [
   "ocamlfind"
@@ -22,7 +21,10 @@ depends: [
   "ounit" {test}
 ]
 
-build-test: [make "test"]
+build-test: [
+  [ "./configure" "--%{ounit:enable}%-tests" ]
+  [ make "test" ]
+]
 
 tags: [ "org:mirage" ]
 available: [ ocaml-version >= "4.01.0" ]

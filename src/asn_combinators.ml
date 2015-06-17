@@ -1,4 +1,5 @@
 open Asn_core
+module Prim = Asn_prim
 
 let arr_fold_right_i ~f z arr =
   let rec loop r = function
@@ -48,23 +49,19 @@ and bmp_string       = string 0x1e
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
   let time name (f, g) fraction tag =
-    let f' s =
-      match f s with
-      | None   -> parse_error @@ "malformed " ^ name
-      | Some x -> x
-    in
-    map ~random:(random ~fraction) f' g
+    map ~random:(random ~fraction) f g
       (implicit ~cls:`Universal tag character_string)
   in
   time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
   time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
+
 
 let int =
   let f n = try Z.to_int n with Z.Overflow -> parse_error "int: overflow" in
   map f Z.of_int integer
 
 
-let bit_string    = Asn_prim.Bits.(map array_of_t t_of_array (Prim Bits))
+let bit_string    = Prim.Bits.(map to_array of_array (Prim Bits))
 and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
 
 let bit_string_flags (type a) (xs : (int * a) list) =

@@ -1,8 +1,8 @@
 open Asn_core
-module Prim = Asn_prim
-module Writer = Asn_writer
 
-module Int64 = Prim.Int64
+module Prim   = Asn_prim
+module Writer = Asn_writer
+module Int64  = Prim.Int64
 
 module Seq = struct
 

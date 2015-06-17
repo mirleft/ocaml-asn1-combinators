@@ -217,12 +217,8 @@ struct
     | true  -> (n lsl 1) lor 1
     | false -> (n lsl 1)
 
-  let t_of_array arr =
-    let cs =
-      Cstruct.create
-        ( match Array.length arr with
-          | 0 -> 0
-          | n -> (n - 1) / 8 + 1 ) in
+  let of_array arr =
+    let cs = Cstruct.create ((Array.length arr + 7) / 8) in
     match
       Array.fold_left
         (fun (n, acc, i) bit ->

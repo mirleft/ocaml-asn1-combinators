@@ -1,5 +1,5 @@
 
-open Asn_prim
+module OID = Asn_oid
 
 let id x      = x
 let const x _ = x
@@ -55,6 +55,9 @@ end
 type tag  = Tag.t
 type tags = Tag.t list
 
+type bits_t = int * Cstruct.t
+
+
 exception Ambiguous_grammar
 exception Parse_error of string
 
@@ -88,13 +91,13 @@ and _ sequence =
 
 and _ prim =
 
-  | Bool       : bool         prim
-  | Int        : Integer.t    prim
-  | Bits       : Bits.t       prim
-  | Octets     : Octets.t     prim
-  | Null       : unit         prim
-  | OID        : OID.t        prim
-  | CharString : Gen_string.t prim
+  | Bool       : bool      prim
+  | Int        : Z.t       prim
+  | Bits       : bits_t    prim
+  | Octets     : Cstruct.t prim
+  | Null       : unit      prim
+  | OID        : OID.t     prim
+  | CharString : string    prim
 
 
 let seq_tag = Tag.Universal 0x10

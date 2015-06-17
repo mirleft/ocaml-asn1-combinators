@@ -1,5 +1,6 @@
-
+module Core   = Asn_core
 module Writer = Asn_writer
+
 
 module type Prim = sig
   type t
@@ -186,11 +187,10 @@ module Octets : String_primitive with type t = Cstruct.t = struct
 end
 
 module Bits : sig
-  include String_primitive with type t = int * Cstruct.t
+  include String_primitive with type t = Core.bits_t
   val array_of_t : t -> bool array
   val t_of_array : bool array -> t
-end
-  =
+end =
 struct
 
   type t = int * Cstruct.t

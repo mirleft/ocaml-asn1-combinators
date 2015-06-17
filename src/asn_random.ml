@@ -1,6 +1,6 @@
 
-open Asn_prim
 open Asn_core
+open Asn_prim
 
 let replicate n f a =
   let rec loop acc n =

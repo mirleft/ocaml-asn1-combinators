@@ -19,7 +19,7 @@ Library "asn1-combinators"
                    Asn_cache, Asn_writer, Asn_prim,
                    Asn_core, Asn_random, Asn_combinators, Asn_ber_der
   BuildDepends:    cstruct, zarith
-  ByteOpt:         -w A-4-33-40-41-42-43-34-44
+  ByteOpt:         -w A-4-41-42-44-48
 
 Library "testlib"
   Path:         tests/

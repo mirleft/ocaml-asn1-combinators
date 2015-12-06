@@ -48,7 +48,7 @@ and bmp_string       = string 0x1e
 
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
-  let time name (f, g) fraction tag =
+  let time _name (f, g) fraction tag =
     map ~random:(random ~fraction) f g
       (implicit ~cls:`Universal tag character_string)
   in

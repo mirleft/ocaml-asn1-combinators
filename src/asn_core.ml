@@ -9,6 +9,8 @@ type 'a endo = 'a -> 'a
 
 type ('a, 'b) sum = L of 'a | R of 'b
 
+let strf = Printf.sprintf
+
 module Tag = struct
 
   type t =
@@ -40,12 +42,12 @@ module Tag = struct
     | _ -> false
 
   let to_string tag =
-    let p = Printf.sprintf "(%s %d)" in
-    match tag with
-    | Universal n        -> p "univ" n
-    | Application n      -> p "app" n
-    | Context_specific n -> p "context" n
-    | Private n          -> p "private" n
+    let (name, n) = match tag with
+      | Universal n        -> ("UNIVERSAL", n)
+      | Application n      -> ("APPLICATION", n)
+      | Context_specific n -> ("CONTEXT", n)
+      | Private n          -> ("PRIVATE", n) in
+    strf "[%s %d]" name n
 
   let set_to_string tags =
     "(" ^ (String.concat " " @@ List.map to_string tags) ^ ")"
@@ -100,6 +102,8 @@ and _ prim =
   | OID        : OID.t     prim
   | CharString : string    prim
 
+
+let s_lbl = function Some lbl -> lbl | _ -> ""
 
 let seq_tag = Tag.Universal 0x10
 and set_tag = Tag.Universal 0x11

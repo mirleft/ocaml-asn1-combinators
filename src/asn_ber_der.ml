@@ -4,6 +4,9 @@ module Prim   = Asn_prim
 module Writer = Asn_writer
 module Int64  = Prim.Int64
 
+
+let (@?) oa a = match oa with Some x -> x | None -> a
+
 module Seq = struct
 
   type 'r f = { f : 'a. 'a -> 'a asn -> 'r -> 'r }
@@ -24,7 +27,7 @@ end
 module R = struct
 
   type coding =
-    | Primitive of int
+    | Primitive   of int
     | Constructed of int
     | Constructed_indefinite
 
@@ -34,9 +37,19 @@ module R = struct
 
   type config = { strict : bool }
 
-  let fail msg = raise (Parse_error msg)
+  let fail fmt =
+    Printf.ksprintf (fun msg -> raise (Parse_error msg)) fmt
+
+  let s_form = function
+    | `Cons -> "CONSTRUCTED"
+    | `Prim -> "PRIMITIVE"
+    | `Both -> ""
 
   let g_tag = function GCons (t, _) -> t | GPrim (t, _) -> t
+  let g_form = function GCons _ -> s_form `Cons | GPrim _ -> s_form `Prim
+
+  let g_desc g = strf "%s %s" (g_form g) (Tag.to_string (g_tag g))
+
 
   let p_header cfg cs =
     let open Cstruct in
@@ -44,16 +57,16 @@ module R = struct
     (* [cfg] is explicitly passed because speed. *)
     let ck_redundant cfg (n : int) limit =
       if cfg.strict && n < limit then
-        fail "header: illegal redundant form"
+        fail "Header: Illegal redundant form"
 
     and p_big_tag cs =
       let rec go acc = function
-        | 8 -> fail "tag too large"
+        | 8 -> fail "Header: Big tag longer than 8 bytes"
         | i ->
             let b = get_uint8 cs i in
             let x = Int64.of_int (b land 0x7f) in
             match (Int64.(acc lsl 7 + x), b land 0x80) with
-            | (0L,  _) -> fail "leading 0"
+            | (0L,  _) -> fail "Header: Big tag with leading 0"
             | (acc, 0) -> (Int64.to_int_checked acc, succ i)
             | (acc, _) -> go acc (succ i) in
       go 0L 0
@@ -126,13 +139,13 @@ module R = struct
           let (gs, _ ) = p_children eof1 [] hd in
           (GCons (tag, gs), tl)
       | Constructed_indefinite when cfg.strict ->
-          fail "illegal constructed indefinite form"
+          fail "Illegal constructed indefinite form"
       | Constructed_indefinite ->
           let (gs, tl) = p_children eof2 [] cs' in
           (GCons (tag, gs), Cstruct.shift tl 2) in
 
     try p_node cs with Invalid_argument _ ->
-      fail "structure: unexpected end of input"
+      fail "Structure: Unexpected EOF"
 
 
   module TM = Map.Make (Tag)
@@ -142,18 +155,40 @@ module R = struct
     type 'a v = generic -> 'a
   end )
 
-  let unpack tag f1 f2 = function
-    | GPrim (tag', bs) when Tag.equal tag tag' -> f1 bs
-    | GCons (tag', gs) when Tag.equal tag tag' -> f2 gs
-    | _ -> fail "tag mismatch"
 
-  let primitive   t f = unpack t f (fun _ -> fail "expected primitive")
-  and constructed t f = unpack t (fun _ -> fail "expected constructed") f
+  let err_type ?(form=`Both) t g =
+    fail "Type mismatch: expected: %s %s, got: %s"
+         (s_form form) Tag.(to_string t) (g_desc g)
 
-  let string_like (type a) tag impl =
+  let primitive t f = function
+    | GPrim (t1, bs) when Tag.equal t t1 -> f bs
+    | g -> err_type ~form:`Prim t g
+
+  let constructed t f = function
+    | GCons (t1, gs) when Tag.equal t t1 -> f gs
+    | g -> err_type ~form:`Cons t g
+
+  let string_like (type a) t impl =
     let module P = (val impl : Prim.String_primitive with type t = a) in
-    let rec p g = unpack tag P.of_cstruct (P.concat &. List.map p) g in
+    let rec p = function
+      | GPrim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
+      | GCons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
+      | g -> err_type t g in
     p
+
+  (* let unpack tag f1 f2 = function *)
+  (*   | GPrim (tag', bs) when Tag.equal tag tag' -> f1 bs *)
+  (*   | GCons (tag', gs) when Tag.equal tag tag' -> f2 gs *)
+  (*   | g -> fail "Type mismatch: exptected %s, got: %s" *)
+  (*               Tag.(to_string tag) (g_desc g) *)
+
+  (* let primitive t f = unpack t f (fun _ -> fail "Expected PRIMITIVE") *)
+  (* and constructed t f = unpack t (fun _ -> fail "Expected CONSTRUCTED") f *)
+
+  (* let string_like (type a) tag impl = *)
+  (*   let module P = (val impl : Prim.String_primitive with type t = a) in *)
+  (*   let rec p g = unpack tag P.of_cstruct (P.concat &. List.map p) g in *)
+  (*   p *)
 
   let c_prim : type a. tag -> a prim -> generic -> a =
     fun tag -> function
@@ -171,8 +206,6 @@ module R = struct
     | tags  -> fun g ->
         let tag = g_tag g in List.exists (fun t -> Tag.equal t tag) tags
 
-  let (@?) oa a = match oa with Some x -> x | None -> a
-
   type opt = Cache.t
 
   let rec c_asn : type a. a asn -> opt:opt -> generic -> a = fun asn ~opt ->
@@ -187,9 +220,7 @@ module R = struct
       | Set s            -> constructed (t @? set_tag) (c_set s ~opt)
       | Set_of a         -> constructed (t @? set_tag) (List.map (c_asn a ~opt))
       | Implicit (t0, a) -> go ~t:(t @? t0) a
-      | Explicit (t0, a) ->
-          let p = c_asn a ~opt in
-          constructed (t @? t0) (function [g] -> p g | _ -> fail "xxx")
+      | Explicit (t0, a) -> constructed (t @? t0) (c_explicit a ~opt)
       | Choice (a1, a2)  ->
           let (p1, p2) = (c_asn a1 ~opt, c_asn a2 ~opt)
           and accepts1 = peek a1 in
@@ -198,20 +229,29 @@ module R = struct
 
     go asn
 
+  and c_explicit : type a. a asn -> opt:opt -> generic list -> a = fun a ~opt ->
+
+    let p = c_asn a ~opt in function
+      | [g]  -> p g
+      | []   -> fail "EXPLICIT: Empty"
+      | g::_ -> fail "EXPLICIT: Trailing elements: %s" (g_desc g)
+
   and c_seq : type a. a sequence -> opt:opt -> generic list -> a = fun s ~opt ->
 
     let rec seq : type a. a sequence -> generic list -> a = function
-      | Last e ->
-          let p = element e in
-          (fun gs -> match p gs with (a, []) -> a | _ -> fail "xxx")
       | Pair (e, s) ->
           let (p1, p2) = (element e, c_seq s ~opt) in
           fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
+      | Last e ->
+          let p = element e in fun gs ->
+            match p gs with (a, []) -> a | (_, g::_) ->
+              fail "SEQUENCE: Trailing elements: %s" (g_desc g)
 
     and element : type a. a element -> generic list -> a * generic list = function
-      | Required (_, a) ->
-          let p = c_asn a ~opt in
-          (function g::gs -> (p g, gs) | [] -> fail "missing")
+      | Required (lbl, a) ->
+          let p = c_asn a ~opt in (function
+            | g::gs -> (p g, gs)
+            | []    -> fail "SEQUENCE: Missing required field: %s" (s_lbl lbl))
       | Optional (_, a) ->
           let (p, accepts) = (c_asn a ~opt, peek a) in
           function | g::gs when accepts g -> (Some (p g), gs)
@@ -242,7 +282,7 @@ module R = struct
 
       let to_tuple =
         let rec element : type a. a element -> a = function
-          | Required (Miss  lbl) -> fail "miss"
+          | Required (Miss  lbl) -> fail "SET: Missing required field: %s" (s_lbl lbl)
           | Required (Found a  ) -> a
           | Optional (Miss  _  ) -> None
           | Optional (Found a  ) -> Some a
@@ -283,7 +323,7 @@ module R = struct
       | g::gs ->
           let p =
             try TM.find (g_tag g) ps
-            with Not_found -> fail "unexpected tag" in
+            with Not_found -> fail "SET: Unexpected element: %s" (g_desc g) in
           step (p g acc) (TM.remove (g_tag g) ps) gs in
 
     step (P.of_sequence s) parsers
@@ -343,9 +383,6 @@ module W = struct
 
 
   type conf = { der : bool }
-
-  let (@?) o def =
-    match o with | None -> def | Some x -> x
 
   let e_constructed tag body =
     e_header tag `Constructed (Writer.len body) <+> body

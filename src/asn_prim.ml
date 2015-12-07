@@ -34,15 +34,6 @@ let random_string ?size ~chars:(lo, hi) =
   String.init (random_size size)
     (fun _ -> Char.chr (random_int_r lo hi))
 
-let cs_concat list =
-  let cs = Cstruct.(create @@ lenv list) in
-  let _  = List.fold_left
-    (fun i e ->
-      let n = Cstruct.len e in
-      ( Cstruct.blit e 0 cs i n ; n + i ))
-    0 list in
-  cs
-
 module Int64 = struct
 
   include Int64
@@ -177,7 +168,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
   let random ?size () =
     random_string ?size ~chars:(0, 256) |> Cstruct.of_string
 
-  let concat = cs_concat
+  let concat = Cstruct.concat
 
   let length = Cstruct.len
 
@@ -245,7 +236,7 @@ struct
         | [(u, cs)]    -> (u, [cs])
         | (_, cs)::ucs -> let (u, css') = go ucs in (u, cs::css') in
       go css in
-    (unused, cs_concat css')
+    (unused, Cstruct.concat css')
 
   and length (unused, cs) = Cstruct.len cs - unused
 

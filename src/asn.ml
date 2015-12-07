@@ -45,5 +45,9 @@ and decode_exn (Codec (dec, _)) b = dec b
 and decode (Codec (dec, _)) b =
   try Some (dec b) with End_of_file | Parse_error _ -> None
 
+(* and decode (Codec (dec, _)) b = *)
+(*   try Ok (dec b) with *)
+(*   | End_of_file   -> Error "EOF" *)
+(*   | Parse_error e -> Error e *)
 
 let random = Asn_random.r_asn

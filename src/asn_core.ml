@@ -57,6 +57,23 @@ end
 type tag  = Tag.t
 type tags = Tag.t list
 
+module Generic = struct
+
+  type t =
+    | Cons of tag * t list
+    | Prim of tag * Cstruct.t
+
+  let pp_form = function
+    | `Cons -> "CONSTRUCTED"
+    | `Prim -> "PRIMITIVE"
+    | `Both -> ""
+
+  let tag = function Cons (t, _) -> t | Prim (t, _) -> t
+  let form = function Cons _ -> pp_form `Cons | Prim _ -> pp_form `Prim
+
+  let to_string g = strf "%s %s" (form g) (Tag.to_string (tag g))
+end
+
 type bits_t = int * Cstruct.t
 
 

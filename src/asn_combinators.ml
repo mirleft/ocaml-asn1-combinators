@@ -57,7 +57,7 @@ let (utc_time, generalized_time) =
 
 
 let int =
-  let f n = try Z.to_int n with Z.Overflow -> parse_error "int: overflow" in
+  let f n = try Z.to_int n with Z.Overflow -> parse_error "Int overflow" in
   map f Z.of_int integer
 
 

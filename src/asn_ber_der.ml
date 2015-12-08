@@ -26,30 +26,17 @@ end
 
 module R = struct
 
+  module G = Generic
+
+  type config = { strict : bool }
+
   type coding =
     | Primitive   of int
     | Constructed of int
     | Constructed_indefinite
 
-  type generic =
-    | GCons of tag * generic list
-    | GPrim of tag * Cstruct.t
-
-  type config = { strict : bool }
-
   let fail fmt =
     Printf.ksprintf (fun msg -> raise (Parse_error msg)) fmt
-
-  let s_form = function
-    | `Cons -> "CONSTRUCTED"
-    | `Prim -> "PRIMITIVE"
-    | `Both -> ""
-
-  let g_tag = function GCons (t, _) -> t | GPrim (t, _) -> t
-  let g_form = function GCons _ -> s_form `Cons | GPrim _ -> s_form `Prim
-
-  let g_desc g = strf "%s %s" (g_form g) (Tag.to_string (g_tag g))
-
 
   let p_header cfg cs =
     let open Cstruct in
@@ -133,16 +120,16 @@ module R = struct
       match coding with
       | Primitive n ->
           let (hd, tl) = Cstruct.split cs' n in
-          (GPrim (tag, hd), tl)
+          (G.Prim (tag, hd), tl)
       | Constructed n ->
           let (hd, tl) = Cstruct.split cs' n in
           let (gs, _ ) = p_children eof1 [] hd in
-          (GCons (tag, gs), tl)
+          (G.Cons (tag, gs), tl)
       | Constructed_indefinite when cfg.strict ->
           fail "Illegal constructed indefinite form"
       | Constructed_indefinite ->
           let (gs, tl) = p_children eof2 [] cs' in
-          (GCons (tag, gs), Cstruct.shift tl 2) in
+          (G.Cons (tag, gs), Cstruct.shift tl 2) in
 
     try p_node cs with Invalid_argument _ ->
       fail "Structure: Unexpected EOF"
@@ -152,27 +139,27 @@ module R = struct
 
   module Cache = Asn_cache.Make ( struct
     type 'a k = 'a asn endo
-    type 'a v = generic -> 'a
+    type 'a v = G.t -> 'a
   end )
 
 
   let err_type ?(form=`Both) t g =
     fail "Type mismatch: expected: %s %s, got: %s"
-         (s_form form) Tag.(to_string t) (g_desc g)
+         (G.pp_form form) Tag.(to_string t) (G.to_string g)
 
   let primitive t f = function
-    | GPrim (t1, bs) when Tag.equal t t1 -> f bs
+    | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
     | g -> err_type ~form:`Prim t g
 
   let constructed t f = function
-    | GCons (t1, gs) when Tag.equal t t1 -> f gs
+    | G.Cons (t1, gs) when Tag.equal t t1 -> f gs
     | g -> err_type ~form:`Cons t g
 
   let string_like (type a) t impl =
     let module P = (val impl : Prim.String_primitive with type t = a) in
     let rec p = function
-      | GPrim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
-      | GCons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
+      | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
+      | G.Cons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
       | g -> err_type t g in
     p
 
@@ -190,7 +177,7 @@ module R = struct
   (*   let rec p g = unpack tag P.of_cstruct (P.concat &. List.map p) g in *)
   (*   p *)
 
-  let c_prim : type a. tag -> a prim -> generic -> a =
+  let c_prim : type a. tag -> a prim -> G.t -> a =
     fun tag -> function
       | Bool       -> primitive tag Prim.Boolean.of_cstruct
       | Int        -> primitive tag Prim.Integer.of_cstruct
@@ -202,15 +189,15 @@ module R = struct
 
   let peek asn =
     match tag_set asn with
-    | [tag] -> fun g -> Tag.equal (g_tag g) tag
+    | [tag] -> fun g -> Tag.equal (G.tag g) tag
     | tags  -> fun g ->
-        let tag = g_tag g in List.exists (fun t -> Tag.equal t tag) tags
+        let tag = G.tag g in List.exists (fun t -> Tag.equal t tag) tags
 
   type opt = Cache.t
 
-  let rec c_asn : type a. a asn -> opt:opt -> generic -> a = fun asn ~opt ->
+  let rec c_asn : type a. a asn -> opt:opt -> G.t -> a = fun asn ~opt ->
 
-    let rec go : type a. ?t:tag -> a asn -> generic -> a = fun ?t -> function
+    let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
       | Iso (f, _, _, a) -> f &. go ?t a
       | Fix fa as fix    ->
           Cache.once opt fa @@ fun () ->
@@ -229,25 +216,25 @@ module R = struct
 
     go asn
 
-  and c_explicit : type a. a asn -> opt:opt -> generic list -> a = fun a ~opt ->
+  and c_explicit : type a. a asn -> opt:opt -> G.t list -> a = fun a ~opt ->
 
     let p = c_asn a ~opt in function
       | [g]  -> p g
       | []   -> fail "EXPLICIT: Empty"
-      | g::_ -> fail "EXPLICIT: Trailing elements: %s" (g_desc g)
+      | g::_ -> fail "EXPLICIT: Trailing elements: %s" (G.to_string g)
 
-  and c_seq : type a. a sequence -> opt:opt -> generic list -> a = fun s ~opt ->
+  and c_seq : type a. a sequence -> opt:opt -> G.t list -> a = fun s ~opt ->
 
-    let rec seq : type a. a sequence -> generic list -> a = function
+    let rec seq : type a. a sequence -> G.t list -> a = function
       | Pair (e, s) ->
           let (p1, p2) = (element e, c_seq s ~opt) in
           fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
       | Last e ->
           let p = element e in fun gs ->
             match p gs with (a, []) -> a | (_, g::_) ->
-              fail "SEQUENCE: Trailing elements: %s" (g_desc g)
+              fail "SEQUENCE: Trailing elements: %s" (G.to_string g)
 
-    and element : type a. a element -> generic list -> a * generic list = function
+    and element : type a. a element -> G.t list -> a * G.t list = function
       | Required (lbl, a) ->
           let p = c_asn a ~opt in (function
             | g::gs -> (p g, gs)
@@ -258,7 +245,7 @@ module R = struct
                    | gs                   -> (None, gs)
     in seq s
 
-  and c_set : type a. a sequence -> opt:opt -> generic list -> a = fun s ~opt ->
+  and c_set : type a. a sequence -> opt:opt -> G.t list -> a = fun s ~opt ->
 
     let module P = struct
 
@@ -298,13 +285,13 @@ module R = struct
     let put  r = function P.Pair (_, tl) -> P.Pair (r,   tl) | _ -> assert false
     and wrap f = function P.Pair (e, tl) -> P.Pair (e, f tl) | _ -> assert false in
 
-    let rec element : type a. a element -> tags * (generic -> a P.element) = function
+    let rec element : type a. a element -> tags * (G.t -> a P.element) = function
       | Required (_, a) -> (tag_set a, P.found_r &. c_asn a ~opt)
       | Optional (_, a) -> (tag_set a, P.found_o &. c_asn a ~opt)
 
     and seq :
       type a b. (a P.sequence endo -> b P.sequence endo)
-             -> a sequence -> (tags * (generic -> b P.sequence endo)) list =
+             -> a sequence -> (tags * (G.t -> b P.sequence endo)) list =
       fun k -> function
       | Last e ->
           let (tags, p) = element e in
@@ -322,9 +309,9 @@ module R = struct
       | []    -> P.to_tuple acc
       | g::gs ->
           let p =
-            try TM.find (g_tag g) ps
-            with Not_found -> fail "SET: Unexpected element: %s" (g_desc g) in
-          step (p g acc) (TM.remove (g_tag g) ps) gs in
+            try TM.find (G.tag g) ps
+            with Not_found -> fail "SET: Unexpected element: %s" (G.to_string g) in
+          step (p g acc) (TM.remove (G.tag g) ps) gs in
 
     step (P.of_sequence s) parsers
 

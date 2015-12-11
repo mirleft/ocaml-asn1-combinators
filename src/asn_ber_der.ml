@@ -96,11 +96,9 @@ module R = struct
         match (t0 land 0x20, l0) with
         | (0, _   ) -> Primitive len
         | (_, 0x80) -> Constructed_indefinite
-        | _         -> Constructed len
+        | _         -> Constructed len in
 
-      and tail = shift cs off_end in
-
-      (tag, coding, tail) in
+      (tag, off_end, coding) in
 
     p_core cfg cs
 
@@ -110,25 +108,29 @@ module R = struct
     let eof1 cs = cs.Cstruct.len = 0
     and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0 in
 
+    let split_off cs off n =
+      let k = off + n in
+      Cstruct.(sub cs off n, sub cs k (len cs - k)) in
+
     let rec p_children eof acc cs =
       if eof cs then (List.rev acc, cs) else
         let (g, cs') = p_node cs in
         p_children eof (g::acc) cs'
 
     and p_node cs =
-      let (tag, coding, cs') = p_header cfg cs in
+      let (tag, off, coding) = p_header cfg cs in
       match coding with
       | Primitive n ->
-          let (hd, tl) = Cstruct.split cs' n in
+          let (hd, tl) = split_off cs off n in
           (G.Prim (tag, hd), tl)
       | Constructed n ->
-          let (hd, tl) = Cstruct.split cs' n in
+          let (hd, tl) = split_off cs off n in
           let (gs, _ ) = p_children eof1 [] hd in
           (G.Cons (tag, gs), tl)
       | Constructed_indefinite when cfg.strict ->
           fail "Illegal constructed indefinite form"
       | Constructed_indefinite ->
-          let (gs, tl) = p_children eof2 [] cs' in
+          let (gs, tl) = p_children eof2 [] (Cstruct.shift cs off) in
           (G.Cons (tag, gs), Cstruct.shift tl 2) in
 
     try p_node cs with Invalid_argument _ ->

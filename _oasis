@@ -4,7 +4,7 @@ Version:      0.1.2
 Synopsis:     Combinators for expressing ASN.1 grammars in OCaml
 Authors:      David Kaloper <david@numm.org>
 Maintainers:  David Kaloper <david@numm.org>
-License:      FreeBSD
+License:      BSD-2-clause
 Homepage:     https://github.com/mirleft/ocaml-asn1-combinators
 Plugins:      META (0.4), DevFiles (0.4)
 BuildTools:   ocamlbuild
@@ -40,7 +40,7 @@ Test the_things
   Command:   $test_runner
   TestTools: test_runner
   Run$:      flag(tests)
-  
+
 Executable "bench"
   Path:           tests/
   Install:        false

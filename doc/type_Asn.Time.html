@@ -1,0 +1,23 @@
+<html><head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Asn" rel="Chapter" href="Asn.html"><title>Asn.Time</title>
+</head>
+<body>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;date&nbsp;:&nbsp;int&nbsp;*&nbsp;int&nbsp;*&nbsp;int;
+&nbsp;&nbsp;&nbsp;&nbsp;time&nbsp;:&nbsp;int&nbsp;*&nbsp;int&nbsp;*&nbsp;int&nbsp;*&nbsp;float;
+&nbsp;&nbsp;&nbsp;&nbsp;tz&nbsp;:&nbsp;(int&nbsp;*&nbsp;int&nbsp;*&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">E</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">W</span>&nbsp;])&nbsp;option;
+&nbsp;&nbsp;}
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_posix_time&nbsp;:&nbsp;<span class="constructor">Asn</span>.<span class="constructor">Time</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;float
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;date_to_posix_time&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;y:int&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;m:int&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;d:int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;hh:int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;mm:int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;ss:int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;ff:float&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;tz_mm:int&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;float
+<span class="keyword">end</span></code></body></html>

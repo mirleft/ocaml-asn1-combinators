@@ -1,8 +1,37 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-module OID  : module type of Asn_oid
-module Time : module type of Asn_time
+module OID : sig
+  type t = private Oid of int * int * int list
+  val (<|)      : t -> int -> t
+  val (<||)     : t -> int list -> t
+  val base      : int -> int -> t
+  val to_list   : t -> int list
+  val to_string : t -> string
+  val of_string : string -> t
+end
+
+module Time : sig
+
+  type t = {
+    date : (int * int * int) ;
+    time : (int * int * int * float) ;
+    tz   : (int * int * [ `W | `E ]) option ;
+  }
+
+  val to_posix_time : t -> float
+
+  val date_to_posix_time :
+    y:int -> m:int -> d:int ->
+    hh:int -> mm:int -> ss:int ->
+    ff:float -> tz_mm:int -> float
+  (** [date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm] is the POSIX
+      time corresponding to the calendar date [y-m-d] at time [hh:ss:mm.ff]
+      with time zone offset [tz_mm] in minutes.
+
+      {b Warning.} Does not check ranges or that [y-m-d] is a valid calendar
+      date. *)
+end
 
 exception Parse_error of string
 exception Ambiguous_grammar

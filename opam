@@ -1,30 +1,25 @@
 opam-version: "1.2"
-name:         "asn1-combinators"
-homepage:     "https://github.com/mirleft/ocaml-asn1-combinators"
-dev-repo:     "https://github.com/mirleft/ocaml-asn1-combinators.git"
-bug-reports:  "https://github.com/mirleft/ocaml-asn1-combinators/issues"
-author:       "David Kaloper <david@numm.org>"
-maintainer:   "David Kaloper <david@numm.org>"
-license:      "BSD2"
-
-build: [
-  [ "./configure" "--prefix" prefix ]
-  [ make ]
+authors: ["David Kaloper Meršinjak <david@numm.org>"]
+maintainer: "David Kaloper Meršinjak <david@numm.org>"
+homepage: "https://github.com/mirleft/ocaml-asn1-combinators"
+doc: "https://mirleft.github.io/asn1-combinators/doc"
+license: "BSD2"
+dev-repo: "https://github.com/mirleft/ocaml-asn1-combinators.git"
+bug-reports: "https://github.com/mirleft/ocaml-asn1-combinators/issues"
+tags: [ "org:mirage" ]
+available: [ ocaml-version >= "4.01.0" ]
+build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "false" ]
+build-test: [
+  [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "true" ]
+  [ "ocaml" "pkg/pkg.ml" "test" ]
 ]
-install: [ make "install"]
-remove: [ "ocamlfind" "remove" "asn1-combinators" ]
-
 depends: [
-  "ocamlfind"
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+  "topkg" {build}
   "cstruct" {>= "1.2.0"}
   "zarith"
   "ounit" {test}
 ]
-
-build-test: [
-  [ "./configure" "--%{ounit:enable}%-tests" ]
-  [ make "test" ]
-]
-
-tags: [ "org:mirage" ]
-available: [ ocaml-version >= "4.01.0" ]
+depopts: []
+conflicts: [ "cstruct" {< "1.2.0"} ]

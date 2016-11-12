@@ -1,5 +1,3 @@
-# OASIS_START
-# DO NOT EDIT (digest: 1b036950defd294f52cadf00ba86b76f)
 Asn
 Asn_oid
 Asn_time
@@ -10,4 +8,3 @@ Asn_core
 Asn_random
 Asn_combinators
 Asn_ber_der
-# OASIS_STOP

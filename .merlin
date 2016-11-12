@@ -1,4 +1,4 @@
-PKG cstruct
+PKG cstruct zarith
 
 S src
 

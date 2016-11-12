@@ -1,46 +1,11 @@
-# OASIS_START
-# DO NOT EDIT (digest: c8c181f032850a700fbf4aefb8a9dccb)
-# Ignore VCS directories, you can use the same kind of rule outside
-# OASIS_START/STOP if you want to exclude directories that contains
-# useless stuff for the build process
-true: annot, bin_annot
-<**/.svn>: -traverse
-<**/.svn>: not_hygienic
-".bzr": -traverse
-".bzr": not_hygienic
-".hg": -traverse
-".hg": not_hygienic
-".git": -traverse
-".git": not_hygienic
-"_darcs": -traverse
-"_darcs": not_hygienic
-# Library asn1-combinators
-"src/asn1-combinators.cmxs": use_asn1-combinators
-<src/asn1-combinators.{cma,cmxa}>: oasis_library_asn1_combinators_byte
-<src/*.ml{,i,y}>: oasis_library_asn1_combinators_byte
-<src/*.ml{,i,y}>: pkg_cstruct
-<src/*.ml{,i,y}>: pkg_zarith
-# Library testlib
-"tests/testlib.cmxs": use_testlib
-# Executable test_runner
-<tests/testrunner.{native,byte}>: pkg_cstruct
-<tests/testrunner.{native,byte}>: pkg_oUnit
-<tests/testrunner.{native,byte}>: pkg_zarith
-<tests/testrunner.{native,byte}>: use_asn1-combinators
-<tests/testrunner.{native,byte}>: use_testlib
-# Executable bench
-"tests/bench.native": pkg_cstruct
-"tests/bench.native": pkg_cstruct.unix
-"tests/bench.native": pkg_oUnit
-"tests/bench.native": pkg_zarith
-"tests/bench.native": use_asn1-combinators
-"tests/bench.native": use_testlib
-<tests/*.ml{,i,y}>: pkg_cstruct
-<tests/*.ml{,i,y}>: pkg_cstruct.unix
-<tests/*.ml{,i,y}>: pkg_oUnit
-<tests/*.ml{,i,y}>: pkg_zarith
-<tests/*.ml{,i,y}>: use_asn1-combinators
-<tests/*.ml{,i,y}>: use_testlib
-# OASIS_STOP
-true: principal, strict_sequence
-true: debug, annot, bin_annot
+true: color(always)
+# safe_string
+true: bin_annot, strict_sequence
+true: warn(A-4-29-33-40-41-42-43-34-44-48)
+true: package(bytes), package(result), package(cstruct), package(zarith)
+
+<src>: include
+
+<tests>: include
+<tests/test*>: package(oUnit)
+<tests/bench.*>: package(cstruct.unix)

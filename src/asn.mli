@@ -1,6 +1,10 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
+(** Embed typed ASN.1 grammars in OCaml
+
+    {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
+
 module OID : sig
   type t = private Oid of int * int * int list
   val (<|)      : t -> int -> t

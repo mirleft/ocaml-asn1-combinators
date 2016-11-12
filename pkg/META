@@ -1,4 +1,4 @@
-description = "Combinators for expressing ASN.1 grammars in OCaml"
+description = "Embed typed ASN.1 grammars in OCaml"
 version = "%%VERSION_NUM%%"
 requires = "cstruct zarith"
 archive(byte) = "asn1-combinators.cma"

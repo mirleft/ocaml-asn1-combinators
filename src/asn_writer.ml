@@ -1,3 +1,5 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 let cs_lex_compare cs1 cs2 =
   let (s1, s2) = Cstruct.(len cs1, len cs2) in

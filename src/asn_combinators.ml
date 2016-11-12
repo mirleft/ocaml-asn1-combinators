@@ -1,3 +1,6 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
+
 open Asn_core
 
 let arr_fold_right_i ~f z arr =

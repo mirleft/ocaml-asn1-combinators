@@ -1,6 +1,8 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 
-(* Modified julian days. Algorithms from the Calendar FAQ: 
+(* Modified julian days. Algorithms from the Calendar FAQ:
    http://www.tondering.dk/claus/calendar.html *)
 
 let mjd_posix_epoch = 40587                 (* origin of posix epoch in mdj. *)
@@ -10,7 +12,7 @@ let mjd_of_gregorian year month day =
   let y = year + 4800 - a in
   let m = month + 12 * a - 3 in
   let jd =                                                   (* julian day *)
-    day + ((153 * m) + 2)/ 5 + 365 * y + 
+    day + ((153 * m) + 2)/ 5 + 365 * y +
     (y / 4) - (y / 100) + (y / 400) - 32045
   in
   jd - mjd_origin_jd
@@ -23,10 +25,10 @@ let mjd_of_gregorian year month day =
    leap second. *)
 
 let date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm =
-  let days_since_epoch = mjd_of_gregorian y m d - mjd_posix_epoch in 
-  (float days_since_epoch) *. 86_400. +. 
-  (float hh) *. 3600. +. 
-  (float mm) *. 60. +. 
+  let days_since_epoch = mjd_of_gregorian y m d - mjd_posix_epoch in
+  (float days_since_epoch) *. 86_400. +.
+  (float hh) *. 3600. +.
+  (float mm) *. 60. +.
   (float ss) +.
   ff -.
   (float tz_mm) *. 60.

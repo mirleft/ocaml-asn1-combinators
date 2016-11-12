@@ -1,3 +1,5 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 type t = {
   date : (int * int * int) ;
@@ -14,8 +16,8 @@ val date_to_posix_time :
   hh:int -> mm:int -> ss:int ->
   ff:float -> tz_mm:int -> float
 (** [date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm] is the POSIX
-    time corresponding to the calendar date [y-m-d] at time [hh:ss:mm.ff] 
-    with time zone offset [tz_mm] in minutes. 
+    time corresponding to the calendar date [y-m-d] at time [hh:ss:mm.ff]
+    with time zone offset [tz_mm] in minutes.
 
-    {b Warning.} Does not check ranges or that [y-m-d] is a valid calendar 
+    {b Warning.} Does not check ranges or that [y-m-d] is a valid calendar
     date. *)

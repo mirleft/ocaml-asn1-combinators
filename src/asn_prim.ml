@@ -1,4 +1,5 @@
-
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 module type Prim = sig
   type t

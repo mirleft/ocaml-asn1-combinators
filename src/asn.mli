@@ -1,3 +1,5 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 module OID  : module type of Asn_oid
 module Time : module type of Asn_time

@@ -1,3 +1,5 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 open Asn_core
 
@@ -201,7 +203,7 @@ module R = struct
     | { coding = Primitive n ; buf; _ } ->
         (f1 n buf, shift buf n)
 
-    | { coding = Constructed n ; buf; _ } -> 
+    | { coding = Constructed n ; buf; _ } ->
         let eof cs = len cs = 0 in
         let b1 = sub buf 0 n and b2 = shift buf n in
         let (a, b1') = f2 eof b1 in
@@ -317,7 +319,7 @@ module R = struct
 
         and missing : type a. string option -> a =
           fun label -> parse_error ("missing " ^ field label)
-            
+
         in
         let prs = seq asns in
         describe "sequence" @@
@@ -334,11 +336,11 @@ module R = struct
           = function
 
           | Required (label, asn) ->
-              ( tag_set asn, 
+              ( tag_set asn,
                 describe (field label) (parser_of_asn asn)
                 >|= fun a -> P.Required (`Found a) )
           | Optional (label, asn) ->
-              ( tag_set asn, 
+              ( tag_set asn,
                 describe (field label) (parser_of_asn asn)
                 >|= fun a -> P.Optional (`Found a) )
 
@@ -360,14 +362,14 @@ module R = struct
                 | P.Pair (v, tl) -> P.Pair (v, f tl)
                 | _               -> assert false
               and (tags, prs1) = partial_e e in
-              (tags, prs1 >|= o k put) :: setters wrap rest 
+              (tags, prs1 >|= o k put) :: setters wrap rest
 
         in
         let parsers =
           TM.unions @@ List.map (fun (tags, prs) -> TM.of_keys tags prs)
                                 (setters id asns)
 
-        and zero = P.of_complete asns in 
+        and zero = P.of_complete asns in
 
         describe "set" @@
           constructed @@ fun eof buf0 ->
@@ -387,7 +389,7 @@ module R = struct
 
     | Sequence_of asn ->
         describe "sequence_of" @@
-          sequence_of_parser @@ parser_of_asn asn 
+          sequence_of_parser @@ parser_of_asn asn
 
     | Set_of asn ->
         describe "set_of" @@

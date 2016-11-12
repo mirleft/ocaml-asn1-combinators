@@ -3,7 +3,7 @@ authors: ["David Kaloper Meršinjak <david@numm.org>"]
 maintainer: "David Kaloper Meršinjak <david@numm.org>"
 homepage: "https://github.com/mirleft/ocaml-asn1-combinators"
 doc: "https://mirleft.github.io/asn1-combinators/doc"
-license: "BSD2"
+license: "ISC"
 dev-repo: "https://github.com/mirleft/ocaml-asn1-combinators.git"
 bug-reports: "https://github.com/mirleft/ocaml-asn1-combinators/issues"
 tags: [ "org:mirage" ]

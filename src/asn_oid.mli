@@ -1,3 +1,5 @@
+(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+   See LICENSE.md. *)
 
 type t = private Oid of int * int * int list
 

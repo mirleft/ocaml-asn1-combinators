@@ -1,5 +1,3 @@
-PKG cstruct zarith
-
 S src
-
-B _build/src
+B _build/**
+PKG cstruct zarith

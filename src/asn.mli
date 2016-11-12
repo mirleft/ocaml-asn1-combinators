@@ -162,6 +162,7 @@ val encode      : 'a codec -> 'a -> Cstruct.t
 val encode_into : 'a codec -> 'a -> (int * (Cstruct.t -> unit))
 val decode_exn  : 'a codec -> Cstruct.t -> 'a * Cstruct.t
 val decode      : 'a codec -> Cstruct.t -> ('a * Cstruct.t) option
+(* val decode_exn  : 'a codec -> Cstruct.t -> ('a * Cstruct.t, string) result *)
 
 val random : 'a t -> 'a
 

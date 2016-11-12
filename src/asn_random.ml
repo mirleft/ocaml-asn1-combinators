@@ -1,8 +1,8 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-open Asn_prim
 open Asn_core
+open Asn_prim
 
 let replicate n f a =
   let rec loop acc n =
@@ -12,7 +12,7 @@ let replicate n f a =
 
 let r_prim : type a. a prim -> a = function
 
-  | Bool       -> Random.bool ()
+  | Bool       -> Boolean.random ()
   | Int        -> Integer.random ()
   | Bits       -> Bits.random ()
   | Octets     -> Octets.random ()

@@ -2,6 +2,7 @@
    See LICENSE.md. *)
 
 open Asn_core
+module Prim = Asn_prim
 
 let arr_fold_right_i ~f z arr =
   let rec loop r = function
@@ -50,52 +51,37 @@ and bmp_string       = string 0x1e
 
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
-  let time name (f, g) fraction tag =
-    let f' s =
-      match f s with
-      | None   -> parse_error @@ "malformed " ^ name
-      | Some x -> x
-    in
-    map ~random:(random ~fraction) f' g
+  let time _name (f, g) fraction tag =
+    map ~random:(random ~fraction) f g
       (implicit ~cls:`Universal tag character_string)
   in
   time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
   time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
 
+
 let int =
-  let f n =
-    try Z.to_int n with Z.Overflow -> parse_error "int: overflow"
-  in
+  let f n = try Z.to_int n with Z.Overflow -> parse_error "Int overflow" in
   map f Z.of_int integer
 
 
-let bit_string  =
-  Asn_prim.Bits.(map array_of_pair pair_of_array (Prim Bits))
-and bit_string_cs =
-  map snd (fun cs -> (0, cs)) (Prim Bits)
+let bit_string    = Prim.Bits.(map to_array of_array (Prim Bits))
+and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
 
-(* XXX
- * Encode clips array to highest set index. Maybe encode full range? *)
 let bit_string_flags (type a) (xs : (int * a) list) =
-  let module M1 = Map.Make (struct type t = int let compare = compare end) in
-  let module M2 = Map.Make (struct type t = a   let compare = compare end) in
-  let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
-  and m2 = List.fold_right (fun (i, x) -> M2.add x i) xs M2.empty in
-  let f =
-    arr_fold_right_i [] ~f:(fun i b xs ->
-      if b then (try M1.find i m1 :: xs with Not_found -> xs) else xs)
-  and g list =
-    let (ixs, n) =
-      let rec loop ixs n = function
-        | []    -> (ixs, n)
-        | x::xs ->
-            try
-              let ix = M2.find x m2 in
-              loop (ix :: ixs) (max n ix) xs
-            with Not_found -> loop ixs n xs in
-      loop [] (-1) list in
-    let arr = Array.create (n + 1) false in
-    List.iter (fun ix -> arr.(ix) <- true) ixs;
+  let module M = Map.Make (struct type t = a let compare = compare end) in
+  let ixs = List.fold_right (fun (i, x) -> M.add x i) xs M.empty in
+  let n   = List.fold_right (fun (i, _) -> max (i + 1)) xs 0 in
+  let f = match xs with
+    | []        -> fun _ -> []
+    | (_, x)::_ ->
+        let items = Array.make n x in
+        xs |> List.iter (fun (i, x) -> items.(i) <- x) ;
+        arr_fold_right_i [] ~f:(fun i b rs ->
+          if b && i < n then items.(i) :: rs else rs)
+  and g es =
+    let arr = Array.make n false in
+    es |> List.iter (fun e ->
+      try arr.(M.find e ixs) <- true with Not_found -> ()) ;
     arr
   in
   map f g bit_string
@@ -188,72 +174,3 @@ let choice6 a b c d e f =
                 | `C4 d -> R (L (L d)) | `C5 e -> R (L (R e))
                 | `C6 f -> R (R f))
       (choice (choice (choice a b) c) (choice (choice d e) f))
-
-
-(*
- * Check tag ambiguity.
- * XXX Maybe add no-implicit-over-choice check.
- *)
-
-let validate asn =
-
-  let module C = Asn_cache.Make ( struct
-    type 'a k = 'a asn -> 'a asn
-    type 'a v = unit
-  end ) in
-
-  let rec disjunct tss =
-    let rec go = function
-      | t::(u::_ as ts) ->
-          if t <> u then go ts else (
-            (* XXX USE LABELS TO REPORT *)
-            Printf.printf "bad at: %s\n%!" @@
-              String.concat "  " @@ List.map Tag.set_to_string tss ;
-            raise Ambiguous_grammar
-          )
-      | [] | [_] -> () in
-    go List.(sort compare @@ concat tss)
-
-  and ck_seq : type a. tags list * a sequence -> unit = function
-
-    | ts, Last (Optional (_label, x)) ->
-        ( check x ; disjunct (tag_set x :: ts) )
-    | [], Last (Required (_label, x)) ->
-        ( check x )
-    | ts, Last (Required (_label, x)) ->
-        ( check x ; disjunct (tag_set x :: ts) )
-    | ts, Pair (Optional (_label, x), xs) ->
-        ( check x ; ck_seq (tag_set x :: ts, xs) )
-    | [], Pair (Required (_label, x), xs) ->
-        ( check x ; ck_seq ([], xs) )
-    | ts, Pair (Required (_label, x), xs) ->
-        ( check x ; disjunct (tag_set x :: ts) ; ck_seq ([], xs) )
-
-  and ck_set : type a. a sequence -> tags list = function
-
-    | Last (Required (_, x))     -> check x ; [ tag_set x ]
-    | Last (Optional (_, x))     -> check x ; [ tag_set x ]
-    | Pair (Required (_, x), xs) -> check x ; tag_set x :: ck_set xs
-    | Pair (Optional (_, x), xs) -> check x ; tag_set x :: ck_set xs
-
-  and check : type a. a asn -> unit = function
-
-    | Iso (_, _, _, asn) -> check asn
-    | Fix f as fix ->
-      ( try C.find f with Not_found -> C.add f () ; check (f fix) )
-
-    | Sequence asns   -> ck_seq ([], asns)
-    | Set      asns   -> disjunct @@ ck_set asns
-    | Sequence_of asn -> check asn
-    | Set_of      asn -> check asn
-
-    | Choice (asn1, asn2) ->
-        disjunct [ tag_set asn1; tag_set asn2 ] ; check asn1 ; check asn2
-
-    | Implicit (_, asn) -> check asn
-    | Explicit (_, asn) -> check asn
-    | Prim _ -> () in
-
-  try check asn with Stack_overflow -> raise Ambiguous_grammar
-
-

@@ -9,7 +9,7 @@ val immediate : int -> (int -> Cstruct.t -> unit) -> t
 
 val len    : t -> int
 val empty  : t
-val (<>)   : t -> t -> t
+val (<+>)  : t -> t -> t
 val append : t -> t -> t
 val concat : t list -> t
 

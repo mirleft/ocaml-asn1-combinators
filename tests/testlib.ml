@@ -105,10 +105,10 @@ let test_no_decode encoding (ATC (_, asn, examples)) _ =
 (* Prim tests *)
 
 let random_time_tests ~n _ = (* round trip with result of Unix.gmtime  *)
-  let about_200_years = Int64.(mul 200L (mul 365L 86_400L)) in
-  let rtime span = Int64.(sub (Random.int64 (succ span)) (div span 2L)) in
+  let span = Int64.of_int32 Int32.max_int in (* ~68 years *)
+  let rtime () = Int64.(sub (Random.int64 (succ span)) (div span 2L)) in
   let test () =
-    let ti = rtime about_200_years (* around the unix epoch *) in
+    let ti = rtime () in
     let t  = Int64.to_float ti in
     let tm = Unix.gmtime t in
     let t' = Asn.Time.date_to_posix_time

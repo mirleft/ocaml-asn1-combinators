@@ -42,9 +42,6 @@ module OID : sig
 
   (** {2 Conversion} *)
 
-  val to_string : t -> string [@@deprecated "use pp"]
-  (** [to_string t] is the dotted-decimal representation of [t]. *)
-
   val pp : Format.formatter -> t -> unit
   (** [pp ppf oid] pretty-prints [oid] on [ppf] as dotted-decimal. *)
 

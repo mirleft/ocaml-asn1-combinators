@@ -12,7 +12,6 @@ val base  : int -> int -> t
 val (<|)  : t -> int -> t
 val (<||) : t -> int list -> t
 
-val to_string : t -> string [@@deprecated "pp"]
 val pp        : Format.formatter -> t -> unit
 val to_list   : t -> int list
 val of_string : string -> t

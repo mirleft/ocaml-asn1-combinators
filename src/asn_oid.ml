@@ -32,8 +32,6 @@ let pp ppf (Oid (v1, v2, vs)) =
   Format.fprintf ppf "%d.%d%a" v1 v2
   (fun ppf -> List.iter (Format.fprintf ppf ".%d")) vs
 
-let to_string = Format.asprintf "%a" pp
-
 let of_string s =
   let rec components s =
     if String.length s = 0 then []

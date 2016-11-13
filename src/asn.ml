@@ -5,6 +5,11 @@ module Core = Asn_core
 module OID  = Asn_oid
 module Time = Asn_time
 
+type error = Core.error
+
+let parse_error_fmt = Core.parse_error
+let parse_error = parse_error_fmt "%s"
+
 exception Parse_error       = Core.Parse_error
 exception Ambiguous_grammar = Core.Ambiguous_grammar
 

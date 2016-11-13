@@ -10,8 +10,6 @@ let arr_fold_right_i ~f z arr =
     |  i -> loop (f i arr.(i) r) (pred i) in
   loop z Array.(length arr - 1)
 
-let parse_error reason = raise (Parse_error reason)
-
 type tag_class = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
@@ -60,7 +58,8 @@ let (utc_time, generalized_time) =
 
 
 let int =
-  let f n = try Z.to_int n with Z.Overflow -> parse_error "Int overflow" in
+  let f n = try Z.to_int n with Z.Overflow ->
+    parse_error "INTEGER: int overflow: %a" Z.pp_print n in
   map f Z.of_int integer
 
 

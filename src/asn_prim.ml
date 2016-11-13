@@ -1,10 +1,9 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-module Core   = Asn_core
-module Writer = Asn_writer
+open Asn_core
 
-let parse_error msg = raise (Core.Parse_error msg)
+module Writer = Asn_writer
 
 module type Prim = sig
   type t
@@ -51,12 +50,11 @@ module Int64 = struct
   and (lor)  = logor
   and (land) = logand
 
-  let to_int_checked =
-    let max_int = Int64.of_int Pervasives.max_int in
-    fun i64 ->
-      if (i64 < 0L) || (i64 > max_int) then
-        parse_error "Integer overflow" ;
-      Int64.to_int i64
+  let max_p_int = Int64.of_int Pervasives.max_int
+
+  let to_nat_checked i64 =
+    if i64 < 0L || i64 > max_int then None else Some (to_int i64)
+
 end
 
 module Boolean : Prim with type t = bool = struct
@@ -65,8 +63,9 @@ module Boolean : Prim with type t = bool = struct
 
   let of_cstruct cs =
     if cs.Cstruct.len = 1 then
+      (* XXX DER check *)
       Cstruct.get_uint8 cs 0 <> 0x00
-    else parse_error "Malfomed BOOLEAN"
+    else parse_error "BOOLEAN: %a" pp_cs cs
 
   let to_writer b = Writer.of_byte (if b then 0xff else 0x00)
 
@@ -77,7 +76,8 @@ module Null : Prim with type t = unit = struct
 
   type t = unit
 
-  let of_cstruct cs = if cs.Cstruct.len <> 0 then parse_error "Malformed NULL"
+  let of_cstruct cs = if cs.Cstruct.len <> 0 then
+    parse_error "NULL: %a" pp_cs cs
 
   let to_writer () = Writer.empty
 
@@ -114,9 +114,7 @@ module Integer : Prim with type t = Z.t = struct
     | 0 -> x
     | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
 
-  let last8 z = Z.(to_int @@ extract z 0 8)
-
-  let minus_one = Z.of_int (-1)
+  let last8 z = Z.(extract z 0 8 |> to_int)
 
   let to_writer n =
     let sz  = Z.size n * 8 + 1 in
@@ -124,8 +122,7 @@ module Integer : Prim with type t = Z.t = struct
     let cs  = Cstruct.create sz in
 
     let rec write i n =
-      if n = minus_one || n = Z.zero then i
-      else
+      if n = Z.(~$(-1)) || n = Z.zero then i else
         ( Cstruct.set_uint8 cs i (last8 n) ;
           write (pred i) Z.(n asr 8) ) in
 
@@ -179,7 +176,7 @@ end
 
 module Bits : sig
 
-  include String_primitive with type t = Core.bits_t
+  include String_primitive with type t = bits
 
   val to_array : t -> bool array
   val of_array : bool array -> t
@@ -190,9 +187,7 @@ struct
   type t = int * Cstruct.t
 
   let of_cstruct cs =
-    if Cstruct.len cs = 0 then
-      parse_error "Malfomed OCTETS"
-    else
+    if Cstruct.len cs = 0 then parse_error "BITS: length 0" else
       let unused = Cstruct.get_uint8 cs 0
       and octets = Octets.of_cstruct (Cstruct.shift cs 1) in
       (unused, octets)
@@ -247,7 +242,7 @@ end
 
 module OID = struct
 
-  include Asn_oid
+  open Asn_oid
 
   let of_cstruct cs =
     let open Cstruct in
@@ -257,20 +252,23 @@ module OID = struct
       else let (i, v) = component 0L i 0 in v :: values i
 
     and component acc off = function
-      | 8 -> parse_error "OID: Integer overflow in component"
+      | 8 -> parse_error "OID: component too large: %a" pp_cs cs
       | i ->
           let b   = get_uint8 cs (off + i) in
           let b7  = b land 0x7f in
           let acc = Int64.(acc lor (of_int b7)) in
-          match b land 0x80 with
-          | 0 -> (off + i + 1, Int64.to_int_checked acc)
-          | _ -> component Int64.(acc lsl 7) off (succ i) in
+          if b land 0x80 = 0 then
+            match Int64.to_nat_checked acc with
+            | None   -> parse_error "OID: component out of range: %Ld at %a"
+                                    acc pp_cs cs
+            | Some x -> (off + i + 1, x)
+          else component Int64.(acc lsl 7) off (succ i) in
 
     try
       let b1 = get_uint8 cs 0 in
-      let (v1, v2) = (b1 / 40, b1 mod 40) in
+      let v1 = b1 / 40 and v2 = b1 mod 40 in
       base v1 v2 <|| values 1
-    with Invalid_argument _ -> parse_error "OID: Input underflow"
+    with Invalid_argument err -> parse_error "OID: %s at %a" err pp_cs cs
 
   let to_writer = fun (Oid (v1, v2, vs)) ->
     let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
@@ -293,9 +291,9 @@ module Time = struct
 
   open Asn_time
 
-  let catch pname f =
-    try f () with End_of_file | Scanf.Scan_failure _ ->
-      parse_error ("Malformed " ^ pname)
+  let catch pname f s = try f s with
+  | End_of_file            -> parse_error "%s: input too short at %s" pname s
+  | Scanf.Scan_failure err -> parse_error "%s: %s as %s" pname err s
 
   let frac f = f -. floor f
 
@@ -311,28 +309,23 @@ module Time = struct
             | "-" -> Some (h, m, `W)
             | _   -> None
 
-  let time_of_string_utc str = catch "UTCTime" @@ fun () ->
-    Scanf.sscanf str
-    "%02u%02u%02u%02u%02u%s" @@
+  let time_of_string_utc = catch "UTCTime" @@ fun s ->
+    Scanf.sscanf s "%02u%02u%02u%02u%02u%s" @@
     fun y m d hh mm rest ->
       let (ss, tz) =
-        try Scanf.sscanf rest "%02u%s" @@ fun ss rest' ->
-          (ss, tz_of_string_exn rest')
-        with _ ->
-          (0, tz_of_string_exn rest)
-      in
+        try Scanf.sscanf rest "%02u%s" @@ fun ss rest ->
+          (ss, tz_of_string_exn rest)
+        with _ -> (0, tz_of_string_exn rest) in
       let y = if y < 50 then 2000 + y else 1900 + y in
       { date = (y, m, d) ; time = (hh, mm, ss, 0.) ; tz }
 
-  let time_of_string_gen str = catch "GeneralizedTime" @@ fun () ->
-    Scanf.sscanf str "%04u%02u%02u%02u%02u%s" @@
+  let time_of_string_gen = catch "GeneralizedTime" @@ fun s ->
+    Scanf.sscanf s "%04u%02u%02u%02u%02u%s" @@
     fun y m d hh mm rest ->
       let (ssff, tz) =
-        try Scanf.sscanf rest "%f%s" @@ fun ssff rest' ->
-          (ssff, tz_of_string_exn rest')
-        with _ ->
-          (0., tz_of_string_exn rest)
-      in
+        try Scanf.sscanf rest "%f%s" @@ fun ssff rest ->
+          (ssff, tz_of_string_exn rest)
+        with _ -> (0., tz_of_string_exn rest) in
       let ss = int_of_float ssff
       and ff = frac ssff in
       { date = (y, m, d) ; time = (hh, mm, ss, ff) ; tz }

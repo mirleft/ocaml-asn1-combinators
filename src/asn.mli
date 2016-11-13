@@ -78,9 +78,11 @@ module Time : sig
       date. *)
 end
 
-exception Parse_error of string
+type error = [ `Parse of string ] (* XXX finer-grained *)
+exception Parse_error of error
 exception Ambiguous_grammar
 
+val parse_error_fmt : ('a, Format.formatter, unit, 'b) format4 -> 'a
 val parse_error : string -> 'a
 
 type 'a t

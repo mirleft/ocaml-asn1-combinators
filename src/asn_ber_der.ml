@@ -38,8 +38,8 @@ module R = struct
     | Constructed of int
     | Constructed_indefinite
 
-  let fail fmt =
-    Printf.ksprintf (fun msg -> raise (Parse_error msg)) fmt
+  let err_hdr cs fmt =
+    parse_error ("Header: at %a: " ^^ fmt) pp_cs (Cstruct.sub cs 0 32)
 
   let p_header cfg cs =
     let open Cstruct in
@@ -47,17 +47,20 @@ module R = struct
     (* [cfg] is explicitly passed because speed. *)
     let ck_redundant cfg (n : int) limit =
       if cfg.strict && n < limit then
-        fail "Header: Illegal redundant form"
+        err_hdr cs "redundant form"
 
     and p_big_tag cs =
       let rec go acc = function
-        | 8 -> fail "Header: Big tag longer than 8 bytes"
+        | 8 -> err_hdr cs "big tag: too long"
         | i ->
             let b = get_uint8 cs i in
             let x = Int64.of_int (b land 0x7f) in
             match (Int64.(acc lsl 7 + x), b land 0x80) with
-            | (0L,  _) -> fail "Header: Big tag with leading 0"
-            | (acc, 0) -> (Int64.to_int_checked acc, succ i)
+            | (0L,  _) -> err_hdr cs "big tag: leading 0"
+            | (acc, 0) ->
+              ( match Int64.to_nat_checked acc with
+                | Some x -> (x, succ i)
+                | None   -> err_hdr cs "big tag: overflow: %Li" acc)
             | (acc, _) -> go acc (succ i) in
       go 0L 0
 
@@ -65,7 +68,10 @@ module R = struct
       let rec go acc i =
         if i = n then acc else
           go Int64.(acc lsl 8 + of_int (get_uint8 cs i)) (succ i) in
-      Int64.to_int_checked @@ go 0L 0 in
+      let n = go 0L 0 in
+      match Int64.to_nat_checked n with
+      | None   -> err_hdr cs "big length: overflow: %Li" n
+      | Some x -> x in
 
     let p_core cfg cs =
       let t0 = get_uint8 cs 0 in
@@ -131,13 +137,13 @@ module R = struct
           let (gs, _ ) = p_children eof1 [] hd in
           (G.Cons (tag, gs), tl)
       | Constructed_indefinite when cfg.strict ->
-          fail "Illegal constructed indefinite form"
+          parse_error "Constructed indefinite form"
       | Constructed_indefinite ->
           let (gs, tl) = p_children eof2 [] (Cstruct.shift cs off) in
           (G.Cons (tag, gs), Cstruct.shift tl 2) in
 
     try p_node cs with Invalid_argument _ ->
-      fail "Structure: Unexpected EOF"
+      parse_error "Unexpected EOF: %a" pp_cs cs
 
 
   module TM = Map.Make (Tag)
@@ -148,8 +154,8 @@ module R = struct
   end )
 
   let err_type ?(form=`Both) t g =
-    fail "Type mismatch: expected: %s %s, got: %s"
-         (G.pp_form form) Tag.(to_string t) (G.to_string g)
+    parse_error "Type mismatch: expected: (%a %a) got: %a"
+      G.pp_form_name form Tag.pp t G.pp_tag g
 
   let primitive t f = function
     | G.Prim (t1, bs) when Tag.equal t t1 -> f bs
@@ -223,9 +229,8 @@ module R = struct
   and c_explicit : type a. a asn -> opt:opt -> G.t list -> a = fun a ~opt ->
 
     let p = c_asn a ~opt in function
-      | [g]  -> p g
-      | []   -> fail "EXPLICIT: Empty"
-      | g::_ -> fail "EXPLICIT: Trailing elements: %s" (G.to_string g)
+      | [g] -> p g
+      | gs  -> parse_error "EXPLICIT: sequence: %a" (pp_dump_list G.pp_tag) gs
 
   and c_seq : type a. a sequence -> opt:opt -> G.t list -> a = fun s ~opt ->
 
@@ -235,14 +240,14 @@ module R = struct
           fun gs -> let (r, gs') = p1 gs in (r, p2 gs')
       | Last e ->
           let p = element e in fun gs ->
-            match p gs with (a, []) -> a | (_, g::_) ->
-              fail "SEQUENCE: Trailing elements: %s" (G.to_string g)
+            match p gs with (a, []) -> a | (_, gs) ->
+              parse_error "SEQUENCE: trailing: %a" (pp_dump_list G.pp_tag) gs
 
     and element : type a. a element -> G.t list -> a * G.t list = function
       | Required (lbl, a) ->
           let p = c_asn a ~opt in (function
             | g::gs -> (p g, gs)
-            | []    -> fail "SEQUENCE: Missing required field: %s" (s_lbl lbl))
+            | []    -> parse_error "SEQUENCE: missing required: %s" (label lbl))
       | Optional (_, a) ->
           let (p, accepts) = (c_asn a ~opt, peek a) in
           function | g::gs when accepts g -> (Some (p g), gs)
@@ -273,7 +278,7 @@ module R = struct
 
       let to_tuple =
         let rec element : type a. a element -> a = function
-          | Required (Miss  lbl) -> fail "SET: Missing required field: %s" (s_lbl lbl)
+          | Required (Miss  lbl) -> parse_error "SET: missing required: %s" (label lbl)
           | Required (Found a  ) -> a
           | Optional (Miss  _  ) -> None
           | Optional (Found a  ) -> Some a
@@ -314,7 +319,7 @@ module R = struct
       | g::gs ->
           let p =
             try TM.find (G.tag g) ps
-            with Not_found -> fail "SET: Unexpected element: %s" (G.to_string g) in
+            with Not_found -> parse_error "SET: unexpected: %a" G.pp_tag g in
           step (p g acc) (TM.remove (G.tag g) ps) gs in
 
     step (P.of_sequence s) parsers
@@ -381,14 +386,11 @@ module W = struct
   let e_primitive tag body =
     e_header tag `Primitive (Writer.len body) <+> body
 
-  let assert_length constr len_f a =
-    match constr with
+  let assert_length ?constr f a = match constr with
     | None   -> ()
-    | Some s ->
-        let len = len_f a in
-        if len = s then () else
-          invalid_arg @@
-          Printf.sprintf "bad length: constraint: %d actual: %d" s len
+    | Some n ->
+        let n' = f a in
+        if n <> n' then invalid_arg "Encode: length: expected %d, got %d" n n'
 
   let rec encode : type a. conf -> tag option -> a -> a asn -> Writer.t
   = fun conf tag a -> function
@@ -452,9 +454,9 @@ module W = struct
       e_primitive
         (match tag with Some x -> x | None -> tag_of_p prim) in
 
-    let encode_s (type a) ?size a impl =
+    let encode_s (type a) ?length a impl =
       let module P = (val impl : Prim.String_primitive with type t = a) in
-      assert_length size P.length a;
+      assert_length ?constr:length P.length a;
       encode (P.to_writer a) in
 
     match prim with

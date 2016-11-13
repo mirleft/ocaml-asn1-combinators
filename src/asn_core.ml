@@ -7,11 +7,34 @@ let id x      = x
 let const x _ = x
 let (&.) f g x = f (g x)
 
+let opt def = function Some x -> x | _ -> def
+
 type 'a endo = 'a -> 'a
 
 type ('a, 'b) sum = L of 'a | R of 'b
 
-let strf = Printf.sprintf
+let (strf, pf) = Format.(asprintf, fprintf)
+
+let invalid_arg fmt = Format.ksprintf invalid_arg fmt
+
+let pp_list ~sep pp ppf xs =
+  let rec go ppf = function
+    | []    -> ()
+    | [x]   -> pp ppf x
+    | x::xs -> pf ppf "%a%a@ " pp x sep (); go ppf xs in
+  pf ppf "@[%a@]" go xs
+
+let pp_dump_list pp ppf xs =
+  let sep ppf () = Format.pp_print_string ppf "," in
+  pf ppf "[@[%a@]]" (pp_list ~sep pp) xs
+
+let pp_cs ppf cs =
+  let f ppf cs =
+    for i = 0 to cs.Cstruct.len - 1 do
+      if i mod 8 = 0 && i > 0 then pf ppf "@ ";
+      pf ppf "%02x" (Cstruct.get_uint8 cs i)
+    done in
+  pf ppf "@[%a@]" f cs
 
 module Tag = struct
 
@@ -21,11 +44,7 @@ module Tag = struct
     | Context_specific of int
     | Private          of int
 
-  (* Specialized compare and an inlined eq give a significant speed boost in
-   * BER/DER. *)
-
-  let compare t1 t2 =
-    match (t1, t2) with
+  let compare t1 t2 = match (t1, t2) with
     | (Universal        a, Universal        b)
     | (Application      a, Application      b)
     | (Context_specific a, Context_specific b)
@@ -35,25 +54,23 @@ module Tag = struct
     | (Context_specific _, Private _) -> -1
     | _ -> 1
 
-  let equal t1 t2 =
-    match (t1, t2) with
+  let equal t1 t2 = match (t1, t2) with
     | (Universal        a, Universal        b)
     | (Application      a, Application      b)
     | (Context_specific a, Context_specific b)
     | (Private          a, Private          b) -> a = b
     | _ -> false
 
-  let to_string tag =
+  let pp ppf tag =
     let (name, n) = match tag with
       | Universal n        -> ("UNIVERSAL", n)
       | Application n      -> ("APPLICATION", n)
       | Context_specific n -> ("CONTEXT", n)
       | Private n          -> ("PRIVATE", n) in
-    strf "[%s %d]" name n
+    pf ppf "%s %d" name n
 
-  let set_to_string tags =
-    "(" ^ (String.concat " " @@ List.map to_string tags) ^ ")"
-
+  (* let pp_tags ppf tags = *)
+  (*   pf ppf "(%a)" (pp_list ~sep:Format.pp_print_space pp) tags *)
 end
 
 type tag  = Tag.t
@@ -65,23 +82,19 @@ module Generic = struct
     | Cons of tag * t list
     | Prim of tag * Cstruct.t
 
-  let pp_form = function
-    | `Cons -> "CONSTRUCTED"
-    | `Prim -> "PRIMITIVE"
-    | `Both -> ""
-
   let tag = function Cons (t, _) -> t | Prim (t, _) -> t
-  let form = function Cons _ -> pp_form `Cons | Prim _ -> pp_form `Prim
 
-  let to_string g = strf "%s %s" (form g) (Tag.to_string (tag g))
+  let pp_form_name ppf fsym =
+    Format.pp_print_string ppf @@ match fsym with
+      `Cons -> "Constructed" | `Prim -> "Primitive" | `Both -> "ANY"
+
+  let pp_tag ppf g =
+    let form = match g with Cons _ -> `Cons | Prim _ -> `Prim in
+    pf ppf "(%a %a)" pp_form_name form Tag.pp (tag g)
 end
 
-type bits_t = int * Cstruct.t
 
-
-exception Ambiguous_grammar
-exception Parse_error of string
-
+type bits = int * Cstruct.t
 
 type 'a rand = unit -> 'a
 
@@ -115,14 +128,14 @@ and _ prim =
 
   | Bool       : bool      prim
   | Int        : Z.t       prim
-  | Bits       : bits_t    prim
+  | Bits       : bits      prim
   | Octets     : Cstruct.t prim
   | Null       : unit      prim
   | OID        : OID.t     prim
   | CharString : string    prim
 
 
-let s_lbl = function Some lbl -> lbl | _ -> ""
+let label = opt ""
 
 let seq_tag = Tag.Universal 0x10
 and set_tag = Tag.Universal 0x11
@@ -168,6 +181,14 @@ let rec tag : type a. a -> a asn -> tag = fun a -> function
   | Prim p             -> tag_of_p p
 
 
+type error = [ `Parse of string ] (* XXX finer-grained *)
+
+exception Ambiguous_grammar
+exception Parse_error of error
+
+let parse_error fmt =
+  Format.kasprintf (fun s -> raise (Parse_error (`Parse s))) fmt
+
 (* Check tag ambiguity.
  * XXX: Would be _epic_ to move this to the type-checker.
  *)
@@ -176,6 +197,7 @@ module FSet = struct
   type f = Fn : ('a -> 'b) -> f
   include Set.Make ( struct
     type t = f
+    (* XXX collisions *)
     let compare (Fn f1) (Fn f2) = Hashtbl.(compare (hash f1) (hash f2))
   end )
   let mem f s = mem (Fn f) s

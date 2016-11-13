@@ -183,6 +183,8 @@ let rec tag : type a. a -> a asn -> tag = fun a -> function
 
 type error = [ `Parse of string ] (* XXX finer-grained *)
 
+let pp_error ppf (`Parse err) = pf ppf "Parse error: %s" err
+
 exception Ambiguous_grammar
 exception Parse_error of error
 

@@ -5,10 +5,14 @@ module Core = Asn_core
 module OID  = Asn_oid
 module Time = Asn_time
 
+open Result
+
 type error = Core.error
 
 let parse_error_fmt = Core.parse_error
 let parse_error = parse_error_fmt "%s"
+
+let pp_error = Core.pp_error
 
 exception Parse_error       = Core.Parse_error
 exception Ambiguous_grammar = Core.Ambiguous_grammar
@@ -47,14 +51,7 @@ let encode (Codec (_, enc)) a =
 let encode_into (Codec (_, enc)) a =
   Asn_writer.to_writer (enc a)
 
-and decode_exn (Codec (dec, _)) b = dec b
-
-and decode (Codec (dec, _)) b =
-  try Some (dec b) with End_of_file | Parse_error _ -> None
-
-(* and decode (Codec (dec, _)) b = *)
-(*   try Ok (dec b) with *)
-(*   | End_of_file   -> Error "EOF" *)
-(*   | Parse_error e -> Error e *)
+let decode (Codec (dec, _)) b =
+  try Ok (dec b) with Parse_error err -> Error err
 
 let random = Asn_random.r_asn

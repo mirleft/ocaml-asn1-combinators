@@ -5,6 +5,8 @@
 
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
+open Result
+
 (** ASN.1 [OBJECT IDENTIFIER].
 
     Magic numbers in a suit and tie. Their consulting fee is astronomical. *)
@@ -78,9 +80,10 @@ module Time : sig
       date. *)
 end
 
-type error = [ `Parse of string ] (* XXX finer-grained *)
-exception Parse_error of error
 exception Ambiguous_grammar
+
+type error = [ `Parse of string ] (* XXX finer-grained *)
+val pp_error : Format.formatter -> error -> unit
 
 val parse_error_fmt : ('a, Format.formatter, unit, 'b) format4 -> 'a
 val parse_error : string -> 'a
@@ -203,9 +206,7 @@ type 'a codec
 val codec       : encoding -> 'a t -> 'a codec
 val encode      : 'a codec -> 'a -> Cstruct.t
 val encode_into : 'a codec -> 'a -> (int * (Cstruct.t -> unit))
-val decode_exn  : 'a codec -> Cstruct.t -> 'a * Cstruct.t
-val decode      : 'a codec -> Cstruct.t -> ('a * Cstruct.t) option
-(* val decode_exn  : 'a codec -> Cstruct.t -> ('a * Cstruct.t, string) result *)
+val decode      : 'a codec -> Cstruct.t -> ('a * Cstruct.t, error) result
 
 val random : 'a t -> 'a
 

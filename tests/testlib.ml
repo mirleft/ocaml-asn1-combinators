@@ -14,22 +14,21 @@ let cstruct_of_list list =
   List.iteri Cstruct.(set_uint8 cs) list ;
   cs
 
-let verify_decode = function
-  | None        -> `fail
-  | Some (a, b) ->
-      if Cstruct.len b = 0 then `ok a else `leftover
+let decode_full codec b =
+  match Asn.decode codec b with
+  | Ok (a, b) when Cstruct.len b = 0 -> Ok a
+  | Ok (_, b)                        -> Error (`Leftover b)
+  | Error (#Asn.error as e)          -> Error e
 
-let verify_decode_value x dec =
-  match verify_decode dec with
-  | `ok a when x = a -> `ok
-  | `ok a     -> `mismatch (x, a)
-  | `fail     -> `fail
-  | `leftover -> `leftover
+let pp_e ppf = function
+  | #Asn.error as e -> Asn.pp_error ppf e
+  | `Leftover b     -> Format.fprintf ppf "Leftover"
 
 let loop_code codec x =
-  let enc = Asn.encode codec x in
-  let dec = Asn.decode codec enc in
-  verify_decode_value x dec
+  match Asn.encode codec x |> decode_full codec with
+  | Ok y when x = y -> Ok ()
+  | Ok y            -> Error (`Mismatch y)
+  | Error err       -> Error err
 
 let loop_code_random ?(coding=Asn.ber) asn =
   loop_code Asn.(codec coding asn) Asn.(random asn)
@@ -38,8 +37,8 @@ let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
   if n < 0 then [] else
     let rest = fuzz ~coding ~n:(pred n) asn in
     match loop_code_random ~coding asn with
-    | `ok  -> rest
-    | fail -> fail :: rest
+    | Ok ()     -> rest
+    | Error err -> err :: rest
 
 
 (* the other one *)
@@ -62,19 +61,12 @@ let anticase :
   type a. string -> a Asn.t -> int list list -> test_anticase
 = fun name asn examples -> ATC (name, asn, examples)
 
-
 let assert_decode
 : type a. ?example:a -> ?cmp:(a cmp) -> a Asn.codec -> Cstruct.t -> unit
 = fun ?example ?cmp codec bytes ->
-  match Asn.decode codec bytes with
-  | None -> assert_failure "decode failed"
-  | Some (x, buf) ->
-      if Cstruct.len buf <> 0 then
-        assert_failure "not all input consumed"
-      else
-        match example with
-        | Some a -> assert_equal ?cmp a x
-        | None   -> ()
+  match decode_full codec bytes with
+  | Error e -> assert_failure (Format.asprintf "decode failed %a" pp_e e)
+  | Ok x    -> match example with Some a -> assert_equal ?cmp a x | _ -> ()
 
 let test_decode encoding (TC (_, cmp, asn, examples)) _ =
   let codec = Asn.(codec encoding asn) in
@@ -92,15 +84,9 @@ let test_loop_decode ?(iter=10000) ?cmp encoding asn _ =
 let test_no_decode encoding (ATC (_, asn, examples)) _ =
   let codec = Asn.(codec encoding asn) in
   examples |> List.iter @@ fun bytes ->
-    match
-      try
-        (* XXX BER/Prim surface: not all exns caught *)
-        Some (Asn.decode_exn codec (cstruct_of_list bytes))
-      with _ -> None
-    with
-    | None   -> ()
-    | Some _ -> assert_failure "zalgo he comes"
-
+    match Asn.decode codec (cstruct_of_list bytes) with
+    | Error _ -> ()
+    | Ok _    -> assert_failure "zalgo he comes"
 
 (* Prim tests *)
 

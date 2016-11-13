@@ -5,14 +5,55 @@
 
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
+(** ASN.1 [OBJECT IDENTIFIER].
+
+    Magic numbers in a suit and tie. Their consulting fee is astronomical. *)
 module OID : sig
+
+  (** Object identifier. Every OID has at least two components. *)
   type t = private Oid of int * int * int list
-  val (<|)      : t -> int -> t
-  val (<||)     : t -> int list -> t
-  val base      : int -> int -> t
-  val to_list   : t -> int list
-  val to_string : t -> string
+
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val hash : t -> int
+  val seeded_hash : int -> t -> int
+
+  (** {2 Construction} *)
+
+  val base : int -> int -> t
+  (** [base v1 v2] is the OID [v1.v2].
+
+      Either [v1] is [[0..1]] and [v2] is [[0..39]] (inclusive), or [v1] is [2]
+      and [v2] is non-negative.
+
+      @raise Invalid_argument if the components are out of range. *)
+
+  val (<|) : t -> int -> t
+  (** [oid <| n] is the OID [oid.n].
+
+      @raise Invalid_argument if [n] is negative. *)
+
+  val (<||) : t -> int list -> t
+  (** [oid <|| ns] is the old [oid.n1.n2. ...] if [ns] is [[n1; n2; ...]].
+
+      @raise Invalid_argument if any of [ns] is negative. *)
+
+  (** {2 Conversion} *)
+
+  val to_string : t -> string [@@deprecated "use pp"]
+  (** [to_string t] is the dotted-decimal representation of [t]. *)
+
+  val pp : Format.formatter -> t -> unit
+  (** [pp ppf oid] pretty-prints [oid] on [ppf] as dotted-decimal. *)
+
+  val to_list : t -> int list
+  (** [to_list oid] is the list [n1; n2; ...] if the OID is [n1.n2. ...]. *)
+
   val of_string : string -> t
+  (** [of_string s] is the OID represented by [s].
+
+      @raise Invalid_argument if [s] is not dotted-decimal, or the components
+      are out of range. *)
 end
 
 module Time : sig

@@ -38,112 +38,104 @@ module R = struct
     | Constructed of int
     | Constructed_indefinite
 
-  let err_hdr cs fmt =
-    parse_error ("Header: at %a: " ^^ fmt) pp_cs (Cstruct.sub cs 0 32)
+  module Header = struct
 
-  let p_header cfg cs =
-    let open Cstruct in
+    open Cstruct
 
-    (* [cfg] is explicitly passed because speed. *)
-    let ck_redundant cfg (n : int) limit =
-      if cfg.strict && n < limit then
-        err_hdr cs "redundant form"
+    let error cs fmt =
+      parse_error ("Header: at %a: " ^^ fmt) pp_cs (sub cs 0 32)
 
-    and p_big_tag cs =
+    let ck_redundant cs cfg (n : int) limit =
+      if cfg.strict && n < limit then error cs "redundant form"
+
+    let big_tag cs =
       let rec go acc = function
-        | 8 -> err_hdr cs "big tag: too long"
+        | 8 -> error cs "big tag: too long"
         | i ->
             let b = get_uint8 cs i in
             let x = Int64.of_int (b land 0x7f) in
             match (Int64.(acc lsl 7 + x), b land 0x80) with
-            | (0L,  _) -> err_hdr cs "big tag: leading 0"
+            | (0L,  _) -> error cs "big tag: leading 0"
             | (acc, 0) ->
               ( match Int64.to_nat_checked acc with
                 | Some x -> (x, succ i)
-                | None   -> err_hdr cs "big tag: overflow: %Li" acc)
+                | None   -> error cs "big tag: overflow: %Li" acc)
             | (acc, _) -> go acc (succ i) in
       go 0L 0
 
-    and p_big_len cs n =
+    let big_len cs n =
       let rec go acc i =
         if i = n then acc else
           go Int64.(acc lsl 8 + of_int (get_uint8 cs i)) (succ i) in
       let n = go 0L 0 in
       match Int64.to_nat_checked n with
-      | None   -> err_hdr cs "big length: overflow: %Li" n
-      | Some x -> x in
+      | None   -> error cs "big length: overflow: %Li" n
+      | Some x -> x
 
-    let p_core cfg cs =
+    let parse cfg cs =
+
       let t0 = get_uint8 cs 0 in
       let (tag_v, off_len) =
         match t0 land 0x1f with
         | 0x1f ->
-            let (n, i) = p_big_tag (shift cs 1) in
-            ck_redundant cfg n 0x1f;
+            let (n, i) = big_tag (shift cs 1) in
+            ck_redundant cs cfg n 0x1f;
             (n, i + 1)
         | x -> (x, 1) in
-
       let l0    = get_uint8 cs off_len in
       let lbody = l0 land 0x7f in
       let (len, off_end) =
-        if l0 land 0x80 = 0 then
-          (lbody, off_len + 1)
-        else
-          let n = p_big_len (shift cs (off_len + 1)) lbody in
-          ck_redundant cfg n 0x7f;
+        if l0 land 0x80 = 0 then (lbody, off_len + 1) else
+          let n = big_len (shift cs (off_len + 1)) lbody in
+          ck_redundant cs cfg n 0x7f;
           (n, off_len + 1 + lbody) in
-
-      let tag =
-        let open Tag in
-        match t0 land 0xc0 with
-        | 0x00 -> Universal        tag_v
-        | 0x40 -> Application      tag_v
-        | 0x80 -> Context_specific tag_v
-        | _    -> Private          tag_v
-
+      let tag = match t0 land 0xc0 with
+        | 0x00 -> Tag.Universal        tag_v
+        | 0x40 -> Tag.Application      tag_v
+        | 0x80 -> Tag.Context_specific tag_v
+        | _    -> Tag.Private          tag_v
       and coding =
         match (t0 land 0x20, l0) with
         | (0, _   ) -> Primitive len
         | (_, 0x80) -> Constructed_indefinite
         | _         -> Constructed len in
+      (tag, off_end, coding)
+  end
 
-      (tag, off_end, coding) in
-
-    p_core cfg cs
-
-
-  let p_generic cfg cs =
+  module Gen = struct
 
     let eof1 cs = cs.Cstruct.len = 0
-    and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0 in
+    and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0
 
     let split_off cs off n =
       let k = off + n in
-      Cstruct.(sub cs off n, sub cs k (len cs - k)) in
+      Cstruct.(sub cs off n, sub cs k (len cs - k))
 
-    let rec p_children eof acc cs =
+    let rec children cfg eof acc cs =
       if eof cs then (List.rev acc, cs) else
-        let (g, cs') = p_node cs in
-        p_children eof (g::acc) cs'
+        let (g, cs) = node cfg cs in
+        children cfg eof (g::acc) cs
 
-    and p_node cs =
-      let (tag, off, coding) = p_header cfg cs in
+    and node cfg cs =
+      let (tag, off, coding) = Header.parse cfg cs in
       match coding with
       | Primitive n ->
           let (hd, tl) = split_off cs off n in
           (G.Prim (tag, hd), tl)
       | Constructed n ->
           let (hd, tl) = split_off cs off n in
-          let (gs, _ ) = p_children eof1 [] hd in
+          let (gs, _ ) = children cfg eof1 [] hd in
           (G.Cons (tag, gs), tl)
       | Constructed_indefinite when cfg.strict ->
           parse_error "Constructed indefinite form"
       | Constructed_indefinite ->
-          let (gs, tl) = p_children eof2 [] (Cstruct.shift cs off) in
-          (G.Cons (tag, gs), Cstruct.shift tl 2) in
+          let (gs, tl) = children cfg eof2 [] (Cstruct.shift cs off) in
+          (G.Cons (tag, gs), Cstruct.shift tl 2)
 
-    try p_node cs with Invalid_argument _ ->
-      parse_error "Unexpected EOF: %a" pp_cs cs
+    let parse cfg cs =
+      try node cfg cs with Invalid_argument _ ->
+        parse_error "Unexpected EOF: %a" pp_cs cs
+  end
 
 
   module TM = Map.Make (Tag)
@@ -172,20 +164,6 @@ module R = struct
       | G.Cons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
       | g -> err_type t g in
     p
-
-  (* let unpack tag f1 f2 = function *)
-  (*   | GPrim (tag', bs) when Tag.equal tag tag' -> f1 bs *)
-  (*   | GCons (tag', gs) when Tag.equal tag tag' -> f2 gs *)
-  (*   | g -> fail "Type mismatch: exptected %s, got: %s" *)
-  (*               Tag.(to_string tag) (g_desc g) *)
-
-  (* let primitive t f = unpack t f (fun _ -> fail "Expected PRIMITIVE") *)
-  (* and constructed t f = unpack t (fun _ -> fail "Expected CONSTRUCTED") f *)
-
-  (* let string_like (type a) tag impl = *)
-  (*   let module P = (val impl : Prim.String_primitive with type t = a) in *)
-  (*   let rec p g = unpack tag P.of_cstruct (P.concat &. List.map p) g in *)
-  (*   p *)
 
   let c_prim : type a. tag -> a prim -> G.t -> a =
     fun tag -> function
@@ -328,7 +306,7 @@ module R = struct
   let (compile_ber, compile_der) =
     let compile cfg asn =
       let p = c_asn asn ~opt:Cache.(create ()) in
-      fun cs -> let (g, cs') = p_generic cfg cs in (p g, cs') in
+      fun cs -> let (g, cs') = Gen.parse cfg cs in (p g, cs') in
     (fun asn -> compile { strict = false } asn),
     (fun asn -> compile { strict = true  } asn)
 

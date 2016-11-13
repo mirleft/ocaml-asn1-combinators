@@ -160,7 +160,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
   type t = Cstruct.t
 
   let of_cstruct { Cstruct.buffer; off; len } =
-    (* mumbo jumbo to retain cs equality *)
+    (* XXX Mumbo jumbo to retain cs equality. *)
     Cstruct.of_bigarray @@ Bigarray.Array1.sub buffer off len
 
   let to_writer = Writer.of_cstruct
@@ -379,7 +379,4 @@ module Time = struct
     { date = (1950 + num 99, num 12, num 30) ;
       time = (num 23, num 59, sec, sec_f) ;
       tz   = tz }
-
-  module Str = Gen_string
-
 end

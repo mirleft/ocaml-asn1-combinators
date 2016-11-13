@@ -9,15 +9,13 @@ type t = Oid of int * int * int list
 
 let invalid_arg fmt = Format.ksprintf invalid_arg fmt
 
-let assert_non_negative ~caller x =
-  if x < 0 then invalid_arg "OID.%s: negative component: %d" caller x
-
 let (<|) (Oid (v1, v2, vs)) vn =
-  assert_non_negative ~caller:"<|" vn;
+  if vn < 0 then invalid_arg "OID.(<|): negative component: %d" vn;
   Oid (v1, v2, vs @ [vn])
 
 let (<||) (Oid (v1, v2, vs)) vs' =
-  List.iter (assert_non_negative ~caller:"<||") vs';
+  let f v = if v < 0 then invalid_arg "OID.(<||): negative component: %d" v in
+  List.iter f vs;
   Oid (v1, v2, vs @ vs')
 
 let to_list (Oid (v1, v2, vs)) = v1 :: v2 :: vs

@@ -114,12 +114,12 @@ let random_time_tests ~n _ = (* round trip with result of Unix.gmtime  *)
 
 let cases = [
 
-  case "bool" Asn.bool [
+  case "bool" Asn.S.bool [
     false, [0x01; 0x01; 0x00] ;
     true , [0x01; 0x01; 0xff]
   ];
 
-  case "integer" Asn.integer [
+  case "integer" Asn.S.integer [
     Z.(~$    0),  [0x02; 0x01; 0x00] ;
     Z.(~$    1),  [0x02; 0x01; 0x01] ;
     Z.(~$ (-1)),  [0x02; 0x01; 0xff] ;
@@ -130,7 +130,7 @@ let cases = [
     Z.(~$(-129)), [0x02; 0x02; 0xFF; 0x7F];
   ];
 
-  case "long integer" Asn.integer [
+  case "long integer" Asn.S.integer [
     Z.of_int64 8366779L,
     [0x02; 0x03; 0x7f; 0xaa; 0xbb];
     Z.of_int64 2141895628L,
@@ -147,30 +147,30 @@ let cases = [
     [0x02; 0x09; 0x7f; 0xaa; 0xbb; 0xcc; 0xdd; 0xee; 0xff; 0x11; 0x00];
   ];
 
-  case "null" Asn.null [
+  case "null" Asn.S.null [
     (), [ 0x05; 0x00 ];
     (), [ 0x05; 0x81; 0x00 ]
   ];
 
   case
     "singleton seq"
-    Asn.(sequence (single @@ required bool))
+    Asn.S.(sequence (single @@ required bool))
     [ true, [ 0x30; 0x03; 0x01; 0x01; 0xff; ];
       true, [ 0x30; 0x80; 0x01; 0x01; 0xff; 0x00; 0x00; ] ;
     ];
 
   case
     "rename stack"
-    Asn.(implicit 1 @@ implicit 2 @@ explicit 3 @@ implicit 4 @@ int)
+    Asn.S.(implicit 1 @@ implicit 2 @@ explicit 3 @@ implicit 4 @@ int)
     [ 42, [ 0xa1; 0x80; 0x84; 0x01; 0x2a; 0x00; 0x00 ];
       42, [ 0xa1; 0x03; 0x84; 0x01; 0x2a ] ];
 
   case
     "sequence with implicits"
-    Asn.(sequence3
-          (required int)
-          (required @@ implicit 1 bool)
-          (required bool))
+    Asn.S.(sequence3
+            (required int)
+            (required @@ implicit 1 bool)
+            (required bool))
 
     [ (42, false, true),
       [ 0x30; 0x09;
@@ -188,10 +188,10 @@ let cases = [
 
   case
     "sequence with optional and explicit fields"
-    Asn.(sequence3
-          (required @@ implicit 1 int)
-          (optional @@ explicit 2 bool)
-          (optional @@ implicit 3 bool))
+    Asn.S.(sequence3
+            (required @@ implicit 1 int)
+            (optional @@ explicit 2 bool)
+            (optional @@ implicit 3 bool))
 
     [ (255, Some true, Some false),
       [ 0x30; 0x0c;
@@ -220,11 +220,11 @@ let cases = [
 
   case
     "sequence with missing optional and choice fields"
-    Asn.(sequence3
-          (required @@ choice2 bool int)
-          (optional @@ choice2 bool int)
-          (optional @@ explicit 0
-                    @@ choice2 int (implicit 1 int)))
+    Asn.S.(sequence3
+            (required @@ choice2 bool int)
+            (optional @@ choice2 bool int)
+            (optional @@ explicit 0
+                      @@ choice2 int (implicit 1 int)))
 
     [ (`C1 true, None, None),
       [ 0x30; 0x03; 0x01; 0x01; 0xff ] ;
@@ -266,12 +266,12 @@ let cases = [
 
   case
     "sequence with sequence"
-    Asn.(sequence2
-          (required @@
-            sequence2
-              (optional @@ implicit 1 bool)
-              (optional bool))
-          (required bool))
+    Asn.S.(sequence2
+            (required @@
+              sequence2
+                (optional @@ implicit 1 bool)
+                (optional bool))
+            (required bool))
 
     [ ((Some true, Some false), true),
       [ 0x30; 0x0b ;
@@ -309,11 +309,11 @@ let cases = [
 
   case
     "sequence_of choice"
-    Asn.(sequence2
-          (required @@
-            sequence_of
-              (choice2 bool (implicit 0 bool)))
-          (required @@ bool))
+    Asn.S.(sequence2
+            (required @@
+              sequence_of
+                (choice2 bool (implicit 0 bool)))
+            (required @@ bool))
 
     [ ([`C2 true; `C2 false; `C1 true], true),
       [ 0x30; 0x0e;
@@ -336,10 +336,10 @@ let cases = [
 
   case
     "sets"
-    Asn.(set4 (required @@ implicit 1 bool)
-              (required @@ implicit 2 bool)
-              (required @@ implicit 3 int )
-              (optional @@ implicit 4 int ))
+    Asn.S.(set4 (required @@ implicit 1 bool)
+                (required @@ implicit 2 bool)
+                (required @@ implicit 3 int )
+                (optional @@ implicit 4 int ))
 
     [ (true, false, 42, None),
       [ 0x31; 0x09;
@@ -385,11 +385,11 @@ let cases = [
 
   case
     "set or seq"
-    Asn.(choice2
-          (set2 (optional int )
-                (optional bool))
-          (sequence2 (optional int )
-                     (optional bool)))
+    Asn.S.(choice2
+            (set2 (optional int )
+                  (optional bool))
+            (sequence2 (optional int )
+                      (optional bool)))
 
     [ (`C1 (None, Some true)),
       [ 0x31; 0x03;
@@ -420,7 +420,7 @@ let cases = [
 
   case
     "large tag"
-    Asn.(implicit 6666666 bool)
+    Asn.S.(implicit 6666666 bool)
     [ true , [ 0x9f; 0x83; 0x96; 0xf3; 0x2a; 0x01; 0xff; ];
       false, [ 0x9f; 0x83; 0x96; 0xf3; 0x2a; 0x01; 0x00; ];
     ];
@@ -428,7 +428,7 @@ let cases = [
 
   case
     "recursive encoding"
-    Asn.(
+    Asn.S.(
       fix @@ fun list ->
         map (function `C1 () -> [] | `C2 (x, xs) -> x::xs)
             (function [] -> `C1 () | x::xs -> `C2 (x, xs))
@@ -482,7 +482,7 @@ let cases = [
 
   case
     "ia5 string"
-    Asn.ia5_string
+    Asn.S.ia5_string
 
     [ "abc", [ 0x16; 0x03; 0x61; 0x62; 0x63; ];
 
@@ -524,7 +524,7 @@ let cases = [
 
   case
     "bit string"
-    Asn.bit_string
+    Asn.S.bit_string
 
     ( let example =
         [| false; true; true; false; true; true; true; false; false;
@@ -542,7 +542,7 @@ let cases = [
 
     let rsa = base 1 2 <| 840 <| 113549 in
 
-    case "oid" Asn.oid [
+    case "oid" Asn.S.oid [
 
       ( rsa ),
       [ 0x06; 0x06; 0x2a; 0x86; 0x48; 0x86; 0xf7; 0x0d ];
@@ -566,7 +566,7 @@ let cases = [
       [ 0x06; 0x04; 0x2a; 0x86; 0x8d; 0x1f ];
     ] );
 
-  case "octets" Asn.octet_string
+  case "octets" Asn.S.octet_string
   ( let f = cstruct_of_list in [
 
     f [ 0x01; 0x23; 0x45; 0x67; 0x89; 0xab; 0xcd; 0xef ],
@@ -581,7 +581,7 @@ let cases = [
         0x04; 0x04; 0x89; 0xab; 0xcd; 0xef; ]
   ]);
 
-  case "utc time" Asn.utc_time [
+  case "utc time" Asn.S.utc_time [
 
     ( Asn.Time.({ date = (1991, 5, 6); time = (23, 45, 40, 0.); tz = None }),
       [ 0x17; 0x0d; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36;
@@ -596,14 +596,14 @@ let cases = [
 
   ] ;
 
-  case "generalized time" Asn.generalized_time [ (* XXX add examples *) ] ;
+  case "generalized time" Asn.S.generalized_time [ (* XXX add examples *) ] ;
 
 ]
 
 let anticases = [
 
   (* thx @alpha-60 *)
-  anticase "tag overflow" Asn.bool [
+  anticase "tag overflow" Asn.S.bool [
     [ 0x1f;
       0xA0; 0x80;
       0x80; 0x80;
@@ -614,11 +614,11 @@ let anticases = [
     ]
   ] ;
 
-  anticase "leading zero" Asn.(implicit 127 bool) [
+  anticase "leading zero" Asn.S.(implicit 127 bool) [
     [ 0x9f; 0x80; 0x7F; 0x01; 0xff]
   ];
 
-  anticase "length overflow" Asn.bool [
+  anticase "length overflow" Asn.S.bool [
     [ 0x01;
       0x88;
       0x80;0x00;0x00;0x00;0x00;0x00;0x00;0x01;
@@ -626,7 +626,7 @@ let anticases = [
     ]
   ] ;
 
-  anticase "oid overflow" Asn.oid [
+  anticase "oid overflow" Asn.S.oid [
     [ 0x06;
       0x0b;
       0x2a;

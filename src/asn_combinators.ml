@@ -10,7 +10,7 @@ let arr_fold_right_i ~f z arr =
     |  i -> loop (f i arr.(i) r) (pred i) in
   loop z Array.(length arr - 1)
 
-type tag_class = [ `Universal | `Application | `Private ]
+type cls = [ `Universal | `Application | `Private ]
 
 let fix f = Fix f
 

@@ -15,12 +15,12 @@ let time ?(iter=1) f =
   measure @@ fun () -> go iter
 
 let bench_certs filename =
-  let cs = Unix_cstruct.of_fd @@ Unix.(openfile filename [O_RDONLY] 0)
-  and dec = Asn.decode_exn X509.cert_ber in
+  let cs = Unix_cstruct.of_fd @@ Unix.(openfile filename [O_RDONLY] 0) in
   let rec bench n cs =
     if Cstruct.len cs = 0 then n else
-      let (a, cs') = dec cs in
-      bench (succ n) cs' in
+      match Asn.decode X509.cert_ber cs with
+      | Ok (_, cs) -> bench (succ n) cs
+      | Error e -> invalid_arg (Format.asprintf "%a" Asn.pp_error e) in
   time ~iter:1 @@ fun () ->
     let n = bench 0 cs in
     Printf.printf "parsed %d certs.\n%!" n

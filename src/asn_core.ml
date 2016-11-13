@@ -185,11 +185,11 @@ type error = [ `Parse of string ] (* XXX finer-grained *)
 
 let pp_error ppf (`Parse err) = pf ppf "Parse error: %s" err
 
-exception Ambiguous_grammar
+exception Ambiguous_syntax
 exception Parse_error of error
 
-let parse_error fmt =
-  Format.kasprintf (fun s -> raise (Parse_error (`Parse s))) fmt
+let error err = raise (Parse_error err)
+let parse_error fmt = Format.kasprintf (fun s -> error (`Parse s)) fmt
 
 (* Check tag ambiguity.
  * XXX: Would be _epic_ to move this to the type-checker.
@@ -219,7 +219,7 @@ let validate asn =
     | Sequence_of a -> check fs a
     | Set_of      a -> check fs a
 
-(*     | Choice (a1, a2) when tag <> None -> raise Ambiguous_grammar *)
+(*     | Choice (a1, a2) when tag <> None -> raise Ambiguous_syntax *)
     | Choice (a1, a2) ->
         disjoint [tag_set a1; tag_set a2] ; check fs a1 ; check fs a2
 
@@ -250,9 +250,9 @@ let validate asn =
 
   and disjoint tss =
     let rec go = function
-      | t::(u::_ as ts) ->
-          if Tag.equal t u then raise Ambiguous_grammar else go ts
-      | _ -> () in
+      | t::u::_ when Tag.equal t u -> raise Ambiguous_syntax
+      | _::ts -> go ts
+      | _     -> () in
     go List.(sort Tag.compare @@ concat tss) in
 
   check FSet.empty asn

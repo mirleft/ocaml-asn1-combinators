@@ -7,21 +7,20 @@ module Time = Asn_time
 
 open Result
 
+exception Ambiguous_syntax = Core.Ambiguous_syntax
+
 type error = Core.error
-
-let parse_error_fmt = Core.parse_error
-let parse_error = parse_error_fmt "%s"
-
 let pp_error = Core.pp_error
 
-exception Parse_error       = Core.Parse_error
-exception Ambiguous_grammar = Core.Ambiguous_grammar
+module S = struct
+  type 'a t        = 'a Core.asn
+  type 'a element  = 'a Core.element
+  type 'a sequence = 'a Core.sequence
+  include Asn_combinators
+  let (error, parse_error) = Core.(error, parse_error)
+end
 
-type 'a t        = 'a Core.asn
-type 'a element  = 'a Core.element
-type 'a sequence = 'a Core.sequence
-
-include Asn_combinators
+type 'a t = 'a S.t
 
 type encoding = {
   mk_decoder : 'a. 'a t -> Cstruct.t -> 'a * Cstruct.t;
@@ -52,6 +51,6 @@ let encode_into (Codec (_, enc)) a =
   Asn_writer.to_writer (enc a)
 
 let decode (Codec (dec, _)) b =
-  try Ok (dec b) with Parse_error err -> Error err
+  try Ok (dec b) with Core.Parse_error err -> Error err
 
 let random = Asn_random.r_asn

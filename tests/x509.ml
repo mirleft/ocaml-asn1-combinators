@@ -2,6 +2,7 @@
    See LICENSE.md. *)
 
 open Asn
+open Asn.S
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;

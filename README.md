@@ -2,10 +2,12 @@
 
 %%VERSION%%
 
-asn1-combinators is a library for declarative definitions of ASN.1 grammars,
-embedded in OCaml. Such definitions allow parsing and serialization.
+asn1-combinators is a library for expressing ASN.1 in OCaml. Skip the notation
+part of ASN.1, and embed the abstract syntax directly in the language. These
+abstract syntax representations can be used for parsing, serialization, or
+random testing.
 
-Only BER and DER encoding are supported at the moment.
+The only ASN.1 encodings currently supported are BER and DER.
 
 asn1-combinators is distributed under the ISC license.
 

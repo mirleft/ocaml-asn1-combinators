@@ -15,23 +15,6 @@
 
 open Result
 
-(** [Time] needs to go. *)
-module Time : sig
-
-  type t = {
-    date : (int * int * int) ;
-    time : (int * int * int * float) ;
-    tz   : (int * int * [ `W | `E ]) option ;
-  }
-
-  val to_posix_time : t -> float
-
-  val date_to_posix_time :
-    y:int -> m:int -> d:int ->
-    hh:int -> mm:int -> ss:int ->
-    ff:float -> tz_mm:int -> float
-end
-
 (** {1 Object identifiers} *)
 
 type oid
@@ -304,11 +287,16 @@ module S : sig
   val oid : oid t
   (** [oid] is ASN.1 [OBJECT IDENTIFIER]. *)
 
-  val utc_time : Time.t t
-  (** [utc_time] is ASN.1 [UTCTime]. *)
-
-  val generalized_time : Time.t     t
+  val generalized_time : Ptime.t t
   (** [generalized_time] is ASN.1 [GeneralizedTime]. *)
+
+  val utc_time : Ptime.t t
+  (** [utc_time] is ASN.1 [UTCTime].
+
+      {b Warning} [UTCTime] uses two-digit year representation, and it's
+      indeterminate which year these digits denote. This implementation
+      arbitrarily chooses the first century of the Unix epoch, that is, the
+      years 1970–2069. Timestamps outside of this range are not representable.  *)
 
   (** {2 String primitives}
 

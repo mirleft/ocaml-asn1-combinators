@@ -9,7 +9,7 @@ type tBSCertificate = {
   serial     : Z.t ;
   signature  : OID.t ;
   issuer     : (OID.t * string) list list ;
-  validity   : Time.t * Time.t ;
+  validity   : Ptime.t * Ptime.t ;
   subject    : (OID.t * string) list list ;
   pk_info    : OID.t * Cstruct.t ;
   issuer_id  : Cstruct.t option ;

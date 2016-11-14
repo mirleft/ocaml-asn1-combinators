@@ -16,6 +16,18 @@ let cstruct_of_list list =
   List.iteri Cstruct.(set_uint8 cs) list ;
   cs
 
+let pp_hex_cs ppf =
+  let pp ppf cs =
+    for i = 0 to Cstruct.len cs - 1 do
+      Format.fprintf ppf "%02x@ " (Cstruct.get_uint8 cs i)
+    done in
+  Format.fprintf ppf "@[%a@]" pp
+
+let pp_hex_s ppf =
+  let pp ppf = String.iter @@ fun c ->
+    Format.fprintf ppf "%02x@ " (Char.code c) in
+  Format.fprintf ppf "@[%a@]" pp
+
 let decode_full codec b =
   match Asn.decode codec b with
   | Ok (a, b) when Cstruct.len b = 0 -> Ok a
@@ -24,7 +36,7 @@ let decode_full codec b =
 
 let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
-  | `Leftover b     -> Format.fprintf ppf "Leftover"
+  | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex_cs b
 
 let loop_code codec x =
   match Asn.encode codec x |> decode_full codec with
@@ -46,6 +58,8 @@ let rec fuzz ?(coding=Asn.ber) ?(n=1000) asn =
 (* the other one *)
 
 open OUnit2
+
+let get = function Some x -> x | _ -> assert false
 
 type 'a cmp = 'a -> 'a -> bool
 
@@ -78,7 +92,7 @@ let test_decode encoding (TC (_, cmp, asn, examples)) _ =
 
 let test_loop_decode ?(iter=10000) ?cmp encoding asn _ =
   let codec = Asn.(codec encoding asn) in
-  for i = 1 to iter do
+  for _ = 1 to iter do
     let a = Asn.random asn in
     assert_decode ~example:a ?cmp codec (Asn.encode codec a)
   done
@@ -90,29 +104,10 @@ let test_no_decode encoding (ATC (_, asn, examples)) _ =
     | Error _ -> ()
     | Ok _    -> assert_failure "zalgo he comes"
 
-(* Prim tests *)
 
-let random_time_tests ~n _ = (* round trip with result of Unix.gmtime  *)
-  let span = Int64.of_int32 Int32.max_int in (* ~68 years *)
-  let rtime () = Int64.(sub (Random.int64 (succ span)) (div span 2L)) in
-  let test () =
-    let ti = rtime () in
-    let t  = Int64.to_float ti in
-    let tm = Unix.gmtime t in
-    let t' = Asn.Time.date_to_posix_time
-        ~y:(tm.Unix.tm_year + 1900)
-        ~m:(tm.Unix.tm_mon + 1)
-        ~d:(tm.Unix.tm_mday)
-        ~hh:(tm.Unix.tm_hour)
-        ~mm:(tm.Unix.tm_min)
-        ~ss:(tm.Unix.tm_sec)
-        ~ff:0.
-        ~tz_mm:0
-    in
-    assert_equal t t'
-  in
-  for i = 1 to n do test () done
-
+let time ?(frac=0) dtz =
+  Ptime.(add_span (of_date_time dtz |> get)
+    (Span.v (0, Int64.(mul (of_int frac) 1_000_000_000L))) |> get)
 
 let cases = [
 
@@ -583,22 +578,58 @@ let cases = [
         0x04; 0x04; 0x89; 0xab; 0xcd; 0xef; ]
   ]);
 
-  case "utc time" Asn.S.utc_time [
+  case "utc time" ~cmp:Ptime.equal Asn.S.utc_time [
 
-    ( Asn.Time.({ date = (1991, 5, 6); time = (23, 45, 40, 0.); tz = None }),
+    ( time ((1991, 5, 6), ((23, 45, 40), 0)),
       [ 0x17; 0x0d; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36;
         0x32; 0x33; 0x34; 0x35; 0x34; 0x30; 0x5a ] ) ;
 
-    ( Asn.Time.({
-        date = (1991, 5, 6)  ;
-        time = (16, 45, 40, 0.);
-        tz   = Some (7, 0, `W) }) ,
+    ( time ((1991, 5, 6), ((16, 45, 40), -7 * 3600)),
       [ 0x17; 0x11; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31; 0x36;
-        0x34; 0x35; 0x34; 0x30; 0x2D; 0x30; 0x37; 0x30; 0x30 ] )
+        0x34; 0x35; 0x34; 0x30; 0x2D; 0x30; 0x37; 0x30; 0x30 ] );
+
+    ( time ((1991, 5, 6), ((16, 45, 0), 9000)),
+      [ 0x17; 0x0f; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31; 0x36;
+        0x34; 0x35; 0x2b; 0x30; 0x32; 0x33; 0x30; ]);
 
   ] ;
 
-  case "generalized time" Asn.S.generalized_time [ (* XXX add examples *) ] ;
+  case "generalized time" ~cmp:Ptime.equal Asn.S.generalized_time [
+
+    ( time ((1991, 5, 6), ((16, 0, 0), 0)),
+      [ 0x18; 0x0a; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31; 0x36; ]);
+
+    ( time ((1991, 5, 6), ((16, 0, 0), 0)),
+      [ 0x18; 0x0b; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31;
+        0x36; 0x5a ]);
+
+    ( time ((1991, 5, 6), ((16, 0, 0), 15 * 60)),
+      [ 0x18; 0x0f; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31;
+        0x36; 0x2b; 0x30; 0x30; 0x31; 0x35; ]);
+
+    ( time ((1991, 5, 6), ((16, 45, 0), 15 * 60)),
+      [ 0x18; 0x11; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31;
+        0x36; 0x34; 0x35; 0x2b; 0x30; 0x30; 0x31; 0x35; ]);
+
+    ( time ((1991, 5, 6), ((16, 45, 40), -15 * 60)),
+      [ 0x18; 0x13; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31;
+        0x36; 0x34; 0x35; 0x34; 0x30; 0x2d; 0x30; 0x30; 0x31; 0x35; ]);
+
+    ( time ~frac:001 ((1991, 5, 6), ((16, 45, 40), -(10 * 3600 + 10 * 60))),
+      [ 0x18; 0x17; 0x31; 0x39; 0x39; 0x31; 0x30; 0x35; 0x30; 0x36; 0x31;
+        0x36; 0x34; 0x35; 0x34; 0x30; 0x2e; 0x30; 0x30; 0x31; 0x2d; 0x31;
+        0x30; 0x31; 0x30; ]);
+
+    ( Ptime.min,
+      [ 0x18; 0x17; 0x30; 0x30; 0x30; 0x30; 0x30; 0x31; 0x30; 0x31; 0x30;
+        0x30; 0x30; 0x30; 0x30; 0x30; 0x2e; 0x30; 0x30; 0x30; 0x2b; 0x30;
+        0x30; 0x30; 0x30; ]);
+
+    ( Ptime.(truncate ~frac_s:3 max),
+      [ 0x18; 0x17; 0x39; 0x39; 0x39; 0x39; 0x31; 0x32; 0x33; 0x31; 0x32;
+        0x33; 0x35; 0x39; 0x35; 0x39; 0x2e; 0x39; 0x39; 0x39; 0x2b; 0x30;
+        0x30; 0x30; 0x30; ])
+  ] ;
 
 ]
 
@@ -640,8 +671,6 @@ let suite =
 
   "ASN.1" >::: [
 
-    "Time normalization" >:: random_time_tests ~n:100000 ;
-
     "BER decoding" >:::
       List.map
         (fun (TC (name, _, _, _) as tc) -> name >:: test_decode Asn.ber tc)
@@ -672,7 +701,7 @@ let suite =
     "X509 elements random encode->decode" >::: [
       "BER validity" >:: test_loop_decode Asn.ber X509.validity ;
       "DER validity" >:: test_loop_decode Asn.der X509.validity ;
-      "BER cert" >:: test_loop_decode ~iter:1000 Asn.ber X509.certificate ;
+      "BER cert" >:: test_loop_decode ~iter:5000 Asn.ber X509.certificate ;
 (*       "DER cert" >:: test_loop_decode ~iter:100 Asn.der X509.certificate ; *)
     ] ;
   ]

@@ -287,102 +287,6 @@ end
 
 module Time = struct
 
-  type t = Asn_time.t
-
-  open Asn_time
-
-  let catch pname f s = try f s with
-  | End_of_file            -> parse_error "%s: input too short at %s" pname s
-  | Scanf.Scan_failure err -> parse_error "%s: %s as %s" pname err s
-
-  let frac f = f -. floor f
-
-  let round f =
-    int_of_float @@ if frac f < 0.5 then floor f else ceil f
-
-  let tz_of_string_exn = function
-    | "Z"|"" -> None
-    | str    ->
-        Scanf.sscanf str "%1[+-]%02u%02u%!" @@
-          fun sgn h m -> match sgn with
-            | "+" -> Some (h, m, `E)
-            | "-" -> Some (h, m, `W)
-            | _   -> None
-
-  let time_of_string_utc = catch "UTCTime" @@ fun s ->
-    Scanf.sscanf s "%02u%02u%02u%02u%02u%s" @@
-    fun y m d hh mm rest ->
-      let (ss, tz) =
-        try Scanf.sscanf rest "%02u%s" @@ fun ss rest ->
-          (ss, tz_of_string_exn rest)
-        with _ -> (0, tz_of_string_exn rest) in
-      let y = if y < 50 then 2000 + y else 1900 + y in
-      { date = (y, m, d) ; time = (hh, mm, ss, 0.) ; tz }
-
-  let time_of_string_gen = catch "GeneralizedTime" @@ fun s ->
-    Scanf.sscanf s "%04u%02u%02u%02u%02u%s" @@
-    fun y m d hh mm rest ->
-      let (ssff, tz) =
-        try Scanf.sscanf rest "%f%s" @@ fun ssff rest ->
-          (ssff, tz_of_string_exn rest)
-        with _ -> (0., tz_of_string_exn rest) in
-      let ss = int_of_float ssff
-      and ff = frac ssff in
-      { date = (y, m, d) ; time = (hh, mm, ss, ff) ; tz }
-
-
-  let tz_to_string = function
-    | None             -> "Z"
-    | Some (h, m, sgn) ->
-        Printf.sprintf "%c%02d%02d"
-          (match sgn with `E -> '+' | `W -> '-') h m
-
-  let time_to_string_utc t =
-    let (y, m, d)       = t.date
-    and (hh, mm, ss, _) = t.time in
-    Printf.sprintf "%02d%02d%02d%02d%02d%02d%s"
-      (y mod 100) m d hh mm ss (tz_to_string t.tz)
-
-  (* The most ridiculously convoluted way to print three decimal digits.
-   * When in doubt, multiply 0.57 by 100. *)
-  (* XXX Assumes x = a * 10^(-n) + epsilon for natural a, n. *)
-  let string_of_frac n x =
-    let i   = round (frac x *. 10. ** float n) in
-    let str = string_of_int i in
-    let rec rstrip_0 = function
-      | 0 -> ""
-      | i ->
-          match str.[i - 1] with
-          | '0' -> rstrip_0 (pred i)
-          | _   -> "." ^ String.sub str 0 i in
-    rstrip_0 String.(length str)
-
-  (* XXX BER-times must be UTC-normalized. Not sure whether optional ss and ff
-   * are allowed to be zero-only.  *)
-  let time_to_string_gen t =
-    let (y, m, d)        = t.date
-    and (hh, mm, ss, ff) = t.time in
-    Printf.sprintf "%04d%02d%02d%02d%02d%02d%s%s"
-      y m d hh mm ss (string_of_frac 3 ff) (tz_to_string t.tz)
-
-
-  let random ?(fraction=false) () =
-    let num n = Random.int n + 1 in
-    let sec   = if Random.int 3 = 0 then 0 else num 59
-    and sec_f = if fraction then float (Random.int 1000) /. 1000. else 0.
-    and tz    = match Random.int 3 with
-      | 0 -> None
-      | 1 -> Some (num 11, num 59, `E)
-      | 2 -> Some (num 11, num 59, `W)
-      | _ -> assert false
-    in
-    { date = (1950 + num 99, num 12, num 30) ;
-      time = (num 23, num 59, sec, sec_f) ;
-      tz   = tz }
-end
-
-module Hammertime = struct
-
   let ps_per_ms = 1_000_000_000L
 
   let pp_tz_s ppf = function
@@ -391,7 +295,7 @@ module Hammertime = struct
       (if tz < 0 then '+' else '-')
       (abs tz / 3600) ((abs tz mod 3600) / 60)
 
-  (* XXX DER-times must be UTC-normalised. *)
+  (* DER-times must be UTC-normalised. If TZ comes this way, a DER flag must too. *)
 
   let pp_utc_time ppf t =
     let ((y, m, d), ((hh, mm, ss), tz)) =

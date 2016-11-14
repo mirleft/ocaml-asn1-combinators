@@ -1,11 +1,10 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
+open Result
+
 module Core = Asn_core
 module OID  = Asn_oid
-module Time = Asn_time
-
-open Result
 
 exception Ambiguous_syntax = Core.Ambiguous_syntax
 

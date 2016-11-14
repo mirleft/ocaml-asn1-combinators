@@ -17,12 +17,11 @@ let fix f = Fix f
 let map ?random f g asn = Iso (f, g, random, asn)
 
 let implicit, explicit =
-  let open Tag in
-  let tag = function
+  let tag = Tag.(function
     | (None,              n) -> Context_specific n
     | (Some `Application, n) -> Application      n
     | (Some `Private,     n) -> Private          n
-    | (Some `Universal,   n) -> Universal        n in
+    | (Some `Universal,   n) -> Universal        n) in
   (fun ?cls id asn -> Implicit (tag (cls, id), asn)) ,
   (fun ?cls id asn -> Explicit (tag (cls, id), asn))
 
@@ -49,19 +48,16 @@ and bmp_string       = string 0x1e
 
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
-  let time _name (f, g) fraction tag =
-    map ~random:(random ~fraction) f g
-      (implicit ~cls:`Universal tag character_string)
-  in
-  time "UTCTime"         (time_of_string_utc, time_to_string_utc) false 0x17,
-  time "GeneralizedTime" (time_of_string_gen, time_to_string_gen) false 0x18
-
+  let time ~frac tag (f, g) =
+    map ~random:(random ~frac) f g
+      (implicit ~cls:`Universal tag character_string) in
+  time ~frac:false 0x17 (utc_time_of_string, s_of_pp pp_utc_time),
+  time ~frac:true  0x18 (gen_time_of_string, s_of_pp pp_gen_time)
 
 let int =
   let f n = try Z.to_int n with Z.Overflow ->
     parse_error "INTEGER: int overflow: %a" Z.pp_print n in
   map f Z.of_int integer
-
 
 let bit_string    = Prim.Bits.(map to_array of_array (Prim Bits))
 and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)

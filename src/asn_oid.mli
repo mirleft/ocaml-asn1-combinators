@@ -12,6 +12,7 @@ val base  : int -> int -> t
 val (<|)  : t -> int -> t
 val (<||) : t -> int list -> t
 
+val to_nodes  : t -> int * int * int list
+val of_nodes  : int -> int -> int list -> t option
 val pp        : Format.formatter -> t -> unit
-val to_list   : t -> int list
-val of_string : string -> t
+val of_string : string -> t option

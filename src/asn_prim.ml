@@ -244,6 +244,7 @@ module OID = struct
 
   open Asn_oid
 
+  (* XXX bounds-checks instead of exns *)
   let of_cstruct cs =
     let open Cstruct in
 
@@ -259,7 +260,7 @@ module OID = struct
           let acc = Int64.(acc lor (of_int b7)) in
           if b land 0x80 = 0 then
             match Int64.to_nat_checked acc with
-            | None   -> parse_error "OID: component out of range: %Ld at %a"
+            | None   -> parse_error "OID: component out of int range: %Ld at %a"
                                     acc pp_cs cs
             | Some x -> (off + i + 1, x)
           else component Int64.(acc lsl 7) off (succ i) in
@@ -268,7 +269,7 @@ module OID = struct
       let b1 = get_uint8 cs 0 in
       let v1 = b1 / 40 and v2 = b1 mod 40 in
       base v1 v2 <|| values 1
-    with Invalid_argument err -> parse_error "OID: %s at %a" err pp_cs cs
+    with Invalid_argument _ -> parse_error "OID: input: %a" pp_cs cs
 
   let to_writer = fun (Oid (v1, v2, vs)) ->
     let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in
@@ -282,7 +283,6 @@ module OID = struct
 
   let random () =
     Random.( base (int 3) (int 40) <|| replicate_l (int 10) random_int )
-
 end
 
 module Time = struct

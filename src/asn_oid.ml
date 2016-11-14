@@ -18,28 +18,27 @@ let (<||) (Oid (v1, v2, vs)) vs' =
   List.iter f vs;
   Oid (v1, v2, vs @ vs')
 
-let to_list (Oid (v1, v2, vs)) = v1 :: v2 :: vs
-
 let base v1 v2 =
   match v1 with
   | 0|1 when v2 >= 0 && v2 < 40 -> Oid (v1, v2, [])
   | 2   when v2 >= 0            -> Oid (v1, v2, [])
   | _ -> invalid_arg "OID.base: out of range: %d.%d" v1 v2
 
+let to_nodes (Oid (v1, v2, vs)) = (v1, v2, vs)
+
+let of_nodes n1 n2 ns =
+  try Some (base n1 n2 <|| ns) with Invalid_argument _ -> None
+
 let pp ppf (Oid (v1, v2, vs)) =
   Format.fprintf ppf "%d.%d%a" v1 v2
   (fun ppf -> List.iter (Format.fprintf ppf ".%d")) vs
 
 let of_string s =
-  let rec components s =
-    if String.length s = 0 then []
-    else Scanf.sscanf s ".%d%s" (fun v s -> v :: components s) in
-  try
-    let (v1, v2, rest) =
-      Scanf.sscanf s "%d.%d%s" (fun v1 v2 rest -> (v1, v2, rest)) in
-    base v1 v2 <|| components rest
-  with End_of_file | Scanf.Scan_failure _ ->
-    invalid_arg "OID.of_string: malformed string: %s" s
+  let rec go ic =
+    if Scanf.Scanning.end_of_input ic then [] else
+      Scanf.bscanf ic ".%d%r" go (fun n ns -> n :: ns) in
+  try Scanf.sscanf s "%d.%d%r" go of_nodes
+  with End_of_file | Scanf.Scan_failure _ -> None
 
 let compare (Oid (v1, v2, vs)) (Oid (v1', v2', vs')) =
   let rec cmp (xs: int list) ys = match (xs, ys) with

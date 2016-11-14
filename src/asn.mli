@@ -10,54 +10,6 @@
 
 open Result
 
-(** ASN.1 [OBJECT IDENTIFIER].
-
-    Magic numbers in a suit and tie. Their consulting fee is astronomical. *)
-module OID : sig
-
-  (** Object identifier. Every OID has at least two components. *)
-  type t = private Oid of int * int * int list
-
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val hash : t -> int
-  val seeded_hash : int -> t -> int
-
-  (** {2 Construction} *)
-
-  val base : int -> int -> t
-  (** [base v1 v2] is the OID [v1.v2].
-
-      Either [v1] is [[0..1]] and [v2] is [[0..39]] (inclusive), or [v1] is [2]
-      and [v2] is non-negative.
-
-      @raise Invalid_argument if the components are out of range. *)
-
-  val (<|) : t -> int -> t
-  (** [oid <| n] is the OID [oid.n].
-
-      @raise Invalid_argument if [n] is negative. *)
-
-  val (<||) : t -> int list -> t
-  (** [oid <|| ns] is the old [oid.n1.n2. ...] if [ns] is [[n1; n2; ...]].
-
-      @raise Invalid_argument if any of [ns] is negative. *)
-
-  (** {2 Conversion} *)
-
-  val pp : Format.formatter -> t -> unit
-  (** [pp ppf oid] pretty-prints [oid] on [ppf] as dotted-decimal. *)
-
-  val to_list : t -> int list
-  (** [to_list oid] is the list [n1; n2; ...] if the OID is [n1.n2. ...]. *)
-
-  val of_string : string -> t
-  (** [of_string s] is the OID represented by [s].
-
-      @raise Invalid_argument if [s] is not dotted-decimal, or the components
-      are out of range. *)
-end
-
 (** [Time] needs to go. *)
 module Time : sig
 
@@ -73,29 +25,95 @@ module Time : sig
     y:int -> m:int -> d:int ->
     hh:int -> mm:int -> ss:int ->
     ff:float -> tz_mm:int -> float
-  (** [date_to_posix_time ~y ~m ~d ~hh ~mm ~ss ~ff ~tz_mm] is the POSIX
-      time corresponding to the calendar date [y-m-d] at time [hh:ss:mm.ff]
-      with time zone offset [tz_mm] in minutes.
-
-      {b Warning.} Does not check ranges or that [y-m-d] is a valid calendar
-      date. *)
 end
+
+(** {1 Object identifiers} *)
+
+type oid
+(** ASN.1 [OBJECT IDENTIFIER]. *)
+
+(** Object identifiers.
+
+    Magic numbers in a suit and tie. Their consulting fee is astronomical. *)
+module OID : sig
+
+  (** {1 Object identifiers} *)
+
+  type t = oid
+  (** OIDs are conceptually a sequence of non-negative integers, called
+      {e nodes}.
+
+      Every OID has at least two nodes. *)
+
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val hash : t -> int
+  val seeded_hash : int -> t -> int
+
+  (** {1 Construction} *)
+
+  val base : int -> int -> t
+  (** [base n1 n2] is the OID [n1.n2].
+
+      Either [n1] is [[0..1]] and [n2] is [[0..39]] (inclusive), or [n1] is [2]
+      and [n2] is non-negative.
+
+      @raise Invalid_argument if the components are out of range. *)
+
+  val (<|) : t -> int -> t
+  (** [oid <| n] is the OID [oid.n].
+
+      @raise Invalid_argument if [n] is negative. *)
+
+  val (<||) : t -> int list -> t
+  (** [oid <|| ns] is the old [oid.n1.n2. ...] if [ns] is [[n1; n2; ...]].
+
+      @raise Invalid_argument if any of [ns] is negative. *)
+
+  (** {1 Conversion} *)
+
+  val to_nodes : t -> int * int * int list
+  (** [to_nodes oid] are the nodes this [oid] consists of. Every OID has at
+      least two nodes; the rest are collected in the list. *)
+
+  val of_nodes : int -> int -> int list -> t option
+  (** [of_nodes n1 n2 ns] is the oid [n1.n2.ns...], or [None], if any of the
+      components are out of range. See {{!base}[base]} and {{!(<|)}[<|]}. *)
+
+  val pp : Format.formatter -> t -> unit
+  (** [pp ppf oid] pretty-prints [oid] on [ppf] as dotted-decimal. *)
+
+  val of_string : string -> t option
+  (** [of_string s] is the OID represented by [s], or [None], if [s] is not
+      dotted-decimal or the components are out of range. *)
+end
+
+
+(** {1 ASN.1 Abstract Syntax} *)
+
+type 'a t
+(** Abstract syntax of values of type ['a]. *)
+
 
 (** ASN.1 Abstract Syntax.
 
     This module is the OCaml term-level analogue of ASN.1's surface notation.
 
-    It provides a ground type {{!Sx.t}['a t]} representing typed abstract syntax,
+    It provides a ground type {{!S.t}['a t]} representing typed abstract syntax,
     a suite of primitives that correspond to ASN.1 primitives, and a suite of
     combinators that correspond to the combining structures of ASN.1.
 
-    ASN.1 naming and modules are provided by the host language instead. *)
+    ASN.1 naming and modules are not supported; these are provided by the host
+    language instead. *)
 module S : sig
 
-  type 'a t
-  (** ASN.1 abstract syntax of values of type ['a]. *)
+  (** {1 ASN.1 Abstract Syntax} *)
 
-  (** {2 Basic combinators} *)
+  (** ['a t] denotes a particular structure of data, irrespective of any
+      encoding, that is represented by ['a] in OCaml. *)
+  type nonrec 'a t = 'a t
+
+  (** {1 Basic combinators} *)
 
   val fix : ('a t -> 'a t) -> 'a t
   (** [fix fasn] is the fixpoint, allowing [fasn] to construct a syntax that
@@ -103,9 +121,12 @@ module S : sig
 
   val map : ?random:(unit -> 'b) -> ('a -> 'b) -> ('b -> 'a) -> 'a t -> 'b t
   (** [map ?random f g asn] creates a derived syntax that encodes and decodes
-      like [asn], but uses [f] to project and [g] to inject. *)
+      like [asn], but uses [f] to project and [g] to inject.
 
-  (** {2 Tags} *)
+      [~random] is a function that generates random samples of ['b]. Defaults to
+      [f a] where [a] is a random ['a]. *)
+
+  (** {1 Tags} *)
 
   type cls = [ `Universal | `Application | `Private ]
   (** ASN.1 tag CLASS. *)
@@ -126,7 +147,7 @@ module S : sig
 
       [~cls] is the class. Defaults to [CONTEXT SPECIFIC]. *)
 
-  (** {2 Combining constructs}
+  (** {1 Combining constructs}
 
       These look like
 {[sequence @@
@@ -141,12 +162,12 @@ module S : sig
   (** An [element] is a single slot in a {{!sequence}[sequence]}. *)
 
   val required : ?label:string -> 'a t -> 'a element
-  (** [required ?label asn] is a regular {{!sequence}[sequence]} element.
+  (** [required ?label asn] is a regular sequence element.
 
       [~label] is the name of the element. *)
 
   val optional : ?label:string -> 'a t -> 'a option element
-  (** [optional ?label asn] is a {{!sequence}[sequence]} element marked with the
+  (** [optional ?label asn] is a sequence element marked with the
       ASN.1 [OPTIONAL] keyword.
 
       [~label] is the name of the element. *)
@@ -171,7 +192,8 @@ module S : sig
   (** [sequence_of] is the ASN.1 [SEQUENCE OF] construct. *)
 
   val sequence2 : 'a element -> 'b element -> ('a * 'b) t
-  (** [sequence2 e1 e2] is [sequence (e1 -@ e2)]. *)
+  (** [sequence2 e1 e2] is [sequence (e1 -@ e2)]. Other [sequenceN] functions
+      are analogous. *)
 
   val sequence3 :
     'a element ->
@@ -203,7 +225,7 @@ module S : sig
   (** [set_of asn] is the ASN.1 [SET OF] construct. *)
 
   val set2 : 'a element -> 'b element -> ('a * 'b) t
-  (** [set2 e1 e2] is [set (e1 -@ e2)]. *)
+  (** [set2 e1 e2] is [set (e1 -@ e2)]. Other [setN] functions are analogous. *)
 
   val set3 :
     'a element ->
@@ -231,9 +253,9 @@ module S : sig
   val choice2 :
     'a t -> 'b t -> [ `C1 of 'a | `C2 of 'b ] t
   (** [choice2 asn1 asn2] is the ASN.1 [CHOICE] construct, choosing between
-      [asn1] and [asn2].
+      [asn1] and [asn2]. Other [choiceN] functions are analogous.
 
-      Larger [CHOICE] can be obtained by nesting [choiceN] variants.
+      Larger [CHOICE] can be obtained by nesting [choice] variants.
 
       {b Note} [CHOICE] containing elements with the same tag yields an illegal
       syntax. This will be detected by {!codec}. *)
@@ -254,7 +276,7 @@ module S : sig
     'a t -> 'b t -> 'c t -> 'd t -> 'e t -> 'f t
     -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
 
-  (** {2 Primitives} *)
+  (** {1 Primitives} *)
 
   val bool : bool t
   (** [bool] is ASN.1 [BOOLEAN]. *)
@@ -274,7 +296,7 @@ module S : sig
   val null : unit t
   (** [null] is ASN.1 [NULL]. *)
 
-  val oid : OID.t t
+  val oid : oid t
   (** [oid] is ASN.1 [OBJECT IDENTIFIER]. *)
 
   val utc_time : Time.t t
@@ -302,7 +324,7 @@ module S : sig
   val universal_string : string t
   val bmp_string       : string t
 
-  (** {2 Derived primitives} *)
+  (** {2 Additional primitives} *)
 
   val int : int t
   (** [int] is ASN.1 [INTEGER], projected into an OCaml [int]. *)
@@ -313,7 +335,7 @@ module S : sig
 
       [xs] is a list of [(bit, x)], where bit [bit] denotes the presence of [x]. *)
 
-  (** {2 Errors} *)
+  (** {1 Errors} *)
 
   (* XXX repeats *)
   val error : [ `Parse of string ] -> 'a
@@ -327,10 +349,7 @@ module S : sig
       [fmt] to format arguments [...]. *)
 end
 
-type 'a t = 'a S.t
-(** Abstract syntax of values of type ['a]. See {!S.t}. *)
-
-(** {2 Encodings} *)
+(** {1 Encoding formats} *)
 
 type encoding
 
@@ -341,7 +360,7 @@ val der : encoding
 (** [der] is ASN.1 Distinguished Encoding Rules (DER). *)
 
 
-(** {2 Encoding and decoding} *)
+(** {1 Encoding and decoding} *)
 
 type 'a codec
 
@@ -375,7 +394,7 @@ val decode : 'a codec -> Cstruct.t -> ('a * Cstruct.t, error) result
     decoding the prefix of [cs] with [codec] and [cs'] are the trailing bytes,
     or an {!error}. *)
 
-(** {2 Misc} *)
+(** {1 Misc} *)
 
 val random : 'a t -> 'a
 (** [random asn] is a random inhabitant of ['a]. *)

@@ -21,6 +21,7 @@ module S = struct
 end
 
 type 'a t = 'a S.t
+type oid = OID.t
 
 type encoding = {
   mk_decoder : 'a. 'a t -> Cstruct.t -> 'a * Cstruct.t;

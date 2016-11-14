@@ -6,6 +6,11 @@
     Skip the notation part of Abstract Syntax Notation, and embed the abstract
     syntax directly in OCaml.
 
+    {b References}
+    {ul
+    {- ITU-T. {{:http://handle.itu.int/11.1002/1000/12479}Abstract Syntax Notation One (ASN.1): Specification of basic notation}. ITU-T X.680 | ISO/IEC 8824-1, 2015}
+    {- ITU-T. {{:http://handle.itu.int/11.1002/1000/12483 }ASN.1 encoding rules: Specification of Basic Encoding Rules (BER), Canonical Encoding Rules (CER) and Distinguished Encoding Rules (DER)}. ITU-T X.690 | ISO/IEC 8825-1, 2015}}
+
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
 open Result

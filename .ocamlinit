@@ -1,4 +1,4 @@
-#require "cstruct, zarith"
+#require "cstruct, zarith, ptime.clock.os"
 #directory "_build/src"
 #load "asn1-combinators.cma"
 

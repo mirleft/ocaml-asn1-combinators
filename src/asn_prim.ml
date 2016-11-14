@@ -380,3 +380,77 @@ module Time = struct
       time = (num 23, num 59, sec, sec_f) ;
       tz   = tz }
 end
+
+module Hammertime = struct
+
+  let ps_per_ms = 1_000_000_000L
+
+  let pp_tz_s ppf = function
+    | 0  -> pf ppf "Z"
+    | tz -> pf ppf "%c%02d%02d"
+      (if tz < 0 then '+' else '-')
+      (abs tz / 3600) ((abs tz mod 3600) / 60)
+
+  (* XXX DER-times must be UTC-normalised. *)
+
+  let pp_utc_time ppf t =
+    let ((y, m, d), ((hh, mm, ss), tz)) =
+      Ptime.to_date_time ~tz_offset_s:0 t in
+    let y = y - if y < 2000 then 1900 else 2000 in
+    pf ppf "%02d%02d%02d%02d%02d%02d%a" y m d hh mm ss pp_tz_s tz
+
+  let pp_gen_time ppf t =
+    let ((y, m, d), ((hh, mm, ss), tz)) =
+      Ptime.to_date_time ~tz_offset_s:0 t in
+    let pp_frac ppf t = match Ptime.(frac_s t |> Span.to_d_ps) with
+      | (_, 0L) -> ()
+      | (_, f)  -> pf ppf ".%03Ld" Int64.(f / ps_per_ms) in
+    pf ppf "%04d%02d%02d%02d%02d%02d%a%a" y m d hh mm ss pp_frac t pp_tz_s tz
+
+  let s_of_pp pp = Format.asprintf "%a" pp
+
+  let catch pname f s = try f s with
+  | End_of_file          -> parse_error "%s: unexpected end: %s" pname s
+  | Scanf.Scan_failure _ -> parse_error "%s: invalid format: %s" pname s
+
+  (* XXX get rid of Scanf.
+   * - width specifiers are max-width only
+   * - %u is too lexically relaxed *)
+
+  let tz ic =
+    try Scanf.bscanf ic "%1[+-]%2u%2u%!" @@ fun sgn h m ->
+      (match sgn with "-" -> -1 | _ -> 1) * (3600 * h + 60 * m)
+    with _ -> Scanf.bscanf ic "Z" 0
+
+  let utc_time_of_string = catch "UTCTime" @@ fun s ->
+    Scanf.sscanf s "%2u%2u%2u%2u%2u%r%r%!"
+      (fun ic -> try Scanf.bscanf ic "%2u" id with _ -> 0) tz @@
+    fun y m d hh mm ss tz ->
+      let y  = (if y < 70 then 2000 else 1900) + y in
+      let dt = ((y, m, d), ((hh, mm, ss), tz)) in
+      match Ptime.of_date_time dt with
+        Some t -> t | _ -> parse_error "UTCTime: out of range: %s" s
+
+  let gen_time_of_string = catch "GeneralizedTime" @@ fun s ->
+    let m_s_f ic =
+      try Scanf.bscanf ic "%2u%r" (fun ic ->
+        try Scanf.bscanf ic "%2u%r" (fun ic ->
+          try Scanf.bscanf ic ".%3u" @@ fun ms -> Int64.(of_int ms * ps_per_ms)
+          with _ -> 0L) @@ fun ss ms -> ss, ms
+        with _ -> 0, 0L) @@ fun mm ssms -> mm, ssms
+      with _ -> 0, (0, 0L) in
+    Scanf.sscanf s "%4u%2u%2u%2u%r%r%!" m_s_f (fun ic -> try tz ic with _ -> 0) @@
+    fun y m d hh (mm, (ss, ps)) tz ->
+      let dt = ((y, m, d), ((hh, mm, ss), tz)) in
+      match
+        match Ptime.of_date_time dt with
+          Some t -> Ptime.(Span.v (0, ps) |> add_span t) | _ -> None
+      with Some t -> t | _ -> parse_error "GeneralizedTime: out of range: %s" s
+
+  let random ?(frac=false) () =
+    let days = Random.int 36505
+    and ms   = Random.int64 86_400_000L in
+    match Ptime.(add_span epoch Span.(v (days, Int64.(ms * ps_per_ms)))) with
+    | Some t -> if frac then t else Ptime.truncate ~frac_s:0 t
+    | None   -> assert false
+end

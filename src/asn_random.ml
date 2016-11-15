@@ -6,8 +6,7 @@ open Asn_prim
 
 let replicate n f a =
   let rec loop acc n =
-    if n <= 0 then acc else
-      loop (f a :: acc) (pred n) in
+    if n <= 0 then acc else loop (f a :: acc) (pred n) in
   loop [] n
 
 let r_prim : type a. a prim -> a = function

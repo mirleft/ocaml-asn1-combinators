@@ -1,3 +1,13 @@
+## (trunk)
+* `OID`s are now fully abstract, with a simpler interface
+* `OID`s have custom comparison and hasing
+* `Time` is gone in favor of external library, `Ptime`
+* Parse errors are reported through `Result`
+* Syntaxes now live in their own module, `Asn.S`
+* Rewrote the parser; no new features, but looks nicer from a distance
+* Various performance improvements
+* Document the interface
+
 ## v0.1.3 (2016-11-12)
 * relicense to ISC
 * drop oasis

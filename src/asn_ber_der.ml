@@ -157,23 +157,21 @@ module R = struct
     | G.Cons (t1, gs) when Tag.equal t t1 -> f gs
     | g -> err_type ~form:`Cons t g
 
-  let string_like (type a) t impl =
-    let module P = (val impl : Prim.String_primitive with type t = a) in
+  let string_like (type a) t (module P : Prim.Prim_s with type t = a) =
     let rec p = function
       | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
       | G.Cons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
       | g -> err_type t g in
     p
 
-  let c_prim : type a. tag -> a prim -> G.t -> a =
-    fun tag -> function
-      | Bool       -> primitive tag Prim.Boolean.of_cstruct
-      | Int        -> primitive tag Prim.Integer.of_cstruct
-      | Bits       -> string_like tag (module Prim.Bits)
-      | Octets     -> string_like tag (module Prim.Octets)
-      | Null       -> primitive tag Prim.Null.of_cstruct
-      | OID        -> primitive tag Prim.OID.of_cstruct
-      | CharString -> string_like tag (module Prim.Gen_string)
+  let c_prim : type a. tag -> a prim -> G.t -> a = fun tag -> function
+    | Bool       -> primitive tag Prim.Boolean.of_cstruct
+    | Int        -> primitive tag Prim.Integer.of_cstruct
+    | Bits       -> string_like tag (module Prim.Bits)
+    | Octets     -> string_like tag (module Prim.Octets)
+    | Null       -> primitive tag Prim.Null.of_cstruct
+    | OID        -> primitive tag Prim.OID.of_cstruct
+    | CharString -> string_like tag (module Prim.Gen_string)
 
   let peek asn =
     match tag_set asn with
@@ -302,7 +300,6 @@ module R = struct
 
     step (P.of_sequence s) parsers
 
-
   let (compile_ber, compile_der) =
     let compile cfg asn =
       let p = c_asn asn ~opt:Cache.(create ()) in
@@ -425,18 +422,12 @@ module W = struct
     let f = { Seq.f = fun e asn w -> encode conf None e asn <+> w } in
     Seq.fold_with_value f Writer.empty
 
-  and e_prim : type a. tag option -> a -> a prim -> Writer.t
-  = fun tag a prim ->
-
-    let encode =
-      e_primitive
-        (match tag with Some x -> x | None -> tag_of_p prim) in
-
-    let encode_s (type a) ?length a impl =
-      let module P = (val impl : Prim.String_primitive with type t = a) in
+  and e_prim : type a. tag option -> a -> a prim -> Writer.t = fun tag a prim ->
+    let encode = e_primitive
+      (match tag with Some x -> x | None -> tag_of_p prim) in
+    let encode_s (type a) ?length a (module P : Prim.Prim_s with type t = a) =
       assert_length ?constr:length P.length a;
       encode (P.to_writer a) in
-
     match prim with
     | Bool       -> encode @@ Prim.Boolean.to_writer a
     | Int        -> encode @@ Prim.Integer.to_writer a

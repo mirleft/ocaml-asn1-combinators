@@ -12,7 +12,7 @@ module type Prim = sig
   val random     : unit -> t
 end
 
-module type String_primitive = sig
+module type Prim_s = sig
   include Prim
   val random : ?size:int -> unit -> t
   val concat : t list -> t
@@ -141,7 +141,7 @@ module Integer : Prim with type t = Z.t = struct
 
 end
 
-module Gen_string : String_primitive with type t = string = struct
+module Gen_string : Prim_s with type t = string = struct
 
   type t = string
 
@@ -155,7 +155,7 @@ module Gen_string : String_primitive with type t = string = struct
   let (concat, length) = String.(concat "", length)
 end
 
-module Octets : String_primitive with type t = Cstruct.t = struct
+module Octets : Prim_s with type t = Cstruct.t = struct
 
   type t = Cstruct.t
 
@@ -176,7 +176,7 @@ end
 
 module Bits : sig
 
-  include String_primitive with type t = bits
+  include Prim_s with type t = bits
 
   val to_array : t -> bool array
   val of_array : bool array -> t

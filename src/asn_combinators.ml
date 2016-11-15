@@ -75,8 +75,8 @@ let bit_string_flags (type a) (xs : (int * a) list) =
           if b && i < n then items.(i) :: rs else rs)
   and g es =
     let arr = Array.make n false in
-    es |> List.iter (fun e ->
-      try arr.(M.find e ixs) <- true with Not_found -> ()) ;
+    let register e = try arr.(M.find e ixs) <- true with Not_found -> () in
+    List.iter register es;
     arr
   in
   map f g bit_string

@@ -14,6 +14,8 @@ type 'a endo = 'a -> 'a
 type ('a, 'b) sum = L of 'a | R of 'b
 
 let (strf, pf) = Format.(asprintf, fprintf)
+let kstrf k fmt =
+  Format.(kfprintf (fun _ -> flush_str_formatter () |> k) str_formatter fmt)
 
 let invalid_arg fmt = Format.ksprintf invalid_arg fmt
 
@@ -189,7 +191,7 @@ exception Ambiguous_syntax
 exception Parse_error of error
 
 let error err = raise (Parse_error err)
-let parse_error fmt = Format.kasprintf (fun s -> error (`Parse s)) fmt
+let parse_error fmt = kstrf (fun s -> error (`Parse s)) fmt
 
 (* Check tag ambiguity.
  * XXX: Would be _epic_ to move this to the type-checker.

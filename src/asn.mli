@@ -287,6 +287,11 @@ module S : sig
   val oid : oid t
   (** [oid] is ASN.1 [OBJECT IDENTIFIER]. *)
 
+  val enumerated : (int * 'a) list -> 'a t
+  (** [enumerated xs] is ASN.1 [ENUMERATED], truncated to an int
+
+      [xs] is a list of [(int, x)], where [int] denotes the mapping to [x]. *)
+
   val generalized_time : Ptime.t t
   (** [generalized_time] is ASN.1 [GeneralizedTime]. *)
 

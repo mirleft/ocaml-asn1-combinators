@@ -30,6 +30,7 @@ and integer             = Prim Int
 and octet_string        = Prim Octets
 and null                = Prim Null
 and oid                 = Prim OID
+and enumerate           = Prim Enumerated
 and character_string    = Prim CharString
 
 let string tag = implicit ~cls:`Universal tag character_string
@@ -45,6 +46,21 @@ and visible_string   = string 0x1a
 and general_string   = string 0x1b
 and universal_string = string 0x1c
 and bmp_string       = string 0x1e
+
+let enumerated (type a) (xs : (int * a) list) =
+  let module M1 = Map.Make (struct type t = int let compare = compare end) in
+  let module M2 = Map.Make (struct type t = a   let compare = compare end) in
+  let m1 = List.fold_right (fun (i, x) -> M1.add i x) xs M1.empty
+  and m2 = List.fold_right (fun (i, x) -> M2.add x i) xs M2.empty
+  in
+  let f x = try M1.find (Z.to_int x) m1 with
+    | Not_found -> parse_error @@ "integer not in enumerated"
+    | Z.Overflow -> parse_error "enumerated: overflow"
+  and g y =
+    try Z.of_int (M2.find y m2) with
+      Not_found -> parse_error @@ "value not found in enumerated"
+  in
+  map f g enumerate
 
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in

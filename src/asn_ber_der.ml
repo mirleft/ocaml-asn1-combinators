@@ -173,6 +173,7 @@ module R = struct
       | Octets     -> string_like tag (module Prim.Octets)
       | Null       -> primitive tag Prim.Null.of_cstruct
       | OID        -> primitive tag Prim.OID.of_cstruct
+      | Enumerated -> primitive tag Prim.Integer.of_cstruct
       | CharString -> string_like tag (module Prim.Gen_string)
 
   let peek asn =
@@ -444,6 +445,7 @@ module W = struct
     | Octets     -> encode_s a (module Prim.Octets)
     | Null       -> encode @@ Prim.Null.to_writer a
     | OID        -> encode @@ Prim.OID.to_writer a
+    | Enumerated -> encode @@ Prim.Integer.to_writer a
     | CharString -> encode @@ Prim.Gen_string.to_writer a
 
 

@@ -287,6 +287,12 @@ module S : sig
   val oid : oid t
   (** [oid] is ASN.1 [OBJECT IDENTIFIER]. *)
 
+  val enumerated : (int -> 'a) -> ('a -> int) -> 'a t
+  (** [enumerated f g] is ASN.1 [ENUMERATED], with [f] projecting from, and [g]
+      injecting into an [int].
+
+      The full [INTEGER] range is {i not} supported. *)
+
   val generalized_time : Ptime.t t
   (** [generalized_time] is ASN.1 [GeneralizedTime]. *)
 

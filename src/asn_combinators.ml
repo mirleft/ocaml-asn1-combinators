@@ -59,6 +59,8 @@ let int =
     parse_error "INTEGER: int overflow: %a" Z.pp_print n in
   map f Z.of_int integer
 
+let enumerated f g = map f g @@ implicit ~cls:`Universal 0x0a int
+
 let bit_string    = Prim.Bits.(map to_array of_array (Prim Bits))
 and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
 

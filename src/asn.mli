@@ -125,7 +125,12 @@ module S : sig
 
       [n] is the tag value.
 
-      [~cls] is the class. Defaults to [CONTEXT SPECIFIC]. *)
+      [~cls] is the class. Defaults to [CONTEXT SPECIFIC].
+
+      {b Note} [implicit] implicitly becomes [explicit] when applied to nodes
+      that cannot be made [IMPLICIT], like [CHOICE]. This is consistent with
+      X.608 (see [31.2.7]) in case of a bare tag, and with the common practice
+      in case of a tag marked as [IMPLICIT]. *)
 
   val explicit : ?cls:cls -> int -> 'a t -> 'a t
   (** [explicit ?cls n asn] is the ASN.1 [EXPLICIT] construct, changing the tag

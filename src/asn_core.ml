@@ -221,7 +221,6 @@ let validate asn =
     | Sequence_of a -> check fs a
     | Set_of      a -> check fs a
 
-(*     | Choice (a1, a2) when tag <> None -> raise Ambiguous_syntax *)
     | Choice (a1, a2) ->
         disjoint [tag_set a1; tag_set a2] ; check fs a1 ; check fs a2
 

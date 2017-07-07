@@ -16,14 +16,17 @@ let fix f = Fix f
 
 let map ?random f g asn = Iso (f, g, random, asn)
 
-let implicit, explicit =
-  let tag = Tag.(function
-    | (None,              n) -> Context_specific n
-    | (Some `Application, n) -> Application      n
-    | (Some `Private,     n) -> Private          n
-    | (Some `Universal,   n) -> Universal        n) in
-  (fun ?cls id asn -> Implicit (tag (cls, id), asn)) ,
-  (fun ?cls id asn -> Explicit (tag (cls, id), asn))
+let to_tag id = function
+  | Some `Application -> Tag.Application id
+  | Some `Private     -> Tag.Private id
+  | Some `Universal   -> Tag.Universal id
+  | None              -> Tag.Context_specific id
+
+let explicit ?cls id asn = Explicit (to_tag id cls, asn)
+let implicit : type a. ?cls:cls -> int -> a asn -> a asn =
+  fun ?cls id -> function
+  | (Choice (_, _)) as asn -> explicit ?cls id asn
+  | asn             -> Implicit (to_tag id cls, asn)
 
 let bool                = Prim Bool
 and integer             = Prim Int

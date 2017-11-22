@@ -28,6 +28,10 @@ let random_size = function
   | Some size -> size
   | None      -> Random.int 20
 
+let random_string ?size ~chars:(lo, hi) =
+  String.init (random_size size)
+    (fun _ -> Char.chr (random_int_r lo hi))
+
 let cs_concat list =
   let cs = Cstruct.(create @@ lenv list) in
   let _  = List.fold_left
@@ -126,10 +130,7 @@ module Gen_string : String_primitive with type t = string = struct
   let to_writer = Asn_writer.of_string
 
   let random ?size () =
-    let n = random_size size in
-    let s = String.create n in
-    for i = 0 to n - 1 do s.[i] <- Char.chr (random_int_r 32 126) done;
-    s
+    random_string ?size ~chars:(32, 127)
 
   let (concat, length) = String.(concat "", length)
 end
@@ -147,12 +148,7 @@ module Octets : String_primitive with type t = Cstruct.t = struct
   let to_writer = Asn_writer.of_cstruct
 
   let random ?size () =
-    let n   = random_size size in
-    let str = String.create n in
-    for i = 0 to n - 1 do
-      str.[i] <- char_of_int @@ Random.int 256
-    done;
-    Cstruct.of_string str
+    random_string ?size ~chars:(0, 256) |> Cstruct.of_string
 
   let concat = cs_concat
 

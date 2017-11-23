@@ -71,8 +71,6 @@ module Tag = struct
       | Private n          -> ("PRIVATE", n) in
     pf ppf "%s %d" name n
 
-  (* let pp_tags ppf tags = *)
-  (*   pf ppf "(%a)" (pp_list ~sep:Format.pp_print_space pp) tags *)
 end
 
 type tag  = Tag.t

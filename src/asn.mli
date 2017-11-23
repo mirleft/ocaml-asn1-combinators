@@ -304,10 +304,7 @@ module S : sig
   val utc_time : Ptime.t t
   (** [utc_time] is ASN.1 [UTCTime].
 
-      {b Warning} [UTCTime] uses two-digit year representation, and it's
-      indeterminate which year these digits denote. This implementation
-      arbitrarily chooses the first century of the Unix epoch, that is, the
-      years 1970–2069. Timestamps outside of this range are not representable.  *)
+      Representable years are 1951–2050. *)
 
   (** {2 String primitives}
 

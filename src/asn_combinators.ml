@@ -52,10 +52,10 @@ and bmp_string       = string 0x1e
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
   let time ~frac tag (f, g) =
-    map ~random:(random ~frac) f g
-      (implicit ~cls:`Universal tag character_string) in
-  time ~frac:false 0x17 (utc_time_of_string, s_of_pp pp_utc_time),
-  time ~frac:true  0x18 (gen_time_of_string, s_of_pp pp_gen_time)
+    map ~random:(random ~frac) f g @@
+      implicit ~cls:`Universal tag character_string in
+  time ~frac:false 0x17 (utc_time_of_string, of_utc_time),
+  time ~frac:true  0x18 (gen_time_of_string, of_gen_time)
 
 let int =
   let f n = try Z.to_int n with Z.Overflow ->

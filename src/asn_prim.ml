@@ -289,7 +289,7 @@ module Time = struct
 
   let ps_per_ms = 1_000_000_000L
 
-  let pp_tz_s ppf = function
+  let pp_tz ppf = function
     | 0  -> pf ppf "Z"
     | tz -> pf ppf "%c%02d%02d"
       (if tz < 0 then '+' else '-')
@@ -298,10 +298,8 @@ module Time = struct
   (* DER-times must be UTC-normalised. If TZ comes this way, a DER flag must too. *)
 
   let pp_utc_time ppf t =
-    let ((y, m, d), ((hh, mm, ss), tz)) =
-      Ptime.to_date_time ~tz_offset_s:0 t in
-    let y = y - if y < 2000 then 1900 else 2000 in
-    pf ppf "%02d%02d%02d%02d%02d%02d%a" y m d hh mm ss pp_tz_s tz
+    let ((y, m, d), ((hh, mm, ss), tz)) = Ptime.to_date_time ~tz_offset_s:0 t in
+    pf ppf "%02d%02d%02d%02d%02d%02d%a" (y mod 100) m d hh mm ss pp_tz tz
 
   let pp_gen_time ppf t =
     let ((y, m, d), ((hh, mm, ss), tz)) =
@@ -309,9 +307,10 @@ module Time = struct
     let pp_frac ppf t = match Ptime.(frac_s t |> Span.to_d_ps) with
       | (_, 0L) -> ()
       | (_, f)  -> pf ppf ".%03Ld" Int64.(f / ps_per_ms) in
-    pf ppf "%04d%02d%02d%02d%02d%02d%a%a" y m d hh mm ss pp_frac t pp_tz_s tz
+    pf ppf "%04d%02d%02d%02d%02d%02d%a%a" y m d hh mm ss pp_frac t pp_tz tz
 
-  let s_of_pp pp = Format.asprintf "%a" pp
+  let of_utc_time = Format.asprintf "%a" pp_utc_time
+  and of_gen_time = Format.asprintf "%a" pp_gen_time
 
   let catch pname f s = try f s with
   | End_of_file          -> parse_error "%s: unexpected end: %s" pname s
@@ -330,7 +329,7 @@ module Time = struct
     Scanf.sscanf s "%2u%2u%2u%2u%2u%r%r%!"
       (fun ic -> try Scanf.bscanf ic "%2u" id with _ -> 0) tz @@
     fun y m d hh mm ss tz ->
-      let y  = (if y < 70 then 2000 else 1900) + y in
+      let y  = (if y > 50 then 1900 else 2000) + y in
       let dt = ((y, m, d), ((hh, mm, ss), tz)) in
       match Ptime.of_date_time dt with
         Some t -> t | _ -> parse_error "UTCTime: out of range: %s" s
@@ -345,16 +344,22 @@ module Time = struct
       with _ -> 0, (0, 0L) in
     Scanf.sscanf s "%4u%2u%2u%2u%r%r%!" m_s_f (fun ic -> try tz ic with _ -> 0) @@
     fun y m d hh (mm, (ss, ps)) tz ->
-      let dt = ((y, m, d), ((hh, mm, ss), tz)) in
-      match
+      let dt = ((y, m, d), ((hh, mm, ss), tz)) in match
         match Ptime.of_date_time dt with
           Some t -> Ptime.(Span.v (0, ps) |> add_span t) | _ -> None
       with Some t -> t | _ -> parse_error "GeneralizedTime: out of range: %s" s
 
+  let get = function Some x -> x | _ -> assert false
+
+  let date y m d = Ptime.of_date (y, m, d) |> get
+
+  let r_date ~start ~fin =
+    let dd, dps = match Ptime.(diff fin start |> Span.to_d_ps) with
+      | (dd, 0L)  -> Random.(int dd, int64 86_400_000_000_000_000L)
+      | (dd, dps) -> Random.(int (dd + 1), int64 dps) in
+    Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> get
+
   let random ?(frac=false) () =
-    let days = Random.int 36505
-    and ms   = Random.int64 86_400_000L in
-    match Ptime.(add_span epoch Span.(v (days, Int64.(ms * ps_per_ms)))) with
-    | Some t -> if frac then t else Ptime.truncate ~frac_s:0 t
-    | None   -> assert false
+    Ptime.truncate ~frac_s:(if frac then 3 else 0) @@
+      r_date ~start:(date 1970 1 1) ~fin:(date 2050 12 31)
 end

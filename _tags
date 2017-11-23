@@ -1,7 +1,6 @@
 true: color(always)
-# safe_string
-true: bin_annot, strict_sequence
-true: warn(A-4-29-33-40-41-42-43-34-44-48)
+true: bin_annot, safe_string, strict_sequence
+true: warn(A-4-41-42-44-48-58)
 true: package(bytes), package(result), package(cstruct), package(zarith), package(ptime)
 
 <src>: include

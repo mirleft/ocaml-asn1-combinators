@@ -1,4 +1,4 @@
-(* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
+(* Copyright (c) 2014-2017 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
 val cs_lex_compare : Cstruct.t -> Cstruct.t -> int

@@ -143,6 +143,7 @@ module R = struct
   module Cache = Asn_cache.Make ( struct
     type 'a k = 'a asn endo
     type 'a v = G.t -> 'a
+    let mapv = (&.)
   end )
 
   let err_type ?(form=`Both) t g =
@@ -185,9 +186,9 @@ module R = struct
 
     let rec go : type a. ?t:tag -> a asn -> G.t -> a = fun ?t -> function
       | Iso (f, _, _, a) -> f &. go ?t a
-      | Fix fa as fix    ->
-          Cache.once opt fa @@ fun () ->
-            let p = lazy (go ?t (fa fix)) in fun g -> Lazy.force p g
+      | Fix (fa, var) as fix ->
+          let p = lazy (go ?t (fa fix)) in
+          Cache.intern opt var fa @@ fun g -> Lazy.force p g
       | Sequence s       -> constructed (t @? seq_tag) (c_seq s ~opt)
       | Sequence_of a    -> constructed (t @? seq_tag) (List.map (c_asn a ~opt))
       | Set s            -> constructed (t @? set_tag) (c_set s ~opt)
@@ -372,7 +373,7 @@ module W = struct
 
     | Iso (_, g, _, asn) -> encode conf tag (g a) asn
 
-    | Fix asn as fix -> encode conf tag a (asn fix)
+    | Fix (fa, _) as fix -> encode conf tag a (fa fix)
 
     | Sequence asns ->
         e_constructed (tag @? seq_tag) (e_seq conf a asns)

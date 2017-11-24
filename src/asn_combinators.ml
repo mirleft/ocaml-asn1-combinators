@@ -12,7 +12,7 @@ let arr_fold_right_i ~f z arr =
 
 type cls = [ `Universal | `Application | `Private ]
 
-let fix f = Fix f
+let fix f = Fix (f, Asn_cache.variant ())
 
 let map ?random f g asn = Iso (f, g, random, asn)
 

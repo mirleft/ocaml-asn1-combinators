@@ -101,7 +101,7 @@ type 'a rand = unit -> 'a
 type _ asn =
 
   | Iso : ('a -> 'b) * ('b -> 'a) * 'b rand option * 'a asn -> 'b asn
-  | Fix : ('a asn -> 'a asn) -> 'a asn
+  | Fix : ('a asn -> 'a asn) * 'a Asn_cache.var -> 'a asn
 
   | Sequence    : 'a sequence -> 'a asn
   | Sequence_of : 'a asn -> 'a list asn
@@ -154,7 +154,7 @@ let tag_of_p : type a. a prim -> tag =
 let rec tag_set : type a. a asn -> tags = function
 
   | Iso (_, _, _, asn) -> tag_set asn
-  | Fix f as fix       -> tag_set (f fix)
+  | Fix (f, _) as fix  -> tag_set (f fix)
 
   | Sequence    _ -> [ seq_tag ]
   | Sequence_of _ -> [ seq_tag ]
@@ -210,9 +210,9 @@ let validate asn =
 
   let rec check : type a. ?tag:tag -> FSet.t -> a asn -> unit =
     fun ?tag fs -> function
-    | Iso (_, _, _, a)         -> check ?tag fs a
-    | Fix f when FSet.mem f fs -> ()
-    | Fix f as fix             -> check ?tag FSet.(add f fs) (f fix)
+    | Iso (_, _, _, a)  -> check ?tag fs a
+    | Fix (f, _) as fix ->
+        if not (FSet.mem f fs) then check ?tag FSet.(add f fs) (f fix)
 
     | Sequence s    -> disjoint_seq s ; check_s fs s
     | Set s         -> disjoint (seq_tags s) ; check_s fs s

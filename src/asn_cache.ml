@@ -1,31 +1,25 @@
 (* Copyright (c) 2014-2016 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-(*
- * Evil, horrible hack used for caching the HOAS-stype fixpoint combinator.
- * Asn_core.asn should be represented as a partial fold to eliminate this.
- *)
-module Make (T : sig type 'a k type 'a v end) : sig
-  type t
-  val create : unit -> t
-  val add    : t -> 'a T.k -> 'a T.v -> 'a T.v
-  val find   : t -> 'a T.k -> 'a T.v
-  val once   : t -> 'a T.k -> (unit -> 'a T.v) -> 'a T.v
-end
-  =
+type dyn = ..
+type 'a var = ('a -> dyn) * (dyn -> 'a option)
+
+let variant (type a) () =
+  let module M = struct type dyn += K of a end in
+  (fun x -> M.K x), (function M.K x -> Some x | _ -> None)
+let inj = fst and prj = snd
+
+module Make (KV: sig
+  type 'a k and 'a v
+  val mapv : ('a -> 'b) -> 'a v -> 'b v
+end) =
 struct
-
-  type t = (unit, unit) Hashtbl.t
-
-  let cast = Obj.magic
-
-  let create () = Hashtbl.create 16
-
-  let add t k v = ( Hashtbl.add t (cast k) (cast v) ; v )
-  let find t k  = cast @@ Hashtbl.find t @@ cast k
-
-  let once t k cons =
-    let k' = cast k in
-    try cast @@ Hashtbl.find t k'
-    with Not_found -> add t k (cons ())
+  type k = K : 'a KV.k -> k
+  type t = (k, dyn KV.v) Hashtbl.t
+  let create () = Hashtbl.create 7
+  let prj_ var d = match prj var d with Some x -> x | _ -> assert false
+  let intern t var k v =
+    let k = K k in
+    try Hashtbl.find t k |> KV.mapv (prj_ var) with Not_found ->
+      KV.mapv (inj var) v |> Hashtbl.add t k ; v
 end

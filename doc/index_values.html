@@ -2,6 +2,7 @@
 <head>
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="Start" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
@@ -17,28 +18,28 @@
 <tr><td align="left"><br></td></tr>
 <tr><td><a href="Asn.S.html#VAL(-@)">(-@)</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">e -@ e1</code> is <code class="code">e @ single e1</code>
+<code class="code">e&nbsp;-@&nbsp;e1</code> is <code class="code">e&nbsp;@&nbsp;single&nbsp;e1</code>
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VAL(<|)">(&lt;|)</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">oid &lt;| n</code> is the OID <code class="code">oid.n</code>.
+<code class="code">oid&nbsp;&lt;|&nbsp;n</code> is the OID <code class="code">oid.n</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VAL(<||)">(&lt;||)</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">oid &lt;|| ns</code> is the old <code class="code">oid.n1.n2. ...</code> if <code class="code">ns</code> is <code class="code">[n1; n2; ...]</code>.
+<code class="code">oid&nbsp;&lt;||&nbsp;ns</code> is the old <code class="code">oid.n1.n2.&nbsp;...</code> if <code class="code">ns</code> is <code class="code">[n1;&nbsp;n2;&nbsp;...]</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VAL(@)">(@)</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">e @ seq</code> extends <code class="code">seq</code> by prepending <code class="code">e</code>.
+<code class="code">e&nbsp;@&nbsp;seq</code> extends <code class="code">seq</code> by prepending <code class="code">e</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>B</td></tr>
 <tr><td><a href="Asn.OID.html#VALbase">base</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">base n1 n2</code> is the OID <code class="code">n1.n2</code>.
+<code class="code">base&nbsp;n1&nbsp;n2</code> is the OID <code class="code">n1.n2</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.html#VALber">ber</a> [<a href="Asn.html">Asn</a>]</td>
@@ -48,17 +49,17 @@
 </td></tr>
 <tr><td><a href="Asn.S.html#VALbit_string">bit_string</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">bit_string</code> is ASN.1 <code class="code"><span class="constructor">BIT</span> <span class="constructor">STRING</span></code>.
+<code class="code">bit_string</code> is ASN.1 <code class="code"><span class="constructor">BIT</span>&nbsp;<span class="constructor">STRING</span></code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALbit_string_cs">bit_string_cs</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">bit_string_cs</code> is ASN.1 <code class="code"><span class="constructor">BIT</span> <span class="constructor">STRING</span></code>, represented as <code class="code"><span class="constructor">Cstruct</span>.t</code>.
+<code class="code">bit_string_cs</code> is ASN.1 <code class="code"><span class="constructor">BIT</span>&nbsp;<span class="constructor">STRING</span></code>, represented as <code class="code"><span class="constructor">Cstruct</span>.t</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALbit_string_flags">bit_string_flags</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">bit_string_flags xs</code> is ASN.1 <code class="code"><span class="constructor">BIT</span> <span class="constructor">STRING</span></code>, represented as a collection
+<code class="code">bit_string_flags&nbsp;xs</code> is ASN.1 <code class="code"><span class="constructor">BIT</span>&nbsp;<span class="constructor">STRING</span></code>, represented as a collection
       of values.
 </div>
 </td></tr>
@@ -72,7 +73,7 @@
 <tr><td align="left"><br>C</td></tr>
 <tr><td><a href="Asn.S.html#VALchoice2">choice2</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">choice2 asn1 asn2</code> is the ASN.1 <code class="code"><span class="constructor">CHOICE</span></code> construct, choosing between
+<code class="code">choice2&nbsp;asn1&nbsp;asn2</code> is the ASN.1 <code class="code"><span class="constructor">CHOICE</span></code> construct, choosing between
       <code class="code">asn1</code> and <code class="code">asn2</code>.
 </div>
 </td></tr>
@@ -86,7 +87,7 @@
 <td></td></tr>
 <tr><td><a href="Asn.html#VALcodec">codec</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">codec enc asn</code> represents the syntax <code class="code">asn</code> encoded under the rules <code class="code">enc</code>.
+<code class="code">codec&nbsp;enc&nbsp;asn</code> represents the syntax <code class="code">asn</code> encoded under the rules <code class="code">enc</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VALcompare">compare</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
@@ -94,7 +95,7 @@
 <tr><td align="left"><br>D</td></tr>
 <tr><td><a href="Asn.html#VALdecode">decode</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">decode codec cs</code> is the pair <code class="code">(x, cs')</code>, where <code class="code">x</code> is the result of
+<code class="code">decode&nbsp;codec&nbsp;cs</code> is the pair <code class="code">(x,&nbsp;cs')</code>, where <code class="code">x</code> is the result of
     decoding the prefix of <code class="code">cs</code> with <code class="code">codec</code> and <code class="code">cs'</code> are the trailing bytes,
     or an <a href="Asn.html#TYPEerror"><code class="code"><span class="constructor">Asn</span>.error</code></a>.
 </div>
@@ -107,33 +108,39 @@
 <tr><td align="left"><br>E</td></tr>
 <tr><td><a href="Asn.html#VALencode">encode</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">encode codec x</code> is the encoding of <code class="code">x</code>, using <code class="code">codec</code>.
+<code class="code">encode&nbsp;codec&nbsp;x</code> is the encoding of <code class="code">x</code>, using <code class="code">codec</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.html#VALencode_into">encode_into</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">encode_into codec x</code> is the pair <code class="code">(n, f)</code>, where <code class="code">n</code> is the length of <code class="code">x</code>
+<code class="code">encode_into&nbsp;codec&nbsp;x</code> is the pair <code class="code">(n,&nbsp;f)</code>, where <code class="code">n</code> is the length of <code class="code">x</code>
     encoded with <code class="code">codec</code>, and <code class="code">f</code> is a function that will write the encoded <code class="code">x</code>
     to the first <code class="code">n</code> bytes of the provided <code class="code"><span class="constructor">Cstruct</span>.t</code>.
+</div>
+</td></tr>
+<tr><td><a href="Asn.S.html#VALenumerated">enumerated</a> [<a href="Asn.S.html">Asn.S</a>]</td>
+<td><div class="info">
+<code class="code">enumerated&nbsp;f&nbsp;g</code> is ASN.1 <code class="code"><span class="constructor">ENUMERATED</span></code>, with <code class="code">f</code> projecting from, and <code class="code">g</code>
+      injecting into an <code class="code">int</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VALequal">equal</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td></td></tr>
 <tr><td><a href="Asn.S.html#VALerror">error</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">error err</code> aborts parsing with the <a href="Asn.S.html#VALerror"><code class="code">error</code></a> <code class="code">err</code>.
+<code class="code">error&nbsp;err</code> aborts parsing with the <a href="Asn.S.html#VALerror"><code class="code">error</code></a> <code class="code">err</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALexplicit">explicit</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">explicit ?cls n asn</code> is the ASN.1 <code class="code"><span class="constructor">EXPLICIT</span></code> construct, changing the tag
-      of <code class="code">asn</code> to <code class="code">(cls, n)</code>.
+<code class="code">explicit&nbsp;?cls&nbsp;n&nbsp;asn</code> is the ASN.1 <code class="code"><span class="constructor">EXPLICIT</span></code> construct, changing the tag
+      of <code class="code">asn</code> to <code class="code">(cls,&nbsp;n)</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>F</td></tr>
 <tr><td><a href="Asn.S.html#VALfix">fix</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">fix fasn</code> is the fixpoint, allowing <code class="code">fasn</code> to construct a syntax that
+<code class="code">fix&nbsp;fasn</code> is the fixpoint, allowing <code class="code">fasn</code> to construct a syntax that
       refers to itself.
 </div>
 </td></tr>
@@ -155,8 +162,8 @@
 <td></td></tr>
 <tr><td><a href="Asn.S.html#VALimplicit">implicit</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">implicit ?cls n asn</code> is the ASN.1 <code class="code"><span class="constructor">IMPLICIT</span></code> construct, changing the tag
-      of <code class="code">asn</code> to <code class="code">(cls, n)</code>.
+<code class="code">implicit&nbsp;?cls&nbsp;n&nbsp;asn</code> is the ASN.1 <code class="code"><span class="constructor">IMPLICIT</span></code> construct, changing the tag
+      of <code class="code">asn</code> to <code class="code">(cls,&nbsp;n)</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALint">int</a> [<a href="Asn.S.html">Asn.S</a>]</td>
@@ -172,7 +179,7 @@
 <tr><td align="left"><br>M</td></tr>
 <tr><td><a href="Asn.S.html#VALmap">map</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">map ?random f g asn</code> creates a derived syntax that encodes and decodes
+<code class="code">map&nbsp;?random&nbsp;f&nbsp;g&nbsp;asn</code> creates a derived syntax that encodes and decodes
       like <code class="code">asn</code>, but uses <code class="code">f</code> to project and <code class="code">g</code> to inject.
 </div>
 </td></tr>
@@ -187,47 +194,47 @@
 <tr><td align="left"><br>O</td></tr>
 <tr><td><a href="Asn.S.html#VALoctet_string">octet_string</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">octet_string</code> is ASN.1 <code class="code"><span class="constructor">OCTET</span> <span class="constructor">STRING</span></code>.
+<code class="code">octet_string</code> is ASN.1 <code class="code"><span class="constructor">OCTET</span>&nbsp;<span class="constructor">STRING</span></code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VALof_nodes">of_nodes</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">of_nodes n1 n2 ns</code> is the oid <code class="code">n1.n2.ns...</code>, or <code class="code"><span class="constructor">None</span></code>, if any of the
+<code class="code">of_nodes&nbsp;n1&nbsp;n2&nbsp;ns</code> is the oid <code class="code">n1.n2.ns...</code>, or <code class="code"><span class="constructor">None</span></code>, if any of the
       components are out of range.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VALof_string">of_string</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">of_string s</code> is the OID represented by <code class="code">s</code>, or <code class="code"><span class="constructor">None</span></code>, if <code class="code">s</code> is not
+<code class="code">of_string&nbsp;s</code> is the OID represented by <code class="code">s</code>, or <code class="code"><span class="constructor">None</span></code>, if <code class="code">s</code> is not
       dotted-decimal or the components are out of range.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALoid">oid</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">oid</code> is ASN.1 <code class="code"><span class="constructor">OBJECT</span> <span class="constructor">IDENTIFIER</span></code>.
+<code class="code">oid</code> is ASN.1 <code class="code"><span class="constructor">OBJECT</span>&nbsp;<span class="constructor">IDENTIFIER</span></code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALoptional">optional</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">optional ?label asn</code> is a sequence element marked with the
+<code class="code">optional&nbsp;?label&nbsp;asn</code> is a sequence element marked with the
       ASN.1 <code class="code"><span class="constructor">OPTIONAL</span></code> keyword.
 </div>
 </td></tr>
 <tr><td align="left"><br>P</td></tr>
 <tr><td><a href="Asn.S.html#VALparse_error">parse_error</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">parse_error fmt ...</code> aborts parsing with the message produced by using
+<code class="code">parse_error&nbsp;fmt&nbsp;...</code> aborts parsing with the message produced by using
       <code class="code">fmt</code> to format arguments <code class="code">...</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.OID.html#VALpp">pp</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">pp ppf oid</code> pretty-prints <code class="code">oid</code> on <code class="code">ppf</code> as dotted-decimal.
+<code class="code">pp&nbsp;ppf&nbsp;oid</code> pretty-prints <code class="code">oid</code> on <code class="code">ppf</code> as dotted-decimal.
 </div>
 </td></tr>
 <tr><td><a href="Asn.html#VALpp_error">pp_error</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">pp_error ppf err</code> pretty-prints <code class="code">err</code> on <code class="code">ppf</code>.
+<code class="code">pp_error&nbsp;ppf&nbsp;err</code> pretty-prints <code class="code">err</code> on <code class="code">ppf</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALprintable_string">printable_string</a> [<a href="Asn.S.html">Asn.S</a>]</td>
@@ -235,12 +242,12 @@
 <tr><td align="left"><br>R</td></tr>
 <tr><td><a href="Asn.html#VALrandom">random</a> [<a href="Asn.html">Asn</a>]</td>
 <td><div class="info">
-<code class="code">random asn</code> is a random inhabitant of <code class="code"><span class="keywordsign">'</span>a</code>.
+<code class="code">random&nbsp;asn</code> is a random inhabitant of <code class="code"><span class="keywordsign">'</span>a</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALrequired">required</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">required ?label asn</code> is a regular sequence element.
+<code class="code">required&nbsp;?label&nbsp;asn</code> is a regular sequence element.
 </div>
 </td></tr>
 <tr><td align="left"><br>S</td></tr>
@@ -248,12 +255,12 @@
 <td></td></tr>
 <tr><td><a href="Asn.S.html#VALsequence">sequence</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">sequence seq</code> is the ASN.1 <code class="code"><span class="constructor">SEQUENCE</span></code> construct, with the body <code class="code">seq</code>.
+<code class="code">sequence&nbsp;seq</code> is the ASN.1 <code class="code"><span class="constructor">SEQUENCE</span></code> construct, with the body <code class="code">seq</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALsequence2">sequence2</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">sequence2 e1 e2</code> is <code class="code">sequence (e1 -@ e2)</code>.
+<code class="code">sequence2&nbsp;e1&nbsp;e2</code> is <code class="code">sequence&nbsp;(e1&nbsp;-@&nbsp;e2)</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALsequence3">sequence3</a> [<a href="Asn.S.html">Asn.S</a>]</td>
@@ -266,17 +273,17 @@
 <td></td></tr>
 <tr><td><a href="Asn.S.html#VALsequence_of">sequence_of</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">sequence_of</code> is the ASN.1 <code class="code"><span class="constructor">SEQUENCE</span> <span class="constructor">OF</span></code> construct.
+<code class="code">sequence_of</code> is the ASN.1 <code class="code"><span class="constructor">SEQUENCE</span>&nbsp;<span class="constructor">OF</span></code> construct.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALset">set</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">seq seq</code> is the ASN.1 <code class="code"><span class="constructor">SET</span></code> construct, with the body <code class="code">seq</code>.
+<code class="code">seq&nbsp;seq</code> is the ASN.1 <code class="code"><span class="constructor">SET</span></code> construct, with the body <code class="code">seq</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALset2">set2</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">set2 e1 e2</code> is <code class="code">set (e1 -@ e2)</code>.
+<code class="code">set2&nbsp;e1&nbsp;e2</code> is <code class="code">set&nbsp;(e1&nbsp;-@&nbsp;e2)</code>.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALset3">set3</a> [<a href="Asn.S.html">Asn.S</a>]</td>
@@ -289,12 +296,12 @@
 <td></td></tr>
 <tr><td><a href="Asn.S.html#VALset_of">set_of</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">set_of asn</code> is the ASN.1 <code class="code"><span class="constructor">SET</span> <span class="constructor">OF</span></code> construct.
+<code class="code">set_of&nbsp;asn</code> is the ASN.1 <code class="code"><span class="constructor">SET</span>&nbsp;<span class="constructor">OF</span></code> construct.
 </div>
 </td></tr>
 <tr><td><a href="Asn.S.html#VALsingle">single</a> [<a href="Asn.S.html">Asn.S</a>]</td>
 <td><div class="info">
-<code class="code">single e</code> is the singleton sequence containing just <code class="code">e</code>.
+<code class="code">single&nbsp;e</code> is the singleton sequence containing just <code class="code">e</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>T</td></tr>
@@ -302,7 +309,7 @@
 <td></td></tr>
 <tr><td><a href="Asn.OID.html#VALto_nodes">to_nodes</a> [<a href="Asn.OID.html">Asn.OID</a>]</td>
 <td><div class="info">
-<code class="code">to_nodes oid</code> are the nodes this <code class="code">oid</code> consists of.
+<code class="code">to_nodes&nbsp;oid</code> are the nodes this <code class="code">oid</code> consists of.
 </div>
 </td></tr>
 <tr><td align="left"><br>U</td></tr>

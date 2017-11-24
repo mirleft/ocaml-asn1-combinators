@@ -3,6 +3,7 @@
 <head>
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="Start" href="index.html">
 <link rel="next" href="Asn.S.html">
 <link rel="Up" href="Asn.html">
@@ -48,7 +49,7 @@ OIDs are conceptually a sequence of non-negative integers, called
 <h1 id="1_Construction">Construction</h1><br>
 
 <pre><span id="VALbase"><span class="keyword">val</span> base</span> : <code class="type">int -> int -> <a href="Asn.OID.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">base n1 n2</code> is the OID <code class="code">n1.n2</code>.
+<code class="code">base&nbsp;n1&nbsp;n2</code> is the OID <code class="code">n1.n2</code>.
 <p>
 
       Either <code class="code">n1</code> is <code class="code">[0..1]</code> and <code class="code">n2</code> is <code class="code">[0..39]</code> (inclusive), or <code class="code">n1</code> is <code class="code">2</code>
@@ -57,33 +58,33 @@ OIDs are conceptually a sequence of non-negative integers, called
 </div>
 
 <pre><span id="VAL(<|)"><span class="keyword">val</span> (&lt;|)</span> : <code class="type"><a href="Asn.OID.html#TYPEt">t</a> -> int -> <a href="Asn.OID.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">oid &lt;| n</code> is the OID <code class="code">oid.n</code>.<br>
+<code class="code">oid&nbsp;&lt;|&nbsp;n</code> is the OID <code class="code">oid.n</code>.<br>
 <b>Raises</b> <code>Invalid_argument</code> if <code class="code">n</code> is negative.<br>
 </div>
 
 <pre><span id="VAL(<||)"><span class="keyword">val</span> (&lt;||)</span> : <code class="type"><a href="Asn.OID.html#TYPEt">t</a> -> int list -> <a href="Asn.OID.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">oid &lt;|| ns</code> is the old <code class="code">oid.n1.n2. ...</code> if <code class="code">ns</code> is <code class="code">[n1; n2; ...]</code>.<br>
+<code class="code">oid&nbsp;&lt;||&nbsp;ns</code> is the old <code class="code">oid.n1.n2.&nbsp;...</code> if <code class="code">ns</code> is <code class="code">[n1;&nbsp;n2;&nbsp;...]</code>.<br>
 <b>Raises</b> <code>Invalid_argument</code> if any of <code class="code">ns</code> is negative.<br>
 </div>
 <br>
 <h1 id="1_Conversion">Conversion</h1><br>
 
 <pre><span id="VALto_nodes"><span class="keyword">val</span> to_nodes</span> : <code class="type"><a href="Asn.OID.html#TYPEt">t</a> -> int * int * int list</code></pre><div class="info ">
-<code class="code">to_nodes oid</code> are the nodes this <code class="code">oid</code> consists of. Every OID has at
+<code class="code">to_nodes&nbsp;oid</code> are the nodes this <code class="code">oid</code> consists of. Every OID has at
       least two nodes; the rest are collected in the list.<br>
 </div>
 
 <pre><span id="VALof_nodes"><span class="keyword">val</span> of_nodes</span> : <code class="type">int -> int -> int list -> <a href="Asn.OID.html#TYPEt">t</a> option</code></pre><div class="info ">
-<code class="code">of_nodes n1 n2 ns</code> is the oid <code class="code">n1.n2.ns...</code>, or <code class="code"><span class="constructor">None</span></code>, if any of the
+<code class="code">of_nodes&nbsp;n1&nbsp;n2&nbsp;ns</code> is the oid <code class="code">n1.n2.ns...</code>, or <code class="code"><span class="constructor">None</span></code>, if any of the
       components are out of range. See <a href="Asn.OID.html#VALbase"><code class="code">base</code></a> and <a href="Asn.OID.html#VAL(<|)"><code class="code">&lt;|</code></a>.<br>
 </div>
 
 <pre><span id="VALpp"><span class="keyword">val</span> pp</span> : <code class="type">Format.formatter -> <a href="Asn.OID.html#TYPEt">t</a> -> unit</code></pre><div class="info ">
-<code class="code">pp ppf oid</code> pretty-prints <code class="code">oid</code> on <code class="code">ppf</code> as dotted-decimal.<br>
+<code class="code">pp&nbsp;ppf&nbsp;oid</code> pretty-prints <code class="code">oid</code> on <code class="code">ppf</code> as dotted-decimal.<br>
 </div>
 
 <pre><span id="VALof_string"><span class="keyword">val</span> of_string</span> : <code class="type">string -> <a href="Asn.OID.html#TYPEt">t</a> option</code></pre><div class="info ">
-<code class="code">of_string s</code> is the OID represented by <code class="code">s</code>, or <code class="code"><span class="constructor">None</span></code>, if <code class="code">s</code> is not
+<code class="code">of_string&nbsp;s</code> is the OID represented by <code class="code">s</code>, or <code class="code"><span class="constructor">None</span></code>, if <code class="code">s</code> is not
       dotted-decimal or the components are out of range.<br>
 </div>
 </body></html>

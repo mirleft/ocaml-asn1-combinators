@@ -1,3 +1,8 @@
+## dev
+
+* Port build to Dune from ocamlbuild.
+* Upgrade opam description file to 2.0 format.
+
 ## v0.2.0 (2017-11-13)
 * `OID`s are now fully abstract, with a simpler interface.
 * `OID`s have custom comparison and hasing.

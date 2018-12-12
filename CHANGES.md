@@ -2,6 +2,7 @@
 
 * Port build to Dune from ocamlbuild.
 * Upgrade opam description file to 2.0 format.
+* Use level-2 section headings for odoc compatability.
 
 ## v0.2.0 (2017-11-13)
 * `OID`s are now fully abstract, with a simpler interface.

@@ -2,12 +2,12 @@
   (name asn1_combinators_test)
   (modules testlib x509)
   (wrapped false)
-  (libraries asn1-combinators ounit))
+  (libraries asn1-combinators oUnit))
 
 (executable
   (name      testrunner)
   (modules   testrunner)
-  (libraries asn1_combinators_test ounit))
+  (libraries asn1_combinators_test oUnit))
 
 (executable
   (name      bench)

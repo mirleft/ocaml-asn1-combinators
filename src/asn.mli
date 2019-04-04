@@ -15,7 +15,7 @@
 
 open Result
 
-(** {1 Object identifiers} *)
+(** {2 Object identifiers} *)
 
 type oid
 (** ASN.1 [OBJECT IDENTIFIER]. *)
@@ -25,7 +25,7 @@ type oid
     Magic numbers in a suit and tie. Their consulting fee is astronomical. *)
 module OID : sig
 
-  (** {1 Object identifiers} *)
+  (** {2 Object identifiers} *)
 
   type t = oid
   (** OIDs are conceptually a sequence of non-negative integers, called
@@ -38,7 +38,7 @@ module OID : sig
   val hash : t -> int
   val seeded_hash : int -> t -> int
 
-  (** {1 Construction} *)
+  (** {2 Construction} *)
 
   val base : int -> int -> t
   (** [base n1 n2] is the OID [n1.n2].
@@ -58,7 +58,7 @@ module OID : sig
 
       @raise Invalid_argument if any of [ns] is negative. *)
 
-  (** {1 Conversion} *)
+  (** {2 Conversion} *)
 
   val to_nodes : t -> int * int * int list
   (** [to_nodes oid] are the nodes this [oid] consists of. Every OID has at
@@ -77,7 +77,7 @@ module OID : sig
 end
 
 
-(** {1 ASN.1 Abstract Syntax} *)
+(** {2 ASN.1 Abstract Syntax} *)
 
 type 'a t
 (** Abstract syntax of values of type ['a]. *)
@@ -95,13 +95,13 @@ type 'a t
     language instead. *)
 module S : sig
 
-  (** {1 ASN.1 Abstract Syntax} *)
+  (** {2 ASN.1 Abstract Syntax} *)
 
   (** ['a t] denotes a particular structure of data, irrespective of any
       encoding, that is represented by ['a] in OCaml. *)
   type nonrec 'a t = 'a t
 
-  (** {1 Basic combinators} *)
+  (** {2 Basic combinators} *)
 
   val fix : ('a t -> 'a t) -> 'a t
   (** [fix fasn] is the fixpoint, allowing [fasn] to construct a syntax that
@@ -114,7 +114,7 @@ module S : sig
       [~random] is a function that generates random samples of ['b]. Defaults to
       [f a] where [a] is a random ['a]. *)
 
-  (** {1 Tags} *)
+  (** {2 Tags} *)
 
   type cls = [ `Universal | `Application | `Private ]
   (** ASN.1 tag CLASS. *)
@@ -140,7 +140,7 @@ module S : sig
 
       [~cls] is the class. Defaults to [CONTEXT SPECIFIC]. *)
 
-  (** {1 Combining constructs}
+  (** {2 Combining constructs}
 
       These look like
 {[sequence @@
@@ -269,7 +269,7 @@ module S : sig
     'a t -> 'b t -> 'c t -> 'd t -> 'e t -> 'f t
     -> [ `C1 of 'a | `C2 of 'b | `C3 of 'c | `C4 of 'd | `C5 of 'e | `C6 of 'f ] t
 
-  (** {1 Primitives} *)
+  (** {2 Primitives} *)
 
   val bool : bool t
   (** [bool] is ASN.1 [BOOLEAN]. *)
@@ -336,7 +336,7 @@ module S : sig
 
       [xs] is a list of [(bit, x)], where bit [bit] denotes the presence of [x]. *)
 
-  (** {1 Errors} *)
+  (** {2 Errors} *)
 
   (* XXX repeats *)
   val error : [ `Parse of string ] -> 'a
@@ -350,7 +350,7 @@ module S : sig
       [fmt] to format arguments [...]. *)
 end
 
-(** {1 Encoding formats} *)
+(** {2 Encoding formats} *)
 
 type encoding
 
@@ -361,7 +361,7 @@ val der : encoding
 (** [der] is ASN.1 Distinguished Encoding Rules (DER). *)
 
 
-(** {1 Encoding and decoding} *)
+(** {2 Encoding and decoding} *)
 
 type 'a codec
 
@@ -395,7 +395,7 @@ val decode : 'a codec -> Cstruct.t -> ('a * Cstruct.t, error) result
     decoding the prefix of [cs] with [codec] and [cs'] are the trailing bytes,
     or an {!error}. *)
 
-(** {1 Misc} *)
+(** {2 Misc} *)
 
 val random : 'a t -> 'a
 (** [random asn] is a random inhabitant of ['a]. *)

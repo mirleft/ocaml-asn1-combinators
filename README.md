@@ -11,6 +11,13 @@ The only ASN.1 encodings currently supported are BER and DER.
 
 asn1-combinators is distributed under the ISC license.
 
+## Usage
+
+- **Build**: `dune build`
+- **Test**: `dune test`
+- **Benchmark**: `dune build @bench`
+- **Toplevel**: `dune utop`
+
 ## Documentation
 
 `asn.mli`, [online][doc].

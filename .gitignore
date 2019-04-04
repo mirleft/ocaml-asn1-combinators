@@ -2,11 +2,10 @@ _build
 tmp
 *~
 \.\#*
+.*.swp
 \#*#
-*.install
-*.native
-*.byte
-
 gmon.out
 rondom
 lambda
+.merlin
+*.install

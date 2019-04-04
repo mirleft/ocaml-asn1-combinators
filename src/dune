@@ -1,0 +1,7 @@
+(library
+  (name asn1_combinators)
+  (public_name asn1-combinators)
+  (libraries cstruct zarith ptime)
+  (private_modules asn_ber_der asn_cache asn_combinators
+     asn_core asn_oid asn_prim asn_random asn_writer)
+  (wrapped false))

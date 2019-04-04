@@ -1,4 +1,4 @@
-## dev
+## v0.2.1 (2018-04-04)
 
 * Port build to Dune from ocamlbuild.
 * Upgrade opam description file to 2.0 format.

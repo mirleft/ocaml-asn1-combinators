@@ -4,7 +4,7 @@ authors: "David Kaloper Meršinjak <david@numm.org>"
 license: "ISC"
 tags: "org:mirage"
 homepage: "https://github.com/mirleft/ocaml-asn1-combinators"
-doc: "https://mirleft.github.io/ocaml-asn1-combinators/doc"
+doc: "https://mirleft.github.io/ocaml-asn1-combinators/"
 bug-reports: "https://github.com/mirleft/ocaml-asn1-combinators/issues"
 dev-repo: "git+https://github.com/mirleft/ocaml-asn1-combinators.git"
 synopsis: "Embed typed ASN.1 grammars in OCaml"
@@ -19,7 +19,7 @@ The only ASN.1 encodings currently supported are BER and DER.
 
 depends: [
   "ocaml" {>= "4.02.0"}
-  "dune" {build}
+  "dune" {build & >="1.2"}
   "result"
   "cstruct" {>= "1.6.0"}
   "zarith"

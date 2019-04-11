@@ -6,6 +6,7 @@ tmp
 *.install
 *.native
 *.byte
+.merlin
 
 gmon.out
 rondom

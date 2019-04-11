@@ -14,8 +14,12 @@ let time ?(iter=1) f =
     | n -> ignore (f ()) ; go (pred n) in
   measure @@ fun () -> go iter
 
+let mmap fd = Bigarray.(
+  Unix.map_file fd char c_layout false [|-1|] |>
+    array1_of_genarray |> Cstruct.of_bigarray)
+
 let bench_certs filename =
-  let cs = Unix_cstruct.of_fd @@ Unix.(openfile filename [O_RDONLY] 0) in
+  let cs = mmap Unix.(openfile filename [O_RDONLY] 0) in
   let rec bench n cs =
     if Cstruct.len cs = 0 then n else
       match Asn.decode X509.cert_ber cs with

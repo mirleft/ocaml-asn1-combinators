@@ -1,0 +1,28 @@
+opam-version: "2.0"
+authors: "David Kaloper Meršinjak"
+maintainer: "David Kaloper Meršinjak <dk505@cam.ac.uk>"
+homepage: "https://github.com/mirleft/ocaml-asn1-combinators"
+doc: "https://mirleft.github.io/ocaml-asn1-combinators/doc"
+license: "ISC"
+dev-repo: "git+https://github.com/mirleft/ocaml-asn1-combinators.git"
+bug-reports: "https://github.com/mirleft/ocaml-asn1-combinators/issues"
+synopsis: "Embed typed ASN.1 grammars in OCaml"
+build: [ ["dune" "subst"] {pinned}
+         ["dune" "build" "-p" name "-j" jobs ]
+         ["dune" "runtest"] {with-test} ]
+depends: [
+  "ocaml" {>="4.03.0"}
+  "dune" {build}
+  "cstruct" {>= "1.6.0"}
+  "zarith"
+  "ptime"
+  "ounit" {with-test}
+]
+description: """
+asn1-combinators is a library for expressing ASN.1 in OCaml. Skip the notation
+part of ASN.1, and embed the abstract syntax directly in the language. These
+abstract syntax representations can be used for parsing, serialization, or
+random testing.
+
+The only ASN.1 encodings currently supported are BER and DER.
+"""

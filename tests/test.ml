@@ -1,4 +1,4 @@
-(* Copyright (c) 2014-2017 David Kaloper Meršinjak. All rights reserved.
+(* Copyright (c) 2014-2019 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
 let pp_hex_cs ppf =
@@ -22,61 +22,70 @@ let x s =
 
 let x_cs s = Cstruct.of_string (x s)
 
-let decode_full codec b =
-  match Asn.decode codec b with
-  | Ok (a, b) when Cstruct.len b = 0 -> Ok a
-  | Ok (_, b)                        -> Error (`Leftover b)
-  | Error (#Asn.error as e)          -> Error e
+let cstruct = Alcotest.testable pp_hex_cs Cstruct.equal
+let err = Alcotest.testable Asn.pp_error (fun (`Parse _) (`Parse _) -> true)
+let dec t = Alcotest.(result (pair t cstruct) err)
+let opaque cmp =
+  Alcotest.testable Fmt.(fun ppf _ -> pf ppf "*shrug*")
+    (match cmp with Some f -> f | _ -> (=))
 
 let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
   | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex_cs b
 
-open OUnit2
-
 let get = function Some x -> x | _ -> assert false
 
 type 'a cmp = 'a -> 'a -> bool
 
-type test_case =
-  | TC : string * 'a cmp option * 'a Asn.t * ('a * string) list -> test_case
+type case_eq =
+  CEQ : string * 'a Alcotest.testable * 'a Asn.t * ('a * string) list -> case_eq
 
-let case :
-  type a. string -> ?cmp:(a cmp) -> a Asn.t -> (a * string) list -> test_case
-= fun name ?cmp asn examples -> TC (name, cmp, asn, examples)
+let case_eq name ?cmp asn examples = CEQ (name, opaque cmp, asn, examples)
 
-type test_anticase =
-  | ATC : string * 'a Asn.t * string list -> test_anticase
+type case = C : string * 'a Asn.t * string list -> case
 
-let anticase :
-  type a. string -> a Asn.t -> string list -> test_anticase
-= fun name asn examples -> ATC (name, asn, examples)
+let case name asn examples = C (name, asn, examples)
 
-let assert_decode
-: type a. ?example:a -> ?cmp:(a cmp) -> a Asn.codec -> Cstruct.t -> unit
-= fun ?example ?cmp codec bytes ->
-  match decode_full codec bytes with
-  | Error e -> assert_failure (Format.asprintf "decode failed %a" pp_e e)
-  | Ok x    -> match example with Some a -> assert_equal ?cmp a x | _ -> ()
+let accepts_eq name enc cases =
+  let tests = cases |> List.map @@ fun (CEQ (name, alc, asn, xs)) ->
+    let codec = Asn.codec enc asn
+    and t = dec alc in
+    let f () = xs |> List.iter @@ fun (x, s) ->
+      Alcotest.check t name (Ok (x, Cstruct.empty)) (Asn.decode codec (x_cs s)) in
+    (name, `Quick, f) in
+  (name, tests)
 
-let test_decode encoding (TC (_, cmp, asn, examples)) _ =
-  let codec = Asn.(codec encoding asn) in
-  examples |> List.iter @@ fun (a, s) ->
-    assert_decode ~example:a ?cmp codec (x_cs s)
+let rejects name enc cases =
+  let tests = cases |> List.map @@ fun (C (name, asn, ss)) ->
+    let codec = Asn.codec enc asn
+    and t = dec (opaque None) in
+    let f () = ss |> List.iter @@ fun s ->
+      Alcotest.check t name (Error (`Parse "...")) (Asn.decode codec (x_cs s)) in
+    (name, `Quick, f) in
+  (name, tests)
 
-let test_loop_decode ?(iter=10000) ?cmp encoding asn _ =
-  let codec = Asn.(codec encoding asn) in
-  for _ = 1 to iter do
-    let a = Asn.random asn in
-    assert_decode ~example:a ?cmp codec (Asn.encode codec a)
-  done
+let accepts name enc cases =
+  let tests = cases |> List.map @@ fun (C (name, asn, ss)) ->
+    let f () = ss |> List.iter @@ fun s ->
+      match Asn.(decode (codec enc asn)) (x_cs s) with
+        Ok (_, t) ->
+          Alcotest.check cstruct "no remainder" Cstruct.empty t
+      | Error e ->
+          Alcotest.failf "decode failed with: %a" pp_e e in
+    (name, `Quick, f) in
+  (name, tests)
 
-let test_no_decode encoding (ATC (_, asn, examples)) _ =
-  let codec = Asn.(codec encoding asn) in
-  examples |> List.iter @@ fun s ->
-    match Asn.decode codec (x_cs s) with
-    | Error _ -> ()
-    | Ok _    -> assert_failure "zalgo he comes"
+let inverts1 ?(iters = 1000) name enc cases =
+  let tests = cases |> List.map @@ fun (CEQ (name, alc, asn, _)) ->
+    let codec = Asn.codec enc asn and t = dec alc in
+    let f () =
+      for _ = 1 to iters do
+        let x = Asn.random asn in
+        Alcotest.check t "invert" (Ok (x, Cstruct.empty))
+          (Asn.decode codec (Asn.encode codec x))
+      done in
+    (name, `Quick, f) in
+  (name, tests)
 
 let time ?(frac=0) dtz =
   Ptime.(add_span (of_date_time dtz |> get)
@@ -84,12 +93,12 @@ let time ?(frac=0) dtz =
 
 let cases = [
 
-  case "bool" Asn.S.bool [
+  case_eq "bool" Asn.S.bool [
     false, "010100" ;
     true , "0101ff"
   ];
 
-  case "integer" Asn.S.integer [
+  case_eq "integer" Asn.S.integer [
     Z.(~$    0),  "020100" ;
     Z.(~$    1),  "020101" ;
     Z.(~$ (-1)),  "0201ff" ;
@@ -100,7 +109,7 @@ let cases = [
     Z.(~$(-129)), "0202ff7f";
   ];
 
-  case "long integer" Asn.S.integer [
+  case_eq "long integer" Asn.S.integer [
     Z.of_int64 8366779L, "02037faabb";
     Z.of_int64 2141895628L, "02047faabbcc";
     Z.of_int64 548325280989L, "02057faabbccdd";
@@ -110,22 +119,22 @@ let cases = [
     Z.(of_int64 9199371677428809489L lsl 8), "02097faabbccddeeff1100";
   ];
 
-  case "null" Asn.S.null [
+  case_eq "null" Asn.S.null [
     (), "0500";
     (), "058100"
   ];
 
-  case "singleton seq"
+  case_eq "singleton seq"
     Asn.S.(sequence (single @@ required bool))
     [ true, "30030101ff";
       true, "30800101ff0000" ; ];
 
-  case "rename stack"
+  case_eq "rename stack"
     Asn.S.(implicit 1 @@ implicit 2 @@ explicit 3 @@ implicit 4 @@ int)
     [ 42, "a18084012a0000";
       42, "a10384012a" ];
 
-  case "sequence with implicits"
+  case_eq "sequence with implicits"
     Asn.S.(sequence3
             (required int)
             (required @@ implicit 1 bool)
@@ -134,7 +143,7 @@ let cases = [
     [ (42, false, true), "3009 02012a 810100 0101ff";
       (42, false, true), "3080 02012a 810100 0101ff 0000" ];
 
-  case "sequence with optional and explicit fields"
+  case_eq "sequence with optional and explicit fields"
     Asn.S.(sequence3
             (required @@ implicit 1 int)
             (optional @@ explicit 2 bool)
@@ -147,7 +156,7 @@ let cases = [
       (255, Some true, Some false),
       "3080 810200ff a280 0101f0 0000 830100 0000" ];
 
-  case "sequence with missing optional and choice fields"
+  case_eq "sequence with missing optional and choice fields"
     Asn.S.(sequence3 (required @@ choice2 bool int)
                      (optional @@ choice2 bool int)
                      (optional @@ explicit 0
@@ -161,7 +170,7 @@ let cases = [
       (`C2 (-3), None, Some (`C2 42)), "300a 0201fd a080 81012a0000";
       (`C2 (-4), None, Some (`C1 42)), "3080 0201fc a080 02012a0000 0000" ];
 
-  case "sequence with sequence"
+  case_eq "sequence with sequence"
     Asn.S.(sequence2
             (required @@
               sequence2
@@ -176,7 +185,7 @@ let cases = [
       ((None, None), true), "3007308000000101ff";
       ((None, None), true), "300530000101ff" ];
 
-  case "sequence_of choice"
+  case_eq "sequence_of choice"
     Asn.S.(sequence2
             (required @@
               sequence_of
@@ -188,7 +197,7 @@ let cases = [
       ([`C2 true; `C2 false; `C1 true], true),
       "3080 3080 8001ff 800100 0101ff 0000 0101ff 0000" ];
 
-  case "sets"
+  case_eq "sets"
     Asn.S.(set4 (required @@ implicit 1 bool)
                 (required @@ implicit 2 bool)
                 (required @@ implicit 3 int )
@@ -201,7 +210,7 @@ let cases = [
       (true, false, 42, None), "3180 820100 83012a 8101ff 0000";
       (true, false, 42, Some 15), "3180 83012a 820100 8101ff 84010f 0000" ];
 
-  case "set or seq"
+  case_eq "set or seq"
     Asn.S.(choice2 (set2 (optional int ) (optional bool))
                    (sequence2 (optional int ) (optional bool)))
 
@@ -212,7 +221,7 @@ let cases = [
       (`C2 (Some 42, None)), "3003 02012a";
       (`C2 (Some 42, Some true)), "3006 02012a 0101ff" ];
 
-  case
+  case_eq
     "large tag"
     Asn.S.(implicit 6666666 bool)
     [ true , "9f8396f32a01ff";
@@ -220,7 +229,7 @@ let cases = [
     ];
 
 
-  case
+  case_eq
     "recursive encoding"
     Asn.S.(
       fix @@ fun list ->
@@ -237,7 +246,7 @@ let cases = [
       [false; true; false],
       "3080 010100 3080 0101ff 3080 010100 0500 0000 0000 0000" ];
 
-  case "ia5 string" Asn.S.ia5_string
+  case_eq "ia5 string" Asn.S.ia5_string
 
     [ "abc", "1603616263";
       "abcd", "360a 160161 160162 16026364";
@@ -247,7 +256,7 @@ let cases = [
       "test1@rsa.com", "16810d 7465737431407273612e636f6d" ;
       "test1@rsa.com", "3613 16057465737431 160140 16077273612e636f6d" ];
 
-  case "bit string" Asn.S.bit_string
+  case_eq "bit string" Asn.S.bit_string
 
     ( let example =
         [| false; true; true; false; true; true; true; false; false;
@@ -262,7 +271,7 @@ let cases = [
 
     let rsa = base 1 2 <| 840 <| 113549 in
 
-    case "oid" Asn.S.oid [
+    case_eq "oid" Asn.S.oid [
 
       ( rsa ), "06062a864886f70d";
       ( rsa <| 1 <| 7 <| 2 ), "06092a864886f70d010702";
@@ -273,12 +282,12 @@ let cases = [
       ( base 1 2 <| 99999 ), "06042a868d1f";
     ] );
 
-  case "octets" Asn.S.octet_string [
+  case_eq "octets" Asn.S.octet_string [
     x_cs "0123456789abcdef", "0408 0123456789abcdef" ;
     x_cs "0123456789abcdef", "048108 0123456789abcdef";
     x_cs "0123456789abcdef", "240c 040401234567 040489abcdef" ];
 
-  case "utc time" ~cmp:Ptime.equal Asn.S.utc_time [
+  case_eq "utc time" ~cmp:Ptime.equal Asn.S.utc_time [
 
     ( time ((1991, 5, 6), ((23, 45, 40), 0)),
       "170d3931303530363233343534305a " ) ;
@@ -289,7 +298,7 @@ let cases = [
 
   ] ;
 
-  case "generalized time" ~cmp:Ptime.equal Asn.S.generalized_time [
+  case_eq "generalized time" ~cmp:Ptime.equal Asn.S.generalized_time [
 
     ( time ((1991, 5, 6), ((16, 0, 0), 0)),
       "180a313939313035303631 36");
@@ -314,55 +323,35 @@ let cases = [
 let anticases = [
 
   (* thx @alpha-60 *)
-  anticase "tag overflow" Asn.S.bool
+  case "tag overflow" Asn.S.bool
   [ "1f a080 8080 8080 8080 8001 01ff" ];
 
-  anticase "leading zero" Asn.S.(implicit 127 bool)
+  case "leading zero" Asn.S.(implicit 127 bool)
   [ "9f807f01ff" ];
 
-  anticase "length overflow" Asn.S.bool
+  case "length overflow" Asn.S.bool
   [ "01 88 8000000000000001 ff" ] ;
 
-  anticase "oid overflow" Asn.S.oid
+  case "oid overflow" Asn.S.oid
   [ "06 0b 2a bfffffffffffffffff7f" ] ;
 ]
 
-let suite =
+let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples
 
-  "ASN.1" >::: [
+let () = Alcotest.run ~and_exit:false "BER" [
+  accepts_eq "value samples" Asn.ber cases;
+  rejects "- BER antisamples" Asn.ber anticases;
+  accepts "certs" Asn.ber certs;
+  inverts1 "inv" Asn.ber cases;
+  (* invert certs *)
+]
 
-    "BER decoding" >:::
-      List.map
-        (fun (TC (name, _, _, _) as tc) -> name >:: test_decode Asn.ber tc)
-        cases ;
-
-    "not @@ BER decoding" >:::
-      List.map
-        (fun (ATC (name, _, _) as atc) -> name >:: test_no_decode Asn.ber atc)
-        anticases ;
-
-    "BER random encode->decode" >:::
-      List.map
-        (fun (TC (name, cmp, asn, _)) -> name >:: test_loop_decode ?cmp Asn.ber asn)
-        cases ;
-
-    "DER random encode->decode" >:::
-      List.map
-        (fun (TC (name, cmp, asn, _)) -> name >:: test_loop_decode ?cmp Asn.der asn)
-        cases ;
-
-    "X509 decode" >:::
-      List.mapi
-        (fun i bytes ->
-          ("certificate " ^ string_of_int i) >:: fun _ ->
-            assert_decode X509.cert_der (x_cs bytes))
-        X509.examples ;
-
-    "X509 elements random encode->decode" >::: [
-      "BER validity" >:: test_loop_decode Asn.ber X509.validity ;
-      "DER validity" >:: test_loop_decode Asn.der X509.validity ;
-      "BER cert" >:: test_loop_decode ~iter:5000 Asn.ber X509.certificate ;
-(*       "DER cert" >:: test_loop_decode ~iter:100 Asn.der X509.certificate ; *)
-    ] ;
-  ]
-
+let () = Alcotest.run "DER" [
+  (* accepts_eq "value samples" Asn.der cases; *)
+  rejects "- BER antisamples" Asn.der anticases;
+  rejects "- DER antisamples" Asn.der anticases;
+  accepts "certs" Asn.der certs;
+  inverts1 "inv" Asn.der cases;
+  (* invert certs *)
+  (* injectivity *)
+]

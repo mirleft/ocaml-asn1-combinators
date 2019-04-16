@@ -4,9 +4,9 @@
   (libraries asn1-combinators))
 
 (test
-  (name testrunner)
-  (modules testlib testrunner)
-  (libraries x509 oUnit))
+  (name test)
+  (modules test)
+  (libraries x509 alcotest))
 
 (executable
   (name bench)

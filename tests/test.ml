@@ -334,6 +334,8 @@ let anticases = [
 
   case "oid overflow" Asn.S.oid
   [ "06 0b 2a bfffffffffffffffff7f" ] ;
+
+  case "empty integer" Asn.S.integer [ "0200" ];
 ]
 
 let der_anticases = [
@@ -358,7 +360,7 @@ let () = Alcotest.run ~and_exit:false "BER" [
 let () = Alcotest.run "DER" [
   (* accepts_eq "value samples" Asn.der cases; *)
   rejects "- BER antisamples" Asn.der anticases;
-  rejects "- DER antisamples" Asn.der anticases;
+  rejects "- DER antisamples" Asn.der der_anticases;
   accepts "certs" Asn.der certs;
   inverts1 "inv" Asn.der cases;
   (* invert certs *)

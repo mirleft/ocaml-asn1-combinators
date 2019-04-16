@@ -108,11 +108,13 @@ module Integer : Prim with type t = Z.t = struct
           Z.(x lor (acc lsl 8))
       | _ -> acc
     in
-    let n = cs.Cstruct.len in
-    let x = loop Z.zero 0 n in
-    match (Cstruct.get_uint8 cs 0) land 0x80 with
-    | 0 -> x
-    | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
+    match cs.Cstruct.len with
+      0 -> parse_error "INT: length 0"
+    | n ->
+      let x = loop Z.zero 0 n in
+      match (Cstruct.get_uint8 cs 0) land 0x80 with
+      | 0 -> x
+      | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
 
   let last8 z = Z.(extract z 0 8 |> to_int)
 

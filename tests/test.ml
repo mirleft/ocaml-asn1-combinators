@@ -336,11 +336,20 @@ let anticases = [
   [ "06 0b 2a bfffffffffffffffff7f" ] ;
 ]
 
+let der_anticases = [
+  case "constructed string 1" Asn.S.octet_string
+  [ "2400"; "24 06 04 04 46 55 43 4b" ];
+
+  case "constructed string 2" Asn.S.utf8_string
+  [ "2c00"; "2c060c044655434b" ]
+]
+
 let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples
 
 let () = Alcotest.run ~and_exit:false "BER" [
   accepts_eq "value samples" Asn.ber cases;
   rejects "- BER antisamples" Asn.ber anticases;
+  accepts "+ DER antisamples" Asn.ber der_anticases;
   accepts "certs" Asn.ber certs;
   inverts1 "inv" Asn.ber cases;
   (* invert certs *)

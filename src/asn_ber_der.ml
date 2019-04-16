@@ -158,21 +158,22 @@ module R = struct
     | G.Cons (t1, gs) when Tag.equal t t1 -> f gs
     | g -> err_type ~form:`Cons t g
 
-  let string_like (type a) t (module P : Prim.Prim_s with type t = a) =
+  let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
     let rec p = function
       | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
-      | G.Cons (t1, gs) when Tag.equal t t1 -> P.concat (List.map p gs)
+      | G.Cons (t1, gs) when Tag.equal t t1 && not c.strict ->
+          P.concat (List.map p gs)
       | g -> err_type t g in
     p
 
-  let c_prim : type a. tag -> a prim -> G.t -> a = fun tag -> function
+  let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun c tag -> function
     | Bool       -> primitive tag Prim.Boolean.of_cstruct
     | Int        -> primitive tag Prim.Integer.of_cstruct
-    | Bits       -> string_like tag (module Prim.Bits)
-    | Octets     -> string_like tag (module Prim.Octets)
+    | Bits       -> string_like c tag (module Prim.Bits)
+    | Octets     -> string_like c tag (module Prim.Octets)
     | Null       -> primitive tag Prim.Null.of_cstruct
     | OID        -> primitive tag Prim.OID.of_cstruct
-    | CharString -> string_like tag (module Prim.Gen_string)
+    | CharString -> string_like c tag (module Prim.Gen_string)
 
   let peek asn =
     match tag_set asn with
@@ -180,7 +181,7 @@ module R = struct
     | tags  -> fun g ->
         let tag = G.tag g in List.exists (fun t -> Tag.equal t tag) tags
 
-  type opt = Cache.t
+  type opt = Cache.t * config
 
   let rec c_asn : type a. a asn -> opt:opt -> G.t -> a = fun asn ~opt ->
 
@@ -188,7 +189,7 @@ module R = struct
       | Iso (f, _, _, a) -> f &. go ?t a
       | Fix (fa, var) as fix ->
           let p = lazy (go ?t (fa fix)) in
-          Cache.intern opt var fa @@ fun g -> Lazy.force p g
+          Cache.intern (fst opt) var fa @@ fun g -> Lazy.force p g
       | Sequence s       -> constructed (t @? seq_tag) (c_seq s ~opt)
       | Sequence_of a    -> constructed (t @? seq_tag) (List.map (c_asn a ~opt))
       | Set s            -> constructed (t @? set_tag) (c_set s ~opt)
@@ -199,7 +200,7 @@ module R = struct
           let (p1, p2) = (c_asn a1 ~opt, c_asn a2 ~opt)
           and accepts1 = peek a1 in
           fun g -> if accepts1 g then L (p1 g) else R (p2 g)
-      | Prim p -> c_prim (t @? tag_of_p p) p in
+      | Prim p -> c_prim (snd opt) (t @? tag_of_p p) p in
 
     go asn
 
@@ -303,7 +304,7 @@ module R = struct
 
   let (compile_ber, compile_der) =
     let compile cfg asn =
-      let p = c_asn asn ~opt:Cache.(create ()) in
+      let p = c_asn asn ~opt:(Cache.create (), cfg) in
       fun cs -> let (g, cs') = Gen.parse cfg cs in (p g, cs') in
     (fun asn -> compile { strict = false } asn),
     (fun asn -> compile { strict = true  } asn)

@@ -88,33 +88,31 @@ module Integer : Prim with type t = Z.t = struct
 
   type t = Z.t
 
+  let of_int8 x = Z.of_int (if x >= 0x80 then x - 0x100 else x) [@@inline]
+  let of_int16 x = Z.of_int (if x >= 0x8000 then x - 0x10000 else x) [@@inline]
+
   let of_cstruct cs =
     let open Cstruct in
-    (* XXX -> N-1 byte shifts?? *)
-    let rec loop acc i = function
-      | n when n >= 8 ->
-          let x = BE.get_uint64 cs i in
-          let x = Z.of_int64 Int64.(shift_right_logical x 8) in
-          loop Z.(x lor (acc lsl 56)) (i + 7) (n - 7)
-      | 4|5|6|7 as n ->
-          let x = BE.get_uint32 cs i in
-          let x = Z.of_int32 Int32.(shift_right_logical x 8) in
-          loop Z.(x lor (acc lsl 24)) (i + 3) (n - 3)
-      | 2|3 as n ->
-          let x = Z.of_int (BE.get_uint16 cs i) in
-          loop Z.(x lor (acc lsl 16)) (i + 2) (n - 2)
-      | 1 ->
-          let x = Z.of_int (get_uint8 cs i) in
-          Z.(x lor (acc lsl 8))
-      | _ -> acc
-    in
+
+    let rec go acc i = function
+      n when n >= 8 ->
+        let w = Z.of_int64 (BE.get_uint64 cs i) in
+        go Z.((acc lsl 64) lor (extract w 0 64)) (i + 8) (n - 8)
+    | n when n >= 4 ->
+        let w = Z.of_int32 (BE.get_uint32 cs i) in
+        go Z.((acc lsl 32) lor (extract w 0 32)) (i + 4) (n - 4)
+    | n when n >= 2 ->
+        go Z.((acc lsl 16) lor ~$(BE.get_uint16 cs i)) (i + 2) (n - 2)
+    | 1 -> Z.((acc lsl 8) lor ~$(get_uint8 cs i))
+    | _ -> acc in
     match cs.Cstruct.len with
-      0 -> parse_error "INT: length 0"
+      0 -> parse_error "INTEGER: length 0"
+    | 1 -> of_int8 (get_uint8 cs 0)
     | n ->
-      let x = loop Z.zero 0 n in
-      match (Cstruct.get_uint8 cs 0) land 0x80 with
-      | 0 -> x
-      | _ -> let off = n * 8 in Z.(x - pow (of_int 2) off)
+        let w0 = BE.get_uint16 cs 0 in
+        match w0 land 0xff80 with
+          0x0000 | 0xff80 -> parse_error "INTEGER: redundant form"
+        | _ -> go (of_int16 w0) 2 (n - 2)
 
   let last8 z = Z.(extract z 0 8 |> to_int)
 

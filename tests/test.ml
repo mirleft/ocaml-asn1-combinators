@@ -91,6 +91,9 @@ let time ?(frac=0) dtz =
   Ptime.(add_span (of_date_time dtz |> get)
     (Span.v (0, Int64.(mul (of_int frac) 1_000_000_000L))) |> get)
 
+let v32 = Z.of_int32
+let (<+) z1 i64 = Z.((z1 lsl 64) lor (extract (of_int64 i64) 0 64))
+
 let cases = [
 
   case_eq "bool" Asn.S.bool [
@@ -99,24 +102,33 @@ let cases = [
   ];
 
   case_eq "integer" Asn.S.integer [
-    Z.(~$    0),  "020100" ;
-    Z.(~$    1),  "020101" ;
-    Z.(~$ (-1)),  "0201ff" ;
-    Z.(~$  127),  "02017f" ;
-    Z.(~$  128),  "02020080" ;
-    Z.(~$  256),  "02020100" ;
-    Z.(~$(-128)), "020180" ;
-    Z.(~$(-129)), "0202ff7f";
-  ];
 
-  case_eq "long integer" Asn.S.integer [
-    Z.of_int64 8366779L, "02037faabb";
-    Z.of_int64 2141895628L, "02047faabbcc";
-    Z.of_int64 548325280989L, "02057faabbccdd";
-    Z.of_int64 140371271933422L, "02067faabbccddee";
-    Z.of_int64 35935045614956287L, "02077faabbccddeeff";
-    Z.of_int64 9199371677428809489L, "02087faabbccddeeff11";
-    Z.(of_int64 9199371677428809489L lsl 8), "02097faabbccddeeff1100";
+    v32 0x000000_00l, "0201 00";
+    v32 0x000000_7fl, "0201 7f";
+    v32 0xffffff_80l, "0201 80";
+    v32 0xffffff_ffl, "0201 ff";
+
+    v32 0x0000_0080l, "0202 0080";
+    v32 0x0000_7fffl, "0202 7fff";
+    v32 0xffff_8000l, "0202 8000";
+    v32 0xffff_ff7fl, "0202 ff7f";
+
+    v32 0x00_008000l, "0203 008000";
+    v32 0x00_00ffffl, "0203 00ffff";
+    v32 0xff_800000l, "0203 800000";
+    v32 0xff_ff7fffl, "0203 ff7fff";
+
+    v32 0x00800000l, "0204 00800000";
+    v32 0x7fffffffl, "0204 7fffffff";
+    v32 0x80000000l, "0204 80000000";
+    v32 0xff7fffffl, "0204 ff7fffff";
+
+    v32 0x00800000l <+ 0x00000000_00000000L, "020c 00800000 00000000 00000000";
+    v32 0x00ffffffl <+ 0xffffffff_ffffffffL, "020c 00ffffff ffffffff ffffffff";
+    v32 0x00ffffffl <+ 0x7fffffff_ffffffffL, "020c 00ffffff 7fffffff ffffffff";
+    v32 0x00ffffffl <+ 0xffffffff_7fffffffL, "020c 00ffffff ffffffff 7fffffff";
+    v32 0x80ffffffl <+ 0xffffffff_ffffffffL, "020c 80ffffff ffffffff ffffffff";
+    v32 0xff7fffffl <+ 0xffffffff_ffffffffL, "020c ff7fffff ffffffff ffffffff";
   ];
 
   case_eq "null" Asn.S.null [
@@ -163,7 +175,6 @@ let cases = [
                                @@ choice2 int (implicit 1 int)))
 
     [ (`C1 true, None, None), "30030101ff" ;
-      (`C2 42, None, None), "3005020300002a" ;
       (`C1 false, Some (`C2 42), None), "3006 010100 02012a";
       (`C1 true, None, Some (`C1 42)), "3008 0101ff a003 02012a" ;
       (`C2 (-2), Some (`C2 42), Some (`C2 42)), "300b 0201fe 02012a a003 81012a";
@@ -336,6 +347,11 @@ let anticases = [
   [ "06 0b 2a bfffffffffffffffff7f" ] ;
 
   case "empty integer" Asn.S.integer [ "0200" ];
+
+  case "redundant int form" Asn.S.integer [
+    "02020000"; "0202007f"; "0202ff80"; "0202ffff";
+    "0203000000"; "0203007fff"; "0203ff8000"; "0203ffffff";
+  ];
 ]
 
 let der_anticases = [

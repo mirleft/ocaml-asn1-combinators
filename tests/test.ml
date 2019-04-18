@@ -352,6 +352,9 @@ let anticases = [
     "02020000"; "0202007f"; "0202ff80"; "0202ffff";
     "0203000000"; "0203007fff"; "0203ff8000"; "0203ffffff";
   ];
+
+  case "redundant oid form" Asn.S.oid
+  [ "06028001"; "06032a8001" ]
 ]
 
 let der_anticases = [

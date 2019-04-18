@@ -24,6 +24,8 @@ let base v1 v2 =
   | 2   when v2 >= 0            -> Oid (v1, v2, [])
   | _ -> invalid_arg "OID.base: out of range: %d.%d" v1 v2
 
+let base_opt v1 v2 = try Some (base v1 v2) with Invalid_argument _ -> None
+
 let to_nodes (Oid (v1, v2, vs)) = (v1, v2, vs)
 
 let of_nodes n1 n2 ns =

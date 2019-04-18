@@ -244,32 +244,37 @@ module OID = struct
 
   open Asn_oid
 
-  (* XXX bounds-checks instead of exns *)
+  let uint64_chain cs i n =
+    let rec go acc cs i = function
+      0 -> parse_error "OID: unterminated component"
+    | n ->
+        match Cstruct.get_uint8 cs i with
+          0x80 when acc = 0L -> parse_error "OID: redundant form"
+        | b ->
+            let lo  = b land 0x7f in
+            let acc = Int64.(logor (shift_left acc 7) (of_int lo)) in
+            if b < 0x80 then (acc, i + 1) else go acc cs (i + 1) (n - 1) in
+    if n < 1 then parse_error "OID: 0 length component" else
+      go 0L cs i (min n 8)
+
+  let int_chain cs i n =
+    let (n, i) = uint64_chain cs i n in
+    match Int64.to_nat_checked n with
+      Some n -> (n, i) | _ -> parse_error "OID: component out of range"
+
   let of_cstruct cs =
-    let open Cstruct in
-
-    let rec values i =
-      if i = len cs then []
-      else let (i, v) = component 0L i 0 in v :: values i
-
-    and component acc off = function
-      | 8 -> parse_error "OID: component too large: %a" pp_cs cs
-      | i ->
-          let b   = get_uint8 cs (off + i) in
-          let b7  = b land 0x7f in
-          let acc = Int64.(acc lor (of_int b7)) in
-          if b land 0x80 = 0 then
-            match Int64.to_nat_checked acc with
-            | None   -> parse_error "OID: component out of int range: %Ld at %a"
-                                    acc pp_cs cs
-            | Some x -> (off + i + 1, x)
-          else component Int64.(acc lsl 7) off (succ i) in
-
-    try
-      let b1 = get_uint8 cs 0 in
-      let v1 = b1 / 40 and v2 = b1 mod 40 in
-      base v1 v2 <|| values 1
-    with Invalid_argument _ -> parse_error "OID: input: %a" pp_cs cs
+    let rec components cs i = function
+      0 -> []
+    | n -> let (c, i') = int_chain cs i n in
+           c :: components cs i' (n + i - i') in
+    match Cstruct.len cs with
+      0 -> parse_error "OID: 0 length"
+    | n ->
+        let (b1, i) = int_chain cs 0 n in
+        let v1 = b1 / 40 and v2 = b1 mod 40 in
+        match base_opt v1 v2 with
+          Some b -> b <|| components cs i (n - i)
+        | None -> parse_error "OID: invalid base"
 
   let to_writer = fun (Oid (v1, v2, vs)) ->
     let cons x = function [] -> [x] | xs -> x lor 0x80 :: xs in

@@ -9,6 +9,7 @@ val hash        : t -> int
 val seeded_hash : int -> t -> int
 
 val base  : int -> int -> t
+val base_opt : int -> int -> t option
 val (<|)  : t -> int -> t
 val (<||) : t -> int list -> t
 

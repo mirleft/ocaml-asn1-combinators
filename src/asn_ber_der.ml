@@ -43,7 +43,7 @@ module R = struct
     open Cstruct
 
     let error cs fmt =
-      parse_error ("Header: at %a: " ^^ fmt) pp_cs (sub cs 0 32)
+      parse_error ("Header: at %a: " ^^ fmt) pp_cs cs
 
     let ck_redundant cs cfg (n : int) limit =
       if cfg.strict && n < limit then error cs "redundant form"
@@ -63,14 +63,22 @@ module R = struct
             | (acc, _) -> go acc (succ i) in
       go 0L 0
 
-    let big_len cs n =
-      let rec go acc i =
-        if i = n then acc else
-          go Int64.(acc lsl 8 + of_int (get_uint8 cs i)) (succ i) in
-      let n = go 0L 0 in
-      match Int64.to_nat_checked n with
-      | None   -> error cs "big length: overflow: %Li" n
-      | Some x -> x
+    let big_len cfg cs = function
+      0 -> error cs "empty length"
+    | n ->
+        let rec f cs i = function
+          0 -> 0L
+        | n -> match get_uint8 cs i with
+            0 when cfg.strict -> error cs "redudnant length"
+          | 0 -> f cs (i + 1) (n - 1)
+          | _ when n > 8 -> error cs "length overflow"
+          | x -> g (Int64.of_int x) cs (i + 1) (n - 1)
+        and g acc cs i = function
+          0 -> acc
+        | n -> let acc = Int64.(acc lsl 8 + of_int (get_uint8 cs i)) in
+               g acc cs (i + 1) (n - 1) in
+        match f cs 0 n |> Int64.to_nat_checked with
+          Some x -> x | _ -> error cs "length overflow"
 
     let parse cfg cs =
 
@@ -85,8 +93,8 @@ module R = struct
       let l0    = get_uint8 cs off_len in
       let lbody = l0 land 0x7f in
       let (len, off_end) =
-        if l0 land 0x80 = 0 then (lbody, off_len + 1) else
-          let n = big_len (shift cs (off_len + 1)) lbody in
+        if l0 <= 0x80 then (lbody, off_len + 1) else
+          let n = big_len cfg (shift cs (off_len + 1)) lbody in
           ck_redundant cs cfg n 0x7f;
           (n, off_len + 1 + lbody) in
       let tag = match t0 land 0xc0 with

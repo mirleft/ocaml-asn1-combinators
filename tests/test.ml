@@ -25,9 +25,8 @@ let x_cs s = Cstruct.of_string (x s)
 let cstruct = Alcotest.testable pp_hex_cs Cstruct.equal
 let err = Alcotest.testable Asn.pp_error (fun (`Parse _) (`Parse _) -> true)
 let dec t = Alcotest.(result (pair t cstruct) err)
-let opaque cmp =
-  Alcotest.testable Fmt.(fun ppf _ -> pf ppf "*shrug*")
-    (match cmp with Some f -> f | _ -> (=))
+let testable ?(pp = fun ppf _ -> Fmt.pf ppf "*shrug*") ?(cmp = (=)) () =
+  Alcotest.testable pp cmp
 
 let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
@@ -40,7 +39,8 @@ type 'a cmp = 'a -> 'a -> bool
 type case_eq =
   CEQ : string * 'a Alcotest.testable * 'a Asn.t * ('a * string) list -> case_eq
 
-let case_eq name ?cmp asn examples = CEQ (name, opaque cmp, asn, examples)
+let case_eq name ?pp ?cmp asn examples =
+  CEQ (name, testable ?pp ?cmp (), asn, examples)
 
 type case = C : string * 'a Asn.t * string list -> case
 
@@ -58,7 +58,7 @@ let accepts_eq name enc cases =
 let rejects name enc cases =
   let tests = cases |> List.map @@ fun (C (name, asn, ss)) ->
     let codec = Asn.codec enc asn
-    and t = dec (opaque None) in
+    and t = dec (testable ()) in
     let f () = ss |> List.iter @@ fun s ->
       Alcotest.check t name (Error (`Parse "...")) (Asn.decode codec (x_cs s)) in
     (name, `Quick, f) in
@@ -354,7 +354,10 @@ let anticases = [
   ];
 
   case "redundant oid form" Asn.S.oid
-  [ "06028001"; "06032a8001" ]
+  [ "06028001"; "06032a8001" ];
+
+  case "length overflow" Asn.S.integer
+  [ "02890100000000000000012a" ];
 ]
 
 let der_anticases = [
@@ -362,7 +365,14 @@ let der_anticases = [
   [ "2400"; "24 06 04 04 46 55 43 4b" ];
 
   case "constructed string 2" Asn.S.utf8_string
-  [ "2c00"; "2c060c044655434b" ]
+  [ "2c00"; "2c060c044655434b" ];
+
+  case "expanded length" Asn.S.integer
+  [ "0281012a" ];
+
+  case "redundant length" Asn.S.octet_string
+  [ "048200ff" ^
+    Fmt.strf "%a" pp_hex_s (String.init 0xff (fun _ -> '\xaa')) ];
 ]
 
 let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples

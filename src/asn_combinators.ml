@@ -23,10 +23,12 @@ let to_tag id = function
   | None              -> Tag.Context_specific id
 
 let explicit ?cls id asn = Explicit (to_tag id cls, asn)
-let implicit : type a. ?cls:cls -> int -> a asn -> a asn =
+let rec implicit : type a. ?cls:cls -> int -> a asn -> a asn =
   fun ?cls id -> function
-  | (Choice (_, _)) as asn -> explicit ?cls id asn
-  | asn             -> Implicit (to_tag id cls, asn)
+    Fix (f, _) as asn -> implicit ?cls id (f asn)
+  | Iso (f, g, r, asn) -> Iso (f, g, r, implicit ?cls id asn)
+  | Choice (_, _) as asn -> explicit ?cls id asn
+  | asn -> Implicit (to_tag id cls, asn)
 
 let bool                = Prim Bool
 and integer             = Prim Int

@@ -358,6 +358,9 @@ let anticases = [
 
   case "length overflow" Asn.S.integer
   [ "02890100000000000000012a" ];
+
+  case "silly bit strings" Asn.S.bit_string
+  [ "0300"; "030101"; "030208ff" ];
 ]
 
 let der_anticases = [

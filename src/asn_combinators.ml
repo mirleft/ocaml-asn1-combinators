@@ -4,11 +4,11 @@
 open Asn_core
 module Prim = Asn_prim
 
-let arr_fold_right_i ~f z arr =
-  let rec loop r = function
-    | -1 -> r
-    |  i -> loop (f i arr.(i) r) (pred i) in
-  loop z Array.(length arr - 1)
+module Int = struct
+  type t = int
+  let compare (a: t) b = compare a b
+  let equal (a: t) b = a = b
+end
 
 let clone_cs cs =
   let open Cstruct in
@@ -85,19 +85,22 @@ and bit_string_cs =
   map f (fun cs -> (0, cs)) (Prim Bits)
 
 let bit_string_flags (type a) (xs : (int * a) list) =
-  let module M = Map.Make (struct type t = a let compare = compare end) in
-  let ixs = List.fold_right (fun (i, x) -> M.add x i) xs M.empty in
-  let n   = List.fold_right (fun (i, _) -> max (i + 1)) xs 0 in
-  let f = match xs with
-    | []        -> fun _ -> []
-    | (_, x)::_ ->
-        let items = Array.make n x in
-        xs |> List.iter (fun (i, x) -> items.(i) <- x) ;
-        arr_fold_right_i [] ~f:(fun i b rs ->
-          if b && i < n then items.(i) :: rs else rs)
+  let cmp = compare in (* XXX yes... *)
+  let module M1 = Map.Make (struct type t = a let compare = cmp end) in
+  let module M2 = Map.Make (Int) in
+  let aix, ixa =
+    List.fold_left (fun (m1, m2) (i, x) -> M1.add x i m1, M2.add i x m2)
+    (M1.empty, M2.empty) xs in
+  let n = match M2.max_binding_opt ixa with Some (x, _) -> x + 1 | _ -> 0 in
+  let f bits =
+    let r = ref [] in
+    bits |> Array.iteri (fun i -> function
+    | false -> ()
+    | true -> try r := M2.find i ixa :: !r with Not_found -> ());
+    List.sort cmp !r
   and g es =
     let arr = Array.make n false in
-    let register e = try arr.(M.find e ixs) <- true with Not_found -> () in
+    let register e = try arr.(M1.find e aix) <- true with Not_found -> () in
     List.iter register es;
     arr
   in

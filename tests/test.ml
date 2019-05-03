@@ -278,6 +278,12 @@ let cases = [
         example, "038104066e5dc0";
         example, "2309 0303006e5d 030206c0" ] );
 
+  case_eq "bit flags"
+    (Asn.S.bit_string_flags [(2, `A); (4, `C); (8, `B); (10, `E); (12, `D)])
+
+    [ [`A; `B; `C], "030304ffdf";
+      [`A; `B; `C; `D], "030303ffdf"; ];
+
   ( let open Asn.OID in
 
     let rsa = base 1 2 <| 840 <| 113549 in

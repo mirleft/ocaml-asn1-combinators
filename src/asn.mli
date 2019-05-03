@@ -281,7 +281,8 @@ module S : sig
   (** [bit_string] is ASN.1 [BIT STRING]. *)
 
   val bit_string_cs : Cstruct.t t
-  (** [bit_string_cs] is ASN.1 [BIT STRING], represented as {!Cstruct.t}. *)
+  (** [bit_string_cs] is ASN.1 [BIT STRING], represented as {!Cstruct.t}, and
+      padded with 0-bits up to the next full octet. *)
 
   val octet_string : Cstruct.t  t
   (** [octet_string] is ASN.1 [OCTET STRING]. *)

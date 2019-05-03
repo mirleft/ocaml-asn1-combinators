@@ -10,6 +10,11 @@ let arr_fold_right_i ~f z arr =
     |  i -> loop (f i arr.(i) r) (pred i) in
   loop z Array.(length arr - 1)
 
+let clone_cs cs =
+  let open Cstruct in
+  let ds = create_unsafe (len cs) in
+  blit cs 0 ds 0 (len cs); cs
+
 type cls = [ `Universal | `Application | `Private ]
 
 let fix f = Fix (f, Asn_cache.variant ())
@@ -66,8 +71,18 @@ let int =
 
 let enumerated f g = map f g @@ implicit ~cls:`Universal 0x0a int
 
-let bit_string    = Prim.Bits.(map to_array of_array (Prim Bits))
-and bit_string_cs = map snd (fun cs -> (0, cs)) (Prim Bits)
+let bit_string = Prim.Bits.(map to_array of_array (Prim Bits))
+and bit_string_cs =
+  let f = function
+  | 0, cs -> cs
+  | clip, cs ->
+      let n = Cstruct.len cs in
+      let last = Cstruct.get_uint8 cs (n - 1) in
+      let cs = clone_cs cs
+      and last = last land (lnot (1 lsl clip - 1)) in
+      Cstruct.set_uint8 cs (n - 1) last; cs
+  in
+  map f (fun cs -> (0, cs)) (Prim Bits)
 
 let bit_string_flags (type a) (xs : (int * a) list) =
   let module M = Map.Make (struct type t = a let compare = compare end) in

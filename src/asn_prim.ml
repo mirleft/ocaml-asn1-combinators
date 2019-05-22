@@ -4,6 +4,7 @@
 open Asn_core
 
 module Writer = Asn_writer
+module Bigarray = Bigarray_compat
 
 module type Prim = sig
   type t

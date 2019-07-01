@@ -17,6 +17,7 @@ depends: [
   "zarith"
   "ptime"
   "alcotest" {with-test}
+  "stdlib-shims"
 ]
 description: """
 asn1-combinators is a library for expressing ASN.1 in OCaml. Skip the notation

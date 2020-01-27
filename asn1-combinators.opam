@@ -11,11 +11,12 @@ build: [ ["dune" "subst"] {pinned}
          ["dune" "build" "-p" name "-j" jobs ]
          ["dune" "runtest"] {with-test} ]
 depends: [
-  "ocaml" {>="4.03.0"}
-  "dune" {build}
+  "ocaml" {>="4.05.0"}
+  "dune"
   "cstruct" {>= "1.6.0"}
   "zarith"
   "bigarray-compat"
+  "stdlib-shims"
   "ptime"
   "alcotest" {with-test}
 ]

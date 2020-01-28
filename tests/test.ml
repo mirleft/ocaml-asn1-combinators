@@ -367,6 +367,9 @@ let anticases = [
 
   case "silly bit strings" Asn.S.bit_string
   [ "0300"; "030101"; "030208ff" ];
+
+  case "null with indefinite length" Asn.S.null
+  [ "0580"; "058000"; "05800000" ]
 ]
 
 let der_anticases = [

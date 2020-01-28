@@ -69,7 +69,7 @@ module R = struct
         let rec f cs i = function
           0 -> 0L
         | n -> match get_uint8 cs i with
-            0 when cfg.strict -> error cs "redudnant length"
+            0 when cfg.strict -> error cs "redundant length"
           | 0 -> f cs (i + 1) (n - 1)
           | _ when n > 8 -> error cs "length overflow"
           | x -> g (Int64.of_int x) cs (i + 1) (n - 1)
@@ -103,7 +103,13 @@ module R = struct
         | 0x80 -> Tag.Context_specific tag_v
         | _    -> Tag.Private          tag_v
       and coding =
+        (* according to layman's guide to a subset of ASN.1, BER, and DER, there
+           are three possibilities in BER (DER restricts this further):
+           - (a) primitive + definitive length
+           - (b) constructed + definitive length
+           - (c) constructed + indefinite length *)
         match (t0 land 0x20, l0) with
+        | (0, 0x80) -> error cs "primitive and indefinite length"
         | (0, _   ) -> Primitive len
         | (_, 0x80) -> Constructed_indefinite
         | _         -> Constructed len in

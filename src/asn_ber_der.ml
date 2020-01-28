@@ -69,7 +69,7 @@ module R = struct
         let rec f cs i = function
           0 -> 0L
         | n -> match get_uint8 cs i with
-            0 when cfg.strict -> error cs "redudnant length"
+            0 when cfg.strict -> error cs "redundant length"
           | 0 -> f cs (i + 1) (n - 1)
           | _ when n > 8 -> error cs "length overflow"
           | x -> g (Int64.of_int x) cs (i + 1) (n - 1)

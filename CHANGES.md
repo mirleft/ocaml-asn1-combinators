@@ -1,3 +1,22 @@
+## v0.2.1 (2020-01-28)
+* disallow various constructs as suggested by ITU-T Rec X.690 (by @pqwy)
+  * redundant OID component forms (X.690 8.20.2)
+  * redundant integer forms (X.690 8.3.2)
+  * empty integer (X.690 8.3.1, reported in #23 by @emillon)
+  * constructed strings in DER
+* deeper implict -> explicit over choice (follow-up to v0.2.0 entry, by @pqwy)
+* handle long-form length overflow (reported in #24 by @emillon, fixed by @pqwy)
+* disallow primitive with indefinite length (introduced in the bugfix above,
+  reported by @emillon, fixed in #32 by @hannesm)
+* disallow nonsensical bitstring unused values (X690 8.6.2, reported in #26
+  by @NathanReb, fixed by @pqwy)
+* fix non-continuous bit_string_flags (X680 22.6, reported in #25 by @wiml,
+  fixed by @pqwy)
+* use Alcotest instead of oUnit for unit tests (by @pqwy)
+* use dune as build system (by @pqwy, superseeds #22)
+* use bigarray-compat (#27 by @TheLortex) and stdlib-shims (#29 by @XVilka)
+* raise lower bound to OCaml 4.05.0 (#31 by @hannesm)
+
 ## v0.2.0 (2017-11-13)
 * `OID`s are now fully abstract, with a simpler interface.
 * `OID`s have custom comparison and hasing.

@@ -1,3 +1,8 @@
+## v0.2.2 (2020-01-29)
+* packaging improvements: add lower bound to dune dependency, improve test
+  invocation, remove version from dune-project
+  (reported by @kit-ty-kate in ocaml/opam-repository#15757 fixed by @hannesm)
+
 ## v0.2.1 (2020-01-28)
 * disallow various constructs as suggested by ITU-T Rec X.690 (by @pqwy)
   * redundant OID component forms (X.690 8.20.2)

@@ -1,3 +1,6 @@
+## v0.2.3 (2020-09-28)
+* adapt to cstruct 6.0.0 API changes (#34 by @dinosaure)
+
 ## v0.2.2 (2020-01-29)
 * packaging improvements: add lower bound to dune dependency, improve test
   invocation, remove version from dune-project

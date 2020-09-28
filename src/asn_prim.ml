@@ -146,7 +146,7 @@ module Gen_string : Prim_s with type t = string = struct
 
   type t = string
 
-  let of_cstruct = Cstruct.to_string
+  let of_cstruct x = Cstruct.to_string x
 
   let to_writer = Writer.of_string
 

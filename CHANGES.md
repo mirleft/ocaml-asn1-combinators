@@ -1,3 +1,6 @@
+## v0.2.4 (2020-11-05)
+* OCaml 4.12 support (#35 by @kit-ty-kate, @hannesm)
+
 ## v0.2.3 (2020-09-28)
 * adapt to cstruct 6.0.0 API changes (#34 by @dinosaure)
 

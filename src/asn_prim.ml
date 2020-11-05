@@ -33,7 +33,7 @@ let random_size = function
   | Some size -> size
   | None      -> Random.int 20
 
-let random_string ?size ~chars:(lo, hi) =
+let random_string ?size ~chars:(lo, hi) () =
   String.init (random_size size)
     (fun _ -> Char.chr (random_int_r lo hi))
 
@@ -151,7 +151,7 @@ module Gen_string : Prim_s with type t = string = struct
   let to_writer = Writer.of_string
 
   let random ?size () =
-    random_string ?size ~chars:(32, 127)
+    random_string ?size ~chars:(32, 127) ()
 
   let (concat, length) = String.(concat "", length)
 end
@@ -167,7 +167,7 @@ module Octets : Prim_s with type t = Cstruct.t = struct
   let to_writer = Writer.of_cstruct
 
   let random ?size () =
-    random_string ?size ~chars:(0, 256) |> Cstruct.of_string
+    random_string ?size ~chars:(0, 256) () |> Cstruct.of_string
 
   let concat = Cstruct.concat
 

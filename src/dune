@@ -4,7 +4,6 @@
   (synopsis "Embed typed ASN.1 grammars in OCaml")
   (libraries cstruct zarith bigarray-compat ptime stdlib-shims)
   (wrapped false)
-  (flags :standard -w -16)
   (private_modules asn_oid asn_cache asn_writer asn_prim asn_core asn_random
                    asn_combinators asn_ber_der))
 

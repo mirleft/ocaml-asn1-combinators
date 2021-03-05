@@ -54,7 +54,7 @@ module Int64 = struct
   let max_p_int = Int64.of_int Stdlib.max_int
 
   let to_nat_checked i64 =
-    if i64 < 0L || i64 > max_int then None else Some (to_int i64)
+    if i64 < 0L || i64 > max_p_int then None else Some (to_int i64)
 
 end
 

@@ -1,3 +1,7 @@
+## v0.2.5 (2021-03-05)
+* Fix an integer overflow in the length field on 32 bit architectures
+  (#36 by @hannesm)
+
 ## v0.2.4 (2020-11-05)
 * OCaml 4.12 support (#35 by @kit-ty-kate, @hannesm)
 

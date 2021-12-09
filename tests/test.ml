@@ -388,7 +388,7 @@ let der_anticases = [
 
   case "redundant length" Asn.S.octet_string
   [ "048200ff" ^
-    Fmt.strf "%a" pp_hex_s (String.init 0xff (fun _ -> '\xaa')) ];
+    Format.asprintf "%a" pp_hex_s (String.init 0xff (fun _ -> '\xaa')) ];
 ]
 
 let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples

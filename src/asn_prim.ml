@@ -334,7 +334,7 @@ module Time = struct
     Scanf.sscanf s "%2u%2u%2u%2u%2u%r%r%!"
       (fun ic -> try Scanf.bscanf ic "%2u" id with _ -> 0) tz @@
     fun y m d hh mm ss tz ->
-      let y  = (if y > 50 then 1900 else 2000) + y in
+      let y  = (if y >= 50 then 1900 else 2000) + y in
       let dt = ((y, m, d), ((hh, mm, ss), tz)) in
       match Ptime.of_date_time dt with
         Some t -> t | _ -> parse_error "UTCTime: out of range: %s" s

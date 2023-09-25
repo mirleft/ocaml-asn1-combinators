@@ -205,7 +205,7 @@ let time ?(frac_s = false) () =
         t
   and g t =
     let (y, _, _) = Ptime.to_date t in
-    if y < 2050 then
+    if y >= 1950 && y < 2050 then
       `C1 t
     else
       `C2 (if frac_s then t else Ptime.truncate ~frac_s:0 t)

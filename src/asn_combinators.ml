@@ -194,3 +194,20 @@ let choice6 a b c d e f =
                 | `C4 d -> R (L (L d)) | `C5 e -> R (L (R e))
                 | `C6 f -> R (R f))
       (choice (choice (choice a b) c) (choice (choice d e) f))
+
+let time ?(frac_s = false) () =
+  let f = function
+    | `C1 t -> t
+    | `C2 t ->
+      if not frac_s && not Ptime.Span.(equal zero (Ptime.frac_s t)) then
+        parse_error "generalized time has fractional seconds"
+      else
+        t
+  and g t =
+    let (y, _, _) = Ptime.to_date t in
+    if y < 2050 then
+      `C1 t
+    else
+      `C2 (if frac_s then t else Ptime.truncate ~frac_s:0 t)
+  in
+  map f g (choice2 utc_time generalized_time)

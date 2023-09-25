@@ -305,6 +305,14 @@ module S : sig
 
       Representable years are 1950–2049. *)
 
+  val time : ?frac_s:bool -> unit -> Ptime.t t
+  (** [time ~frac_s ()] is a ASN.1 [choice2 generalized_time utc_time], where
+      [utc_time] is used for years between 1950 and 2049. Otherwise
+      [generalized_time] is used. If [frac_s] is provided and [false] (the
+      default), fractional seconds will lead to errors when decoding, and
+      timestamps are truncated when encoding.
+  *)
+
   (** {2 String primitives}
 
       Various ASN.1 stringy types.

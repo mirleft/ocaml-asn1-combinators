@@ -303,7 +303,7 @@ module S : sig
   val utc_time : Ptime.t t
   (** [utc_time] is ASN.1 [UTCTime].
 
-      Representable years are 1951–2050. *)
+      Representable years are 1950–2049. *)
 
   (** {2 String primitives}
 

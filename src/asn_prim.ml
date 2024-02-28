@@ -362,7 +362,11 @@ module Time = struct
       | (dd, dps) -> Random.(int (dd + 1), int64 dps) in
     Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> Option.get
 
-  let random ?(frac=false) () =
-    Ptime.truncate ~frac_s:(if frac then 3 else 0) @@
-      r_date ~start:(date 1970 1 1) ~fin:(date 2050 12 31)
+  let utc_random () =
+    Ptime.truncate ~frac_s:0 @@
+      r_date ~start:(date 1950 1 1) ~fin:(date 2049 12 31)
+
+  let gen_random () =
+    Ptime.truncate ~frac_s:3 @@
+      r_date ~start:(date 0000 1 1) ~fin:(date 9999 12 31)
 end

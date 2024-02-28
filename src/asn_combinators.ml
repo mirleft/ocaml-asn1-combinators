@@ -58,16 +58,92 @@ and bmp_string       = string 0x1e
 
 let (utc_time, generalized_time) =
   let open Asn_prim.Time in
-  let time ~frac tag (f, g) =
-    map ~random:(random ~frac) f g @@
+  let time ~random tag (f, g) =
+    map ~random f g @@
       implicit ~cls:`Universal tag character_string in
-  time ~frac:false 0x17 (utc_time_of_string, of_utc_time),
-  time ~frac:true  0x18 (gen_time_of_string, of_gen_time)
+  time ~random:utc_random 0x17 (utc_time_of_string, of_utc_time),
+  time ~random:gen_random 0x18 (gen_time_of_string, of_gen_time)
 
 let int =
-  let f n = try Z.to_int n with Z.Overflow ->
-    parse_error "INTEGER: int overflow: %a" Z.pp_print n in
-  map f Z.of_int integer
+  let f cs =
+    let b = Cstruct.to_bytes cs in
+    match Bytes.length b with
+    | 0 -> 0
+    | 1 -> Bytes.get_int8 b 0
+    | 2 -> Bytes.get_int16_be b 0
+    | 3 -> Bytes.get_int16_be b 0 lsl 8 + Bytes.get_uint8 b 2
+    | 4 ->
+      let v = Bytes.get_int32_be b 0 in
+      if Sys.word_size = 32 && (v > Int32.of_int max_int || v < Int32.of_int min_int) then
+        parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+      else
+        Int32.to_int v
+    | 5 ->
+      if Sys.word_size = 32 then
+        parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+      else
+        let v = Int32.to_int (Bytes.get_int32_be b 0) in
+        v lsl 8 + Bytes.get_uint8 b 4
+    | 6 ->
+      if Sys.word_size = 32 then
+        parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+      else
+        let v = Int32.to_int (Bytes.get_int32_be b 0) in
+        v lsl 16 + Bytes.get_uint16_be b 4
+    | 7 ->
+      if Sys.word_size = 32 then
+        parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+      else
+        let v = Int32.to_int (Bytes.get_int32_be b 0) in
+        v lsl 24 + (Bytes.get_uint16_be b 4) lsl 8 + Bytes.get_uint8 b 6
+    | 8 ->
+      let v = Bytes.get_int64_be b 0 in
+      if Sys.word_size = 32 || (v > Int64.of_int max_int || v < Int64.of_int min_int) then
+        parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+      else
+        Int64.to_int v
+    | _ -> parse_error "INTEGER: int overflow: %a" Cstruct.hexdump_pp cs
+  and g i =
+    let i64 = Int64.of_int i in
+    if i >= -0x80 && i <= 0x7F then
+      let b = Bytes.create 1 in
+      Bytes.set_int8 b 0 i;
+      Cstruct.of_bytes b
+    else if i >= -0x8000 && i <= 0x7FFF then
+      let b = Bytes.create 2 in
+      Bytes.set_int16_be b 0 i;
+      Cstruct.of_bytes b
+    else if i >= -0x80_0000 && i <= 0x7F_FFFF then
+      let b = Bytes.create 3 in
+      Bytes.set_int16_be b 0 (i lsr 8);
+      Bytes.set_uint8 b 2 (i land 0xff);
+      Cstruct.of_bytes b
+    else if i64 >= -0x8000_0000L && i64 <= 0x7FFF_FFFFL then
+      let b = Bytes.create 4 in
+      Bytes.set_int32_be b 0 (Int32.of_int i);
+      Cstruct.of_bytes b
+    else if i64 >= -0x80_0000_0000L && i64 <= 0x7F_FFFF_FFFFL then
+      let b = Bytes.create 5 in
+      Bytes.set_int32_be b 0 (Int32.of_int (i lsr 8));
+      Bytes.set_uint8 b 4 (i land 0xFF);
+      Cstruct.of_bytes b
+    else if i64 >= -0x8000_0000_0000L && i64 <= 0x7FFF_FFFF_FFFFL then
+      let b = Bytes.create 6 in
+      Bytes.set_int32_be b 0 (Int32.of_int (i lsr 16));
+      Bytes.set_uint16_be b 4 (i land 0xFFFF);
+      Cstruct.of_bytes b
+    else if i64 >= -0x80_0000_0000_0000L && i64 <= 0x7F_FFFF_FFFF_FFFFL then
+      let b = Bytes.create 7 in
+      Bytes.set_int32_be b 0 (Int32.of_int (i lsr 24));
+      Bytes.set_uint16_be b 4 ((i land 0xFFFF00) lsr 8);
+      Bytes.set_uint8 b 6 (i land 0xFF);
+      Cstruct.of_bytes b
+    else
+      let b = Bytes.create 8 in
+      Bytes.set_int64_be b 0 i64;
+      Cstruct.of_bytes b
+  in
+  map f g integer
 
 let enumerated f g = map f g @@ implicit ~cls:`Universal 0x0a int
 

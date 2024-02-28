@@ -272,8 +272,11 @@ module S : sig
   val bool : bool t
   (** [bool] is ASN.1 [BOOLEAN]. *)
 
-  val integer : Z.t t
-  (** [integer] is ASN.1 [INTEGER]. *)
+  val integer : Cstruct.t t
+  (** [integer] is ASN.1 [INTEGER]. The representation is a buffer. Be aware
+      these are two's complement signed integers, in order to encode a positive
+      number where the first bit is set (i.e. 128 = [0x80]), you have to prepend
+      a 0 byte: [0x00 0x80]. Otherwise it ([0x80]) will be decoded as -128. *)
 
   val bit_string : bool array t
   (** [bit_string] is ASN.1 [BIT STRING]. *)

@@ -14,9 +14,8 @@ depends: [
   "ocaml" {>="4.08.0"}
   "dune" {>= "1.2.0"}
   "cstruct" {>= "6.0.0"}
-  "zarith"
-  "ptime"
-  "alcotest" {with-test}
+  "ptime" {>= "0.8.6"}
+  "alcotest" {with-test & >= "0.8.1"}
 ]
 description: """
 asn1-combinators is a library for expressing ASN.1 in OCaml. Skip the notation

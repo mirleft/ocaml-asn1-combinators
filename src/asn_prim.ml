@@ -84,60 +84,49 @@ module Null : Prim with type t = unit = struct
   let random () = ()
 end
 
-module Integer : Prim with type t = Z.t = struct
+module Integer : Prim_s with type t = Cstruct.t = struct
 
-  type t = Z.t
-
-  let of_int8 x = Z.of_int (if x >= 0x80 then x - 0x100 else x) [@@inline]
-  let of_int16 x = Z.of_int (if x >= 0x8000 then x - 0x10000 else x) [@@inline]
+  type t = Cstruct.t
 
   let of_cstruct cs =
-    let open Cstruct in
-
-    let rec go acc i = function
-      n when n >= 8 ->
-        let w = Z.of_int64 (BE.get_uint64 cs i) in
-        go Z.((acc lsl 64) lor (extract w 0 64)) (i + 8) (n - 8)
-    | n when n >= 4 ->
-        let w = Z.of_int32 (BE.get_uint32 cs i) in
-        go Z.((acc lsl 32) lor (extract w 0 32)) (i + 4) (n - 4)
-    | n when n >= 2 ->
-        go Z.((acc lsl 16) lor ~$(BE.get_uint16 cs i)) (i + 2) (n - 2)
-    | 1 -> Z.((acc lsl 8) lor ~$(get_uint8 cs i))
-    | _ -> acc in
     match cs.Cstruct.len with
-      0 -> parse_error "INTEGER: length 0"
-    | 1 -> of_int8 (get_uint8 cs 0)
-    | n ->
-        let w0 = BE.get_uint16 cs 0 in
+    | 0 -> parse_error "INTEGER: length 0"
+    | 1 -> cs
+    | _ ->
+        let w0 = Cstruct.BE.get_uint16 cs 0 in
         match w0 land 0xff80 with
-          0x0000 | 0xff80 -> parse_error "INTEGER: redundant form"
-        | _ -> go (of_int16 w0) 2 (n - 2)
+        | 0x0000 | 0xff80 -> parse_error "INTEGER: redundant form"
+        | _ -> cs
 
-  let last8 z = Z.(extract z 0 8 |> to_int)
+  let to_writer = Writer.of_cstruct
 
-  let to_writer n =
-    let sz  = Z.size n * 8 + 1 in
-    let sz1 = sz - 1 in
-    let cs  = Cstruct.create sz in
+  (* we produce integers that fit into an int *)
+  let random ?size () =
+    let rec one () =
+      let cs =
+        random_string ?size ~chars:(0, 256) () |> Cstruct.of_string
+      in
+      match Cstruct.length cs with
+      | 0 -> one ()
+      | 1 -> cs
+      | x ->
+        if x <= Sys.word_size / 8 then
+          match Cstruct.BE.get_uint16 cs 0 land 0xff80 with
+          | 0x0000 | 0xff80 -> one ()
+          | _ ->
+            (* OCaml integer are only 31 / 63 bit *)
+            if Cstruct.get_uint8 cs 0 > 0x3f && Sys.word_size / 8 = x then
+              one ()
+            else
+              cs
+        else
+          one ()
+    in
+    one ()
 
-    let rec write i n =
-      if n = Z.(~$(-1)) || n = Z.zero then i else
-        ( Cstruct.set_uint8 cs i (last8 n) ;
-          write (pred i) Z.(n asr 8) ) in
+  let concat = Cstruct.concat
 
-    let (bad_b0, padding) =
-      if n >= Z.zero then ((<=) 0x80, 0x00)
-      else ((>) 0x80, 0xff) in
-    let off =
-      let i = write sz1 n in
-      if i = sz1 || bad_b0 (Cstruct.get_uint8 cs (succ i)) then
-        ( Cstruct.set_uint8 cs i padding ; i )
-      else succ i in
-    Writer.of_cstruct Cstruct.(sub cs off (sz - off))
-
-
-  let random () = Z.of_int (Random.int max_r_int - max_r_int / 2)
+  let length = Cstruct.length
 
 end
 
@@ -354,17 +343,19 @@ module Time = struct
           Some t -> Ptime.(Span.v (0, ps) |> add_span t) | _ -> None
       with Some t -> t | _ -> parse_error "GeneralizedTime: out of range: %s" s
 
-  let get = function Some x -> x | _ -> assert false
-
-  let date y m d = Ptime.of_date (y, m, d) |> get
+  let date y m d = Ptime.of_date (y, m, d) |> Option.get
 
   let r_date ~start ~fin =
     let dd, dps = match Ptime.(diff fin start |> Span.to_d_ps) with
       | (dd, 0L)  -> Random.(int dd, int64 86_400_000_000_000_000L)
       | (dd, dps) -> Random.(int (dd + 1), int64 dps) in
-    Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> get
+    Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> Option.get
 
-  let random ?(frac=false) () =
-    Ptime.truncate ~frac_s:(if frac then 3 else 0) @@
-      r_date ~start:(date 1970 1 1) ~fin:(date 2050 12 31)
+  let utc_random () =
+    Ptime.truncate ~frac_s:0 @@
+      r_date ~start:(date 1950 1 1) ~fin:(date 2049 12 31)
+
+  let gen_random () =
+    Ptime.truncate ~frac_s:3 @@
+      r_date ~start:(date 0000 1 1) ~fin:(date 9999 12 31)
 end

@@ -127,7 +127,7 @@ and _ sequence =
 and _ prim =
 
   | Bool       : bool      prim
-  | Int        : Z.t       prim
+  | Int        : Cstruct.t prim
   | Bits       : bits      prim
   | Octets     : Cstruct.t prim
   | Null       : unit      prim

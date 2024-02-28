@@ -354,15 +354,13 @@ module Time = struct
           Some t -> Ptime.(Span.v (0, ps) |> add_span t) | _ -> None
       with Some t -> t | _ -> parse_error "GeneralizedTime: out of range: %s" s
 
-  let get = function Some x -> x | _ -> assert false
-
-  let date y m d = Ptime.of_date (y, m, d) |> get
+  let date y m d = Ptime.of_date (y, m, d) |> Option.get
 
   let r_date ~start ~fin =
     let dd, dps = match Ptime.(diff fin start |> Span.to_d_ps) with
       | (dd, 0L)  -> Random.(int dd, int64 86_400_000_000_000_000L)
       | (dd, dps) -> Random.(int (dd + 1), int64 dps) in
-    Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> get
+    Ptime.(Span.(v Random.(int (dd + 1), int64 dps)) |> add_span start) |> Option.get
 
   let random ?(frac=false) () =
     Ptime.truncate ~frac_s:(if frac then 3 else 0) @@

@@ -32,8 +32,6 @@ let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
   | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex_cs b
 
-let get = function Some x -> x | _ -> assert false
-
 type 'a cmp = 'a -> 'a -> bool
 
 type case_eq =
@@ -88,8 +86,8 @@ let inverts1 ?(iters = 1000) name enc cases =
   (name, tests)
 
 let time ?(frac=0) dtz =
-  Ptime.(add_span (of_date_time dtz |> get)
-    (Span.v (0, Int64.(mul (of_int frac) 1_000_000_000L))) |> get)
+  Ptime.(add_span (of_date_time dtz |> Option.get)
+    (Span.v (0, Int64.(mul (of_int frac) 1_000_000_000L))) |> Option.get)
 
 let v32 = Z.of_int32
 let (<+) z1 i64 = Z.((z1 lsl 64) lor (extract (of_int64 i64) 0 64))

@@ -6,7 +6,7 @@ open Asn.S
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
-  serial     : Z.t ;
+  serial     : Cstruct.t ;
   signature  : OID.t ;
   issuer     : (OID.t * string) list list ;
   validity   : Ptime.t * Ptime.t ;

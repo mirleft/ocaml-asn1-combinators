@@ -89,9 +89,6 @@ let time ?(frac=0) dtz =
   Ptime.(add_span (of_date_time dtz |> Option.get)
     (Span.v (0, Int64.(mul (of_int frac) 1_000_000_000L))) |> Option.get)
 
-let v32 = Z.of_int32
-let (<+) z1 i64 = Z.((z1 lsl 64) lor (extract (of_int64 i64) 0 64))
-
 let cases = [
 
   case_eq "bool" Asn.S.bool [
@@ -99,35 +96,53 @@ let cases = [
     true , "0101ff"
   ];
 
-  case_eq "integer" Asn.S.integer [
+  case_eq "integer" ~pp:Cstruct.hexdump_pp ~cmp:Cstruct.equal Asn.S.integer [
 
-    v32 0x000000_00l, "0201 00";
-    v32 0x000000_7fl, "0201 7f";
-    v32 0xffffff_80l, "0201 80";
-    v32 0xffffff_ffl, "0201 ff";
+    Cstruct.of_hex "00", "0201 00";
+    Cstruct.of_hex "7f", "0201 7f";
+    Cstruct.of_hex "80", "0201 80";
+    Cstruct.of_hex "ff", "0201 ff";
 
-    v32 0x0000_0080l, "0202 0080";
-    v32 0x0000_7fffl, "0202 7fff";
-    v32 0xffff_8000l, "0202 8000";
-    v32 0xffff_ff7fl, "0202 ff7f";
+    Cstruct.of_hex "0080", "0202 0080";
+    Cstruct.of_hex "7fff", "0202 7fff";
+    Cstruct.of_hex "8000", "0202 8000";
+    Cstruct.of_hex "ff7f", "0202 ff7f";
 
-    v32 0x00_008000l, "0203 008000";
-    v32 0x00_00ffffl, "0203 00ffff";
-    v32 0xff_800000l, "0203 800000";
-    v32 0xff_ff7fffl, "0203 ff7fff";
+    Cstruct.of_hex "008000", "0203 008000";
+    Cstruct.of_hex "00ffff", "0203 00ffff";
+    Cstruct.of_hex "800000", "0203 800000";
+    Cstruct.of_hex "ff7fff", "0203 ff7fff";
 
-    v32 0x00800000l, "0204 00800000";
-    v32 0x7fffffffl, "0204 7fffffff";
-    v32 0x80000000l, "0204 80000000";
-    v32 0xff7fffffl, "0204 ff7fffff";
+    Cstruct.of_hex "00800000", "0204 00800000";
+    Cstruct.of_hex "7fffffff", "0204 7fffffff";
+    Cstruct.of_hex "80000000", "0204 80000000";
+    Cstruct.of_hex "ff7fffff", "0204 ff7fffff";
 
-    v32 0x00800000l <+ 0x00000000_00000000L, "020c 00800000 00000000 00000000";
-    v32 0x00ffffffl <+ 0xffffffff_ffffffffL, "020c 00ffffff ffffffff ffffffff";
-    v32 0x00ffffffl <+ 0x7fffffff_ffffffffL, "020c 00ffffff 7fffffff ffffffff";
-    v32 0x00ffffffl <+ 0xffffffff_7fffffffL, "020c 00ffffff ffffffff 7fffffff";
-    v32 0x80ffffffl <+ 0xffffffff_ffffffffL, "020c 80ffffff ffffffff ffffffff";
-    v32 0xff7fffffl <+ 0xffffffff_ffffffffL, "020c ff7fffff ffffffff ffffffff";
+    Cstruct.of_hex "00800000 00000000 00000000", "020c 00800000 00000000 00000000";
+    Cstruct.of_hex "00ffffff ffffffff ffffffff", "020c 00ffffff ffffffff ffffffff";
+    Cstruct.of_hex "00ffffff 7fffffff ffffffff", "020c 00ffffff 7fffffff ffffffff";
+    Cstruct.of_hex "00ffffff ffffffff 7fffffff", "020c 00ffffff ffffffff 7fffffff";
+    Cstruct.of_hex "80ffffff ffffffff ffffffff", "020c 80ffffff ffffffff ffffffff";
+    Cstruct.of_hex "ff7fffff ffffffff ffffffff", "020c ff7fffff ffffffff ffffffff";
   ];
+
+  case_eq "int" ~pp:Format.pp_print_int ~cmp:Int.equal Asn.S.int ([
+      0, "020100";
+      127, "02017F";
+      128, "02020080";
+      256, "02020100";
+      -128, "020180";
+      -129, "0202FF7F";
+      1073741823 (* 0x3FFFFFFF *), "02043FFFFFFF";
+      -1073741824, "0204C0000000";
+    ] @ (if Sys.word_size = 64 then
+           [ Int64.to_int 4294967295L, "020500FFFFFFFF";
+             Int64.to_int 4611686018427387903L, "02083FFFFFFFFFFFFFFF";
+             Int64.to_int (-4611686018427387904L), "0208C000000000000000";
+           ]
+         else
+           [])
+    );
 
   case_eq "null" Asn.S.null [
     (), "0500";
@@ -378,7 +393,16 @@ let anticases = [
   case "32 bit length overflow"
   Asn.S.(sequence2 (required integer) (required integer))
   [ "30850100000006020180020180" ];
-]
+
+] @ (if Sys.word_size = 32 then
+       [ case "int overflow" Asn.S.int
+           [ "02047FFFFFFF" ; "020440000000" ;
+             "02050080000000" ; "0204BFFFFFFF" ] ]
+     else
+       [ case "int overflow" Asn.S.int
+           [ "02087FFFFFFFFFFFFFFF" ; "02084000000000000000" ;
+             "0209008000000000000000" ; "0208BFFFFFFFFFFFFFFF" ] ])
+
 
 let der_anticases = [
   case "constructed string 1" Asn.S.octet_string

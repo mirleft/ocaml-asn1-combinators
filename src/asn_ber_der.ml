@@ -82,24 +82,26 @@ module R = struct
         | Some x -> x
         | None -> error cs "length overflow"
 
-    let parse cfg cs =
-
-      let t0 = string_get_uint8 cs 0 in
-      let (tag_v, off_len) =
+    let parse cfg cs off =
+      let t0 = string_get_uint8 cs off in
+      let tag_v, off_len =
         match t0 land 0x1f with
         | 0x1f ->
-            let (n, i) = big_tag ~off:1 cs in
-            ck_redundant cs cfg n 0x1f;
-            (n, i + 1)
-        | x -> (x, 1)
+          let (n, i) = big_tag ~off:(off + 1) cs in
+          ck_redundant cs cfg n 0x1f;
+          n, i + 1
+        | x -> x, 1
       in
-      let l0    = string_get_uint8 cs off_len in
+      let l0 = string_get_uint8 cs (off + off_len) in
       let lbody = l0 land 0x7f in
-      let (len, off_end) =
-        if l0 <= 0x80 then (lbody, off_len + 1) else
-          let n = big_len ~off:(off_len + 1) cfg cs lbody in
+      let len, off_end =
+        if l0 <= 0x80 then
+          lbody, off_len + 1
+        else
+          let n = big_len ~off:(off + off_len + 1) cfg cs lbody in
           ck_redundant cs cfg n 0x7f;
-          (n, off_len + 1 + lbody) in
+          n, off_len + 1 + lbody
+      in
       let tag = match t0 land 0xc0 with
         | 0x00 -> Tag.Universal        tag_v
         | 0x40 -> Tag.Application      tag_v
@@ -111,45 +113,48 @@ module R = struct
            - (a) primitive + definitive length
            - (b) constructed + definitive length
            - (c) constructed + indefinite length *)
-        match (t0 land 0x20, l0) with
-        | (0, 0x80) -> error cs "primitive and indefinite length"
-        | (0, _   ) -> Primitive len
-        | (_, 0x80) -> Constructed_indefinite
-        | _         -> Constructed len in
-      (tag, off_end, coding)
+        match t0 land 0x20, l0 with
+        | 0, 0x80 -> error cs "primitive and indefinite length"
+        | 0, _    -> Primitive len
+        | _, 0x80 -> Constructed_indefinite
+        | _       -> Constructed len
+      in
+      tag, off + off_end, coding
   end
 
   module Gen = struct
-    let eof1 cs = String.length cs = 0
-    and eof2 cs = string_get_uint16_be cs 0 = 0
+    let eof1 off cs = String.length cs - off = 0
+    and eof2 off cs = string_get_uint16_be cs off = 0
 
     let split_off cs off n =
       let k = off + n in
-      String.sub cs off n, String.sub cs k (String.length cs - k)
+      String.sub cs off n, k
 
-    let rec children cfg eof acc cs =
-      if eof cs then (List.rev acc, cs) else
-        let (g, cs) = node cfg cs in
-        children cfg eof (g::acc) cs
+    let rec children cfg eof acc cs off =
+      if eof off cs then
+        List.rev acc, cs, off
+      else
+        let g, cs, off' = node cfg cs off in
+        children cfg eof (g::acc) cs off'
 
-    and node cfg cs =
-      let (tag, off, coding) = Header.parse cfg cs in
+    and node cfg cs off =
+      let (tag, off, coding) = Header.parse cfg cs off in
       match coding with
       | Primitive n ->
-          let (hd, tl) = split_off cs off n in
-          (G.Prim (tag, hd), tl)
+          let hd, off = split_off cs off n in
+          G.Prim (tag, hd), cs, off
       | Constructed n ->
-          let (hd, tl) = split_off cs off n in
-          let (gs, _ ) = children cfg eof1 [] hd in
-          (G.Cons (tag, gs), tl)
+          let hd, off = split_off cs off n in
+          let gs, _, _ = children cfg eof1 [] hd 0 in
+          G.Cons (tag, gs), cs, off
       | Constructed_indefinite when cfg.strict ->
           parse_error "Constructed indefinite form"
       | Constructed_indefinite ->
-          let (gs, tl) = children cfg eof2 [] (String.sub cs off (String.length cs - off)) in
-          (G.Cons (tag, gs), String.sub tl 2 (String.length tl - 2))
+          let gs, cs, off = children cfg eof2 [] cs off in
+          G.Cons (tag, gs), cs, off + 2
 
     let parse cfg cs =
-      try node cfg cs with Invalid_argument msg ->
+      try node cfg cs 0 with Invalid_argument msg ->
         parse_error "Unexpected EOF (msg %s): %a" msg pp_octets cs
   end
 
@@ -321,7 +326,16 @@ module R = struct
   let (compile_ber, compile_der) =
     let compile cfg asn =
       let p = c_asn asn ~opt:(Cache.create (), cfg) in
-      fun cs -> let (g, cs') = Gen.parse cfg cs in (p g, cs') in
+      fun cs ->
+        let g, cs', off = Gen.parse cfg cs in
+        let remaining =
+          if String.length cs' - off = 0 then
+            ""
+          else
+            String.sub cs' off (String.length cs' - off)
+        in
+        p g, remaining
+    in
     (fun asn -> compile { strict = false } asn),
     (fun asn -> compile { strict = true  } asn)
 

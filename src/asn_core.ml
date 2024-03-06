@@ -3,6 +3,25 @@
 
 module OID = Asn_oid
 
+(* Once OCaml 4.13 is lower bound, revise *)
+let string_get_uint8 s idx =
+  Bytes.get_uint8 (Bytes.unsafe_of_string s) idx
+
+let string_get_int8 s idx =
+  Bytes.get_int8 (Bytes.unsafe_of_string s) idx
+
+let string_get_uint16_be s idx =
+  Bytes.get_uint16_be (Bytes.unsafe_of_string s) idx
+
+let string_get_int16_be s idx =
+  Bytes.get_int16_be (Bytes.unsafe_of_string s) idx
+
+let string_get_int32_be s idx =
+  Bytes.get_int32_be (Bytes.unsafe_of_string s) idx
+
+let string_get_int64_be s idx =
+  Bytes.get_int64_be (Bytes.unsafe_of_string s) idx
+
 let id x      = x
 let const x _ = x
 let (&.) f g x = f (g x)
@@ -30,13 +49,13 @@ let pp_dump_list pp ppf xs =
   let sep ppf () = Format.pp_print_string ppf "," in
   pf ppf "[@[%a@]]" (pp_list ~sep pp) xs
 
-let pp_cs ppf cs =
-  let f ppf cs =
-    for i = 0 to cs.Cstruct.len - 1 do
+let pp_octets ppf buf =
+  let f ppf buf =
+    for i = 0 to String.length buf - 1 do
       if i mod 8 = 0 && i > 0 then pf ppf "@ ";
-      pf ppf "%02x" (Cstruct.get_uint8 cs i)
+      pf ppf "%02x" (string_get_uint8 buf i)
     done in
-  pf ppf "@[%a@]" f cs
+  pf ppf "@[%a@]" f buf
 
 module Tag = struct
 
@@ -80,7 +99,7 @@ module Generic = struct
 
   type t =
     | Cons of tag * t list
-    | Prim of tag * Cstruct.t
+    | Prim of tag * string
 
   let tag = function Cons (t, _) -> t | Prim (t, _) -> t
 
@@ -94,7 +113,7 @@ module Generic = struct
 end
 
 
-type bits = int * Cstruct.t
+type bits = int * string
 
 type 'a rand = unit -> 'a
 
@@ -127,9 +146,9 @@ and _ sequence =
 and _ prim =
 
   | Bool       : bool      prim
-  | Int        : Cstruct.t prim
+  | Int        : string    prim
   | Bits       : bits      prim
-  | Octets     : Cstruct.t prim
+  | Octets     : string    prim
   | Null       : unit      prim
   | OID        : OID.t     prim
   | CharString : string    prim

@@ -1,14 +1,11 @@
 (* Copyright (c) 2014-2019 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-let pp_hex_cs ppf =
-  let pp ppf cs =
-    for i = 0 to Cstruct.length cs - 1 do
-      Format.fprintf ppf "%02x@ " (Cstruct.get_uint8 cs i)
-    done in
-  Format.fprintf ppf "@[%a@]" pp
+(* Once OCaml 4.13 is lower bound, revise *)
+let string_get_uint8 s idx =
+  Bytes.get_uint8 (Bytes.unsafe_of_string s) idx
 
-let pp_hex_s ppf =
+let pp_hex ppf =
   let pp ppf = String.iter @@ fun c ->
     Format.fprintf ppf "%02x@ " (Char.code c) in
   Format.fprintf ppf "@[%a@]" pp
@@ -20,17 +17,15 @@ let x s =
     | exception End_of_file -> Buffer.contents buf in
   go (Buffer.create 17) (Scanf.Scanning.from_string s)
 
-let x_cs s = Cstruct.of_string (x s)
-
-let cstruct = Alcotest.testable pp_hex_cs Cstruct.equal
+let octets = Alcotest.testable pp_hex String.equal
 let err = Alcotest.testable Asn.pp_error (fun (`Parse _) (`Parse _) -> true)
-let dec t = Alcotest.(result (pair t cstruct) err)
+let dec t = Alcotest.(result (pair t octets) err)
 let testable ?(pp = fun ppf _ -> Fmt.pf ppf "*shrug*") ?(cmp = (=)) () =
   Alcotest.testable pp cmp
 
 let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
-  | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex_cs b
+  | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex b
 
 type 'a cmp = 'a -> 'a -> bool
 
@@ -48,8 +43,8 @@ let accepts_eq name enc cases =
   let tests = cases |> List.map @@ fun (CEQ (name, alc, asn, xs)) ->
     let codec = Asn.codec enc asn
     and t = dec alc in
-    let f () = xs |> List.iter @@ fun (x, s) ->
-      Alcotest.check t name (Ok (x, Cstruct.empty)) (Asn.decode codec (x_cs s)) in
+    let f () = xs |> List.iter @@ fun (exp, s) ->
+      Alcotest.check t name (Ok (exp, "")) (Asn.decode codec (x s)) in
     (name, `Quick, f) in
   (name, tests)
 
@@ -58,16 +53,16 @@ let rejects name enc cases =
     let codec = Asn.codec enc asn
     and t = dec (testable ()) in
     let f () = ss |> List.iter @@ fun s ->
-      Alcotest.check t name (Error (`Parse "...")) (Asn.decode codec (x_cs s)) in
+      Alcotest.check t name (Error (`Parse "...")) (Asn.decode codec (x s)) in
     (name, `Quick, f) in
   (name, tests)
 
 let accepts name enc cases =
   let tests = cases |> List.map @@ fun (C (name, asn, ss)) ->
     let f () = ss |> List.iter @@ fun s ->
-      match Asn.(decode (codec enc asn)) (x_cs s) with
+      match Asn.(decode (codec enc asn)) (x s) with
         Ok (_, t) ->
-          Alcotest.check cstruct "no remainder" Cstruct.empty t
+          Alcotest.check octets "no remainder" "" t
       | Error e ->
           Alcotest.failf "decode failed with: %a" pp_e e in
     (name, `Quick, f) in
@@ -79,7 +74,7 @@ let inverts1 ?(iters = 1000) name enc cases =
     let f () =
       for _ = 1 to iters do
         let x = Asn.random asn in
-        Alcotest.check t "invert" (Ok (x, Cstruct.empty))
+        Alcotest.check t "invert" (Ok (x, ""))
           (Asn.decode codec (Asn.encode codec x))
       done in
     (name, `Quick, f) in
@@ -96,34 +91,34 @@ let cases = [
     true , "0101ff"
   ];
 
-  case_eq "integer" ~pp:Cstruct.hexdump_pp ~cmp:Cstruct.equal Asn.S.integer [
+  case_eq "integer" ~pp:pp_hex ~cmp:String.equal Asn.S.integer [
 
-    Cstruct.of_hex "00", "0201 00";
-    Cstruct.of_hex "7f", "0201 7f";
-    Cstruct.of_hex "80", "0201 80";
-    Cstruct.of_hex "ff", "0201 ff";
+    "\x00", "0201 00";
+    "\x7f", "0201 7f";
+    "\x80", "0201 80";
+    "\xff", "0201 ff";
 
-    Cstruct.of_hex "0080", "0202 0080";
-    Cstruct.of_hex "7fff", "0202 7fff";
-    Cstruct.of_hex "8000", "0202 8000";
-    Cstruct.of_hex "ff7f", "0202 ff7f";
+    "\x00\x80", "0202 0080";
+    "\x7f\xff", "0202 7fff";
+    "\x80\x00", "0202 8000";
+    "\xff\x7f", "0202 ff7f";
 
-    Cstruct.of_hex "008000", "0203 008000";
-    Cstruct.of_hex "00ffff", "0203 00ffff";
-    Cstruct.of_hex "800000", "0203 800000";
-    Cstruct.of_hex "ff7fff", "0203 ff7fff";
+    "\x00\x80\x00", "0203 008000";
+    "\x00\xff\xff", "0203 00ffff";
+    "\x80\x00\x00", "0203 800000";
+    "\xff\x7f\xff", "0203 ff7fff";
 
-    Cstruct.of_hex "00800000", "0204 00800000";
-    Cstruct.of_hex "7fffffff", "0204 7fffffff";
-    Cstruct.of_hex "80000000", "0204 80000000";
-    Cstruct.of_hex "ff7fffff", "0204 ff7fffff";
+    "\x00\x80\x00\x00", "0204 00800000";
+    "\x7f\xff\xff\xff", "0204 7fffffff";
+    "\x80\x00\x00\x00", "0204 80000000";
+    "\xff\x7f\xff\xff", "0204 ff7fffff";
 
-    Cstruct.of_hex "00800000 00000000 00000000", "020c 00800000 00000000 00000000";
-    Cstruct.of_hex "00ffffff ffffffff ffffffff", "020c 00ffffff ffffffff ffffffff";
-    Cstruct.of_hex "00ffffff 7fffffff ffffffff", "020c 00ffffff 7fffffff ffffffff";
-    Cstruct.of_hex "00ffffff ffffffff 7fffffff", "020c 00ffffff ffffffff 7fffffff";
-    Cstruct.of_hex "80ffffff ffffffff ffffffff", "020c 80ffffff ffffffff ffffffff";
-    Cstruct.of_hex "ff7fffff ffffffff ffffffff", "020c ff7fffff ffffffff ffffffff";
+    "\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "020c 00800000 00000000 00000000";
+    "\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c 00ffffff ffffffff ffffffff";
+    "\x00\xff\xff\xff\x7f\xff\xff\xff\xff\xff\xff\xff", "020c 00ffffff 7fffffff ffffffff";
+    "\x00\xff\xff\xff\xff\xff\xff\xff\x7f\xff\xff\xff", "020c 00ffffff ffffffff 7fffffff";
+    "\x80\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c 80ffffff ffffffff ffffffff";
+    "\xff\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c ff7fffff ffffffff ffffffff";
   ];
 
   case_eq "int" ~pp:Format.pp_print_int ~cmp:Int.equal Asn.S.int ([
@@ -313,9 +308,9 @@ let cases = [
     ] );
 
   case_eq "octets" Asn.S.octet_string [
-    x_cs "0123456789abcdef", "0408 0123456789abcdef" ;
-    x_cs "0123456789abcdef", "048108 0123456789abcdef";
-    x_cs "0123456789abcdef", "240c 040401234567 040489abcdef" ];
+    x "0123456789abcdef", "0408 0123456789abcdef" ;
+    x "0123456789abcdef", "048108 0123456789abcdef";
+    x "0123456789abcdef", "240c 040401234567 040489abcdef" ];
 
   case_eq "utc time" ~cmp:Ptime.equal ~pp:Ptime.pp Asn.S.utc_time [
 
@@ -416,7 +411,7 @@ let der_anticases = [
 
   case "redundant length" Asn.S.octet_string
   [ "048200ff" ^
-    Format.asprintf "%a" pp_hex_s (String.init 0xff (fun _ -> '\xaa')) ];
+    Format.asprintf "%a" pp_hex (String.init 0xff (fun _ -> '\xaa')) ];
 ]
 
 let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples

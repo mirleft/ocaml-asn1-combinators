@@ -40,19 +40,17 @@ module R = struct
 
   module Header = struct
 
-    open Cstruct
-
     let error cs fmt =
-      parse_error ("Header: at %a: " ^^ fmt) pp_cs cs
+      parse_error ("Header: at %a: " ^^ fmt) pp_octets cs
 
     let ck_redundant cs cfg (n : int) limit =
       if cfg.strict && n < limit then error cs "redundant form"
 
-    let big_tag cs =
+    let big_tag ~off cs =
       let rec go acc = function
         | 8 -> error cs "big tag: too long"
         | i ->
-            let b = get_uint8 cs i in
+            let b = string_get_uint8 cs (off + i) in
             let x = Int64.of_int (b land 0x7f) in
             match (Int64.(acc lsl 7 + x), b land 0x80) with
             | (0L,  _) -> error cs "big tag: leading 0"
@@ -63,38 +61,43 @@ module R = struct
             | (acc, _) -> go acc (succ i) in
       go 0L 0
 
-    let big_len cfg cs = function
-      0 -> error cs "empty length"
-    | n ->
+    let big_len ~off cfg cs = function
+      | 0 -> error cs "empty length"
+      | n ->
         let rec f cs i = function
-          0 -> 0L
-        | n -> match get_uint8 cs i with
-            0 when cfg.strict -> error cs "redundant length"
-          | 0 -> f cs (i + 1) (n - 1)
-          | _ when n > 8 -> error cs "length overflow"
-          | x -> g (Int64.of_int x) cs (i + 1) (n - 1)
+          | 0 -> 0L
+          | n -> match string_get_uint8 cs (off + i) with
+            | 0 when cfg.strict -> error cs "redundant length"
+            | 0 -> f cs (i + 1) (n - 1)
+            | _ when n > 8 -> error cs "length overflow"
+            | x -> g (Int64.of_int x) cs (i + 1) (n - 1)
         and g acc cs i = function
-          0 -> acc
-        | n -> let acc = Int64.(acc lsl 8 + of_int (get_uint8 cs i)) in
-               g acc cs (i + 1) (n - 1) in
+          | 0 -> acc
+          | n ->
+            let v = string_get_uint8 cs (off + i) in
+            let acc = Int64.(acc lsl 8 + of_int v) in
+            g acc cs (i + 1) (n - 1)
+        in
         match f cs 0 n |> Int64.to_nat_checked with
-          Some x -> x | _ -> error cs "length overflow"
+        | Some x -> x
+        | None -> error cs "length overflow"
 
     let parse cfg cs =
 
-      let t0 = get_uint8 cs 0 in
+      let t0 = string_get_uint8 cs 0 in
       let (tag_v, off_len) =
         match t0 land 0x1f with
         | 0x1f ->
-            let (n, i) = big_tag (shift cs 1) in
+            let (n, i) = big_tag ~off:1 cs in
             ck_redundant cs cfg n 0x1f;
             (n, i + 1)
-        | x -> (x, 1) in
-      let l0    = get_uint8 cs off_len in
+        | x -> (x, 1)
+      in
+      let l0    = string_get_uint8 cs off_len in
       let lbody = l0 land 0x7f in
       let (len, off_end) =
         if l0 <= 0x80 then (lbody, off_len + 1) else
-          let n = big_len cfg (shift cs (off_len + 1)) lbody in
+          let n = big_len ~off:(off_len + 1) cfg cs lbody in
           ck_redundant cs cfg n 0x7f;
           (n, off_len + 1 + lbody) in
       let tag = match t0 land 0xc0 with
@@ -117,13 +120,12 @@ module R = struct
   end
 
   module Gen = struct
-
-    let eof1 cs = cs.Cstruct.len = 0
-    and eof2 cs = Cstruct.LE.get_uint16 cs 0 = 0
+    let eof1 cs = String.length cs = 0
+    and eof2 cs = string_get_uint16_be cs 0 = 0
 
     let split_off cs off n =
       let k = off + n in
-      Cstruct.(sub cs off n, sub cs k (length cs - k))
+      String.sub cs off n, String.sub cs k (String.length cs - k)
 
     let rec children cfg eof acc cs =
       if eof cs then (List.rev acc, cs) else
@@ -143,12 +145,12 @@ module R = struct
       | Constructed_indefinite when cfg.strict ->
           parse_error "Constructed indefinite form"
       | Constructed_indefinite ->
-          let (gs, tl) = children cfg eof2 [] (Cstruct.shift cs off) in
-          (G.Cons (tag, gs), Cstruct.shift tl 2)
+          let (gs, tl) = children cfg eof2 [] (String.sub cs off (String.length cs - off)) in
+          (G.Cons (tag, gs), String.sub tl 2 (String.length tl - 2))
 
     let parse cfg cs =
-      try node cfg cs with Invalid_argument _ ->
-        parse_error "Unexpected EOF: %a" pp_cs cs
+      try node cfg cs with Invalid_argument msg ->
+        parse_error "Unexpected EOF (msg %s): %a" msg pp_octets cs
   end
 
 
@@ -174,19 +176,19 @@ module R = struct
 
   let string_like (type a) c t (module P : Prim.Prim_s with type t = a) =
     let rec p = function
-      | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_cstruct bs
+      | G.Prim (t1, bs) when Tag.equal t t1 -> P.of_octets bs
       | G.Cons (t1, gs) when Tag.equal t t1 && not c.strict ->
           P.concat (List.map p gs)
       | g -> err_type t g in
     p
 
   let c_prim : type a. config -> tag -> a prim -> G.t -> a = fun c tag -> function
-    | Bool       -> primitive tag Prim.Boolean.of_cstruct
-    | Int        -> primitive tag Prim.Integer.of_cstruct
+    | Bool       -> primitive tag Prim.Boolean.of_octets
+    | Int        -> primitive tag Prim.Integer.of_octets
     | Bits       -> string_like c tag (module Prim.Bits)
     | Octets     -> string_like c tag (module Prim.Octets)
-    | Null       -> primitive tag Prim.Null.of_cstruct
-    | OID        -> primitive tag Prim.OID.of_cstruct
+    | Null       -> primitive tag Prim.Null.of_octets
+    | OID        -> primitive tag Prim.OID.of_octets
     | CharString -> string_like c tag (module Prim.Gen_string)
 
   let peek asn =
@@ -414,9 +416,9 @@ module W = struct
         let body =
           Writer.concat @@
             if conf.der then
-              List.( ws |> map  Writer.to_cstruct
-                        |> sort Writer.cs_lex_compare
-                        |> map  Writer.of_cstruct )
+              List.( ws |> map  Writer.to_octets
+                        |> sort Writer.lex_compare
+                        |> map  Writer.of_octets )
             else ws
         in
         e_constructed (tag @? set_tag) body

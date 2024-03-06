@@ -272,8 +272,8 @@ module S : sig
   val bool : bool t
   (** [bool] is ASN.1 [BOOLEAN]. *)
 
-  val integer : Cstruct.t t
-  (** [integer] is ASN.1 [INTEGER]. The representation is a buffer. Be aware
+  val integer : string t
+  (** [integer] is ASN.1 [INTEGER]. The representation is a [string]. Be aware
       these are two's complement signed integers, in order to encode a positive
       number where the first bit is set (i.e. 128 = [0x80]), you have to prepend
       a 0 byte: [0x00 0x80]. Otherwise it ([0x80]) will be decoded as -128. *)
@@ -281,11 +281,11 @@ module S : sig
   val bit_string : bool array t
   (** [bit_string] is ASN.1 [BIT STRING]. *)
 
-  val bit_string_cs : Cstruct.t t
-  (** [bit_string_cs] is ASN.1 [BIT STRING], represented as {!Cstruct.t}, and
+  val bit_string_octets : string t
+  (** [bit_string_octets] is ASN.1 [BIT STRING], represented as [string], and
       padded with 0-bits up to the next full octet. *)
 
-  val octet_string : Cstruct.t  t
+  val octet_string : string  t
   (** [octet_string] is ASN.1 [OCTET STRING]. *)
 
   val null : unit t
@@ -378,13 +378,13 @@ val codec : encoding -> 'a t -> 'a codec
     @raise Ambiguous_syntax if [asn] contains [CHOICE] constructs over
     sub-syntaxes with the same tags. *)
 
-val encode : 'a codec -> 'a -> Cstruct.t
+val encode : 'a codec -> 'a -> string
 (** [encode codec x] is the encoding of [x], using [codec]. *)
 
-val encode_into : 'a codec -> 'a -> (int * (Cstruct.t -> unit))
+val encode_into : 'a codec -> 'a -> (int * (bytes -> unit))
 (** [encode_into codec x] is the pair [(n, f)], where [n] is the length of [x]
     encoded with [codec], and [f] is a function that will write the encoded [x]
-    to the first [n] bytes of the provided {!Cstruct.t}. *)
+    to the first [n] bytes of the provided [bytes]. *)
 
 type error = [ `Parse of string ]
 (** Parse errors. *)
@@ -392,7 +392,7 @@ type error = [ `Parse of string ]
 val pp_error : Format.formatter -> error -> unit
 (** [pp_error ppf err] pretty-prints [err] on [ppf]. *)
 
-val decode : 'a codec -> Cstruct.t -> ('a * Cstruct.t, error) result
+val decode : 'a codec -> string -> ('a * string, error) result
 (** [decode codec cs] is the pair [(x, cs')], where [x] is the result of
     decoding the prefix of [cs] with [codec] and [cs'] are the trailing bytes,
     or an {!error}. *)

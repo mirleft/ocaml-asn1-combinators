@@ -11,4 +11,4 @@
 (executable
   (name bench)
   (modules bench)
-  (libraries asn1-combinators x509))
+  (libraries asn1-combinators x509 unix))

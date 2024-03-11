@@ -132,9 +132,9 @@ module R = struct
 
     let rec children cfg eof acc cs off =
       if eof off cs then
-        List.rev acc, cs, off
+        List.rev acc, off
       else
-        let g, cs, off' = node cfg cs off in
+        let g, off' = node cfg cs off in
         children cfg eof (g::acc) cs off'
 
     and node cfg cs off =
@@ -142,16 +142,16 @@ module R = struct
       match coding with
       | Primitive n ->
           let hd, off = split_off cs off n in
-          G.Prim (tag, hd), cs, off
+          G.Prim (tag, hd), off
       | Constructed n ->
           let hd, off = split_off cs off n in
-          let gs, _, _ = children cfg eof1 [] hd 0 in
-          G.Cons (tag, gs), cs, off
+          let gs, _ = children cfg eof1 [] hd 0 in
+          G.Cons (tag, gs), off
       | Constructed_indefinite when cfg.strict ->
           parse_error "Constructed indefinite form"
       | Constructed_indefinite ->
-          let gs, cs, off = children cfg eof2 [] cs off in
-          G.Cons (tag, gs), cs, off + 2
+          let gs, off = children cfg eof2 [] cs off in
+          G.Cons (tag, gs), off + 2
 
     let parse cfg cs =
       try node cfg cs 0 with Invalid_argument msg ->
@@ -327,12 +327,12 @@ module R = struct
     let compile cfg asn =
       let p = c_asn asn ~opt:(Cache.create (), cfg) in
       fun cs ->
-        let g, cs', off = Gen.parse cfg cs in
+        let g, off = Gen.parse cfg cs in
         let remaining =
-          if String.length cs' - off = 0 then
+          if String.length cs - off = 0 then
             ""
           else
-            String.sub cs' off (String.length cs' - off)
+            String.sub cs off (String.length cs - off)
         in
         p g, remaining
     in

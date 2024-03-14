@@ -14,14 +14,28 @@ let time ?(iter=1) f =
     | n -> ignore (f ()) ; go (pred n) in
   measure @@ fun () -> go iter
 
-let mmap fd = Bigarray.(
-  Unix.map_file fd char c_layout false [|-1|] |>
-    array1_of_genarray |> Cstruct.of_bigarray)
+let read filename =
+  let fd = Unix.(openfile filename [O_RDONLY] 0) in
+  Fun.protect ~finally:(fun () -> Unix.close fd)
+    (fun () ->
+       let chunk_size = 2048 in
+       let rec read acc =
+         let buf = Bytes.create chunk_size in
+         let r = Unix.read fd buf 0 chunk_size in
+         if r = chunk_size then
+           read (buf :: acc)
+         else
+           Bytes.sub buf 0 r :: acc
+           |> List.rev
+           |> List.map Bytes.unsafe_to_string
+           |> String.concat ""
+       in
+       read [])
 
 let bench_certs filename =
-  let cs = mmap Unix.(openfile filename [O_RDONLY] 0) in
+  let cs = read filename in
   let rec bench n cs =
-    if Cstruct.length cs = 0 then n else
+    if String.length cs = 0 then n else
       match Asn.decode X509.cert_ber cs with
       | Ok (_, cs) -> bench (succ n) cs
       | Error e -> invalid_arg (Format.asprintf "%a" Asn.pp_error e) in

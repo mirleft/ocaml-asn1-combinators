@@ -13,7 +13,6 @@ build: [ ["dune" "subst"] {dev}
 depends: [
   "ocaml" {>="4.08.0"}
   "dune" {>= "1.2.0"}
-  "cstruct" {>= "6.0.0"}
   "ptime" {>= "0.8.6"}
   "alcotest" {with-test & >= "0.8.1"}
 ]

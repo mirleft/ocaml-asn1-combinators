@@ -6,21 +6,21 @@ open Asn.S
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
-  serial     : Cstruct.t ;
+  serial     : string ;
   signature  : OID.t ;
   issuer     : (OID.t * string) list list ;
   validity   : Ptime.t * Ptime.t ;
   subject    : (OID.t * string) list list ;
-  pk_info    : OID.t * Cstruct.t ;
-  issuer_id  : Cstruct.t option ;
-  subject_id : Cstruct.t option ;
-  extensions : (OID.t * bool * Cstruct.t) list option
+  pk_info    : OID.t * string ;
+  issuer_id  : string option ;
+  subject_id : string option ;
+  extensions : (OID.t * bool * string) list option
 }
 
 type certificate = {
   tbs_cert       : tBSCertificate ;
   signature_algo : OID.t ;
-  signature      : Cstruct.t
+  signature      : string
 }
 
 let def  x = function None -> x | Some y -> y
@@ -88,9 +88,9 @@ let validity =
 let subjectPublicKeyInfo =
   sequence2
     (required ~label:"algorithm" algorithmIdentifier)
-    (required ~label:"subjectPK" bit_string_cs)
+    (required ~label:"subjectPK" bit_string_octets)
 
-let uniqueIdentifier = bit_string_cs
+let uniqueIdentifier = bit_string_octets
 
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
@@ -137,7 +137,7 @@ let certificate =
   sequence3
     (required ~label:"tbsCertificate"     tBSCertificate)
     (required ~label:"signatureAlgorithm" algorithmIdentifier)
-    (required ~label:"signatureValue"     bit_string_cs)
+    (required ~label:"signatureValue"     bit_string_octets)
 
 let cert_ber, cert_der =
   (codec ber certificate, codec der certificate)

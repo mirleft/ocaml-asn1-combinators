@@ -23,7 +23,7 @@ type 'a t = 'a S.t
 type oid = OID.t
 
 type encoding = {
-  mk_decoder : 'a. 'a t -> Cstruct.t -> 'a * Cstruct.t;
+  mk_decoder : 'a. 'a t -> string -> 'a * string;
   mk_encoder : 'a. 'a t -> 'a -> Asn_writer.t
 }
 
@@ -38,14 +38,14 @@ let der = {
 }
 
 type 'a codec =
-  Codec of (Cstruct.t -> ('a * Cstruct.t)) * ('a -> Asn_writer.t)
+  Codec of (string -> ('a * string)) * ('a -> Asn_writer.t)
 
 let codec { mk_encoder ; mk_decoder } asn =
   let () = Core.validate asn in
   Codec (mk_decoder asn, mk_encoder asn)
 
 let encode (Codec (_, enc)) a =
-  Asn_writer.to_cstruct (enc a)
+  Asn_writer.to_octets (enc a)
 
 let encode_into (Codec (_, enc)) a =
   Asn_writer.to_writer (enc a)

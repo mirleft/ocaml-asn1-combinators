@@ -73,7 +73,15 @@ let inverts1 ?(iters = 1000) name enc cases =
     let codec = Asn.codec enc asn and t = dec alc in
     let f () =
       for _ = 1 to iters do
-        let x = Asn.random asn in
+        let rec rnd () =
+          (* Asn.random is specified on the core types - and the Int carefully
+             generates values that are 63 (31) bit values. Now,
+             unsigned_integer raises when decoding negative numbers. We catch
+             and regenerate here. *)
+          try Asn.random asn with
+          | _ when name = "unsigned_integer" -> rnd ()
+        in
+        let x = rnd () in
         Alcotest.check t "invert" (Ok (x, ""))
           (Asn.decode codec (Asn.encode codec x))
       done in
@@ -119,6 +127,12 @@ let cases = [
     "\x00\xff\xff\xff\xff\xff\xff\xff\x7f\xff\xff\xff", "020c 00ffffff ffffffff 7fffffff";
     "\x80\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c 80ffffff ffffffff ffffffff";
     "\xff\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c ff7fffff ffffffff ffffffff";
+  ];
+
+  case_eq "unsigned_integer" ~pp:pp_hex ~cmp:String.equal Asn.S.unsigned_integer [
+    "", "0201 00";
+    "\x01", "0201 01";
+    "\x80", "0202 0080";
   ];
 
   case_eq "int" ~pp:Format.pp_print_int ~cmp:Int.equal Asn.S.int ([

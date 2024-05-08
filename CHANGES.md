@@ -1,3 +1,10 @@
+## v0.3.1 (2024-05-08)
+* Introduce Asn.S.unsigned_integer - useful for e.g. ECDSA signatures where the
+  user code expects an unsigned integer and shouldn't worry about the ASN.1
+  encoding (#44 @reynir @hannesm)
+* Provide custom random generators for int and unsigned_integer
+  (#44 @hannesm @reynir)
+
 ## v0.3.0 (2024-03-14)
 * BUGFIX: utctime 50 should be 1950 (not 2050) (#39 @reynir)
 * drop zarith dependency, Asn.S.integer is now a Cstruct.t (#42 @hannesm)

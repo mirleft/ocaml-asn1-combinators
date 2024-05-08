@@ -121,6 +121,12 @@ let cases = [
     "\xff\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c ff7fffff ffffffff ffffffff";
   ];
 
+  case_eq "unsigned_integer" ~pp:pp_hex ~cmp:String.equal Asn.S.unsigned_integer [
+    "", "0201 00";
+    "\x01", "0201 01";
+    "\x80", "0202 0080";
+  ];
+
   case_eq "int" ~pp:Format.pp_print_int ~cmp:Int.equal Asn.S.int ([
       0, "020100";
       127, "02017F";

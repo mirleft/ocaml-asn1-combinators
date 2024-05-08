@@ -276,7 +276,8 @@ module S : sig
   (** [integer] is ASN.1 [INTEGER]. The representation is a [string]. Be aware
       these are two's complement signed integers, in order to encode a positive
       number where the first bit is set (i.e. 128 = [0x80]), you have to prepend
-      a 0 byte: [0x00 0x80]. Otherwise it ([0x80]) will be decoded as -128. *)
+      a 0 byte: [0x00 0x80]. Otherwise it ([0x80]) will be decoded as -128. See
+      {!unsigned_integer} for automated two's complement transformations. *)
 
   val bit_string : bool array t
   (** [bit_string] is ASN.1 [BIT STRING]. *)
@@ -331,6 +332,12 @@ module S : sig
 
   val int : int t
   (** [int] is ASN.1 [INTEGER], projected into an OCaml [int]. *)
+
+  val unsigned_integer : string t
+  (** [unsigned_integer] is ASN.1 [INTEGER], where the necessary two's
+      complement transformations are already applied. That is, it represents
+      unsigned integers encoded as ASN.1 (signed) [INTEGER]s. Negative ASN.1
+      [INTEGER]s are rejected with a parse error. *)
 
   val bit_string_flags : (int * 'a) list -> 'a list t
   (** [bit_string_flags xs] is ASN.1 [BIT STRING], represented as a collection

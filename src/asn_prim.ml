@@ -108,18 +108,10 @@ module Integer : Prim_s with type t = string = struct
       match String.length buf with
       | 0 -> one ()
       | 1 -> buf
-      | x ->
-        if x <= Sys.word_size / 8 then
-          match string_get_uint16_be buf 0 land 0xff80 with
-          | 0x0000 | 0xff80 -> one ()
-          | _ ->
-            (* OCaml integer are only 31 / 63 bit *)
-            if string_get_uint8 buf 0 > 0x3f && Sys.word_size / 8 = x then
-              one ()
-            else
-              buf
-        else
-          one ()
+      | _ ->
+        match string_get_uint16_be buf 0 land 0xff80 with
+        | 0x0000 | 0xff80 -> one ()
+        | _ -> buf
     in
     one ()
 

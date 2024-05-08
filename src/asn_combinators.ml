@@ -137,7 +137,58 @@ let int =
       Bytes.set_int64_be b 0 i64;
       Bytes.unsafe_to_string b
   in
-  map f g integer
+  let random () =
+    let rec go () =
+      let buf = Prim.Integer.random ~size:(Sys.word_size / 8) () in
+      (* OCaml integer are only 31 / 63 bit *)
+      try f buf with
+      | Parse_error _ -> go ()
+    in
+    go ()
+  in
+  map ~random f g integer
+
+let unsigned_integer =
+  let f str =
+    let l = String.length str in
+    if l > 0 then
+      let fst = string_get_uint8 str 0 in
+      if fst > 0x7F then
+        parse_error "unsigned integer < 0"
+      else if fst = 0x00 then
+        String.sub str 1 (l - 1)
+      else
+        str
+    else
+      str
+  and g str =
+    let l = String.length str in
+    let rec strip0 off =
+      if l - off >= 2 &&
+         string_get_uint8 str off = 0x00 &&
+         string_get_uint8 str (off + 1) < 0x80
+      then
+        strip0 (off + 1)
+      else if off = 0 then
+        str
+      else
+        String.sub str off (l - off)
+    in
+    let str' = strip0 0 in
+    if String.length str' = 0 || string_get_uint8 str' 0 > 0x7F then
+      "\x00" ^ str'
+    else
+      str'
+  in
+  let random () =
+    let rec go () =
+      let buf = Prim.Integer.random () in
+      try f buf with
+      | Parse_error _ -> go ()
+    in
+    go ()
+  in
+  map ~random f g integer
 
 let enumerated f g = map f g @@ implicit ~cls:`Universal 0x0a int
 

@@ -335,7 +335,9 @@ module S : sig
 
   val unsigned_integer : string t
   (** [unsigned_integer] is ASN.1 [INTEGER], where the necessary two's
-      complement transformations are already applied. *)
+      complement transformations are already applied. That is, it represents
+      unsigned integers encoded as ASN.1 (signed) [INTEGER]s. Negative ASN.1
+      [INTEGER]s are rejected with a parse error. *)
 
   val bit_string_flags : (int * 'a) list -> 'a list t
   (** [bit_string_flags xs] is ASN.1 [BIT STRING], represented as a collection

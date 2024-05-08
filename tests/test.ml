@@ -73,15 +73,7 @@ let inverts1 ?(iters = 1000) name enc cases =
     let codec = Asn.codec enc asn and t = dec alc in
     let f () =
       for _ = 1 to iters do
-        let rec rnd () =
-          (* Asn.random is specified on the core types - and the Int carefully
-             generates values that are 63 (31) bit values. Now,
-             unsigned_integer raises when decoding negative numbers. We catch
-             and regenerate here. *)
-          try Asn.random asn with
-          | _ when name = "unsigned_integer" -> rnd ()
-        in
-        let x = rnd () in
+        let x = Asn.random asn in
         Alcotest.check t "invert" (Ok (x, ""))
           (Asn.decode codec (Asn.encode codec x))
       done in

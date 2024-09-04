@@ -50,7 +50,7 @@ module R = struct
       let rec go acc = function
         | 8 -> error cs "big tag: too long"
         | i ->
-            let b = string_get_uint8 cs (off + i) in
+            let b = String.get_uint8 cs (off + i) in
             let x = Int64.of_int (b land 0x7f) in
             match (Int64.(acc lsl 7 + x), b land 0x80) with
             | (0L,  _) -> error cs "big tag: leading 0"
@@ -66,7 +66,7 @@ module R = struct
       | n ->
         let rec f cs i = function
           | 0 -> 0L
-          | n -> match string_get_uint8 cs (off + i) with
+          | n -> match String.get_uint8 cs (off + i) with
             | 0 when cfg.strict -> error cs "redundant length"
             | 0 -> f cs (i + 1) (n - 1)
             | _ when n > 8 -> error cs "length overflow"
@@ -74,7 +74,7 @@ module R = struct
         and g acc cs i = function
           | 0 -> acc
           | n ->
-            let v = string_get_uint8 cs (off + i) in
+            let v = String.get_uint8 cs (off + i) in
             let acc = Int64.(acc lsl 8 + of_int v) in
             g acc cs (i + 1) (n - 1)
         in
@@ -83,7 +83,7 @@ module R = struct
         | None -> error cs "length overflow"
 
     let parse cfg cs off =
-      let t0 = string_get_uint8 cs off in
+      let t0 = String.get_uint8 cs off in
       let tag_v, off_len =
         match t0 land 0x1f with
         | 0x1f ->
@@ -92,7 +92,7 @@ module R = struct
           n, i + 1
         | x -> x, 1
       in
-      let l0 = string_get_uint8 cs (off + off_len) in
+      let l0 = String.get_uint8 cs (off + off_len) in
       let lbody = l0 land 0x7f in
       let len, off_end =
         if l0 <= 0x80 then
@@ -124,7 +124,7 @@ module R = struct
 
   module Gen = struct
     let eof1 off cs = String.length cs - off = 0
-    and eof2 off cs = string_get_uint16_be cs off = 0
+    and eof2 off cs = String.get_uint16_be cs off = 0
 
     let split_off cs off n =
       let k = off + n in

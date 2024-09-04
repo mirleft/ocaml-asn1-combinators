@@ -63,11 +63,11 @@ let int =
   let f str =
     match String.length str with
     | 0 -> 0
-    | 1 -> string_get_int8 str 0
-    | 2 -> string_get_int16_be str 0
-    | 3 -> string_get_int16_be str 0 lsl 8 + string_get_uint8 str 2
+    | 1 -> String.get_int8 str 0
+    | 2 -> String.get_int16_be str 0
+    | 3 -> String.get_int16_be str 0 lsl 8 + String.get_uint8 str 2
     | 4 ->
-      let v = string_get_int32_be str 0 in
+      let v = String.get_int32_be str 0 in
       if Sys.word_size = 32 && (v > Int32.of_int max_int || v < Int32.of_int min_int) then
         parse_error "INTEGER: int overflow: %a" pp_octets str
       else
@@ -76,22 +76,22 @@ let int =
       if Sys.word_size = 32 then
         parse_error "INTEGER: int overflow: %a" pp_octets str
       else
-        let v = Int32.to_int (string_get_int32_be str 0) in
-        v lsl 8 + string_get_uint8 str 4
+        let v = Int32.to_int (String.get_int32_be str 0) in
+        v lsl 8 + String.get_uint8 str 4
     | 6 ->
       if Sys.word_size = 32 then
         parse_error "INTEGER: int overflow: %a" pp_octets str
       else
-        let v = Int32.to_int (string_get_int32_be str 0) in
-        v lsl 16 + string_get_uint16_be str 4
+        let v = Int32.to_int (String.get_int32_be str 0) in
+        v lsl 16 + String.get_uint16_be str 4
     | 7 ->
       if Sys.word_size = 32 then
         parse_error "INTEGER: int overflow: %a" pp_octets str
       else
-        let v = Int32.to_int (string_get_int32_be str 0) in
-        v lsl 24 + (string_get_uint16_be str 4) lsl 8 + string_get_uint8 str 6
+        let v = Int32.to_int (String.get_int32_be str 0) in
+        v lsl 24 + (String.get_uint16_be str 4) lsl 8 + String.get_uint8 str 6
     | 8 ->
-      let v = string_get_int64_be str 0 in
+      let v = String.get_int64_be str 0 in
       if Sys.word_size = 32 || (v > Int64.of_int max_int || v < Int64.of_int min_int) then
         parse_error "INTEGER: int overflow: %a" pp_octets str
       else
@@ -152,7 +152,7 @@ let unsigned_integer =
   let f str =
     let l = String.length str in
     if l > 0 then
-      let fst = string_get_uint8 str 0 in
+      let fst = String.get_uint8 str 0 in
       if fst > 0x7F then
         parse_error "unsigned integer < 0"
       else if fst = 0x00 then
@@ -165,8 +165,8 @@ let unsigned_integer =
     let l = String.length str in
     let rec strip0 off =
       if l - off >= 2 &&
-         string_get_uint8 str off = 0x00 &&
-         string_get_uint8 str (off + 1) < 0x80
+         String.get_uint8 str off = 0x00 &&
+         String.get_uint8 str (off + 1) < 0x80
       then
         strip0 (off + 1)
       else if off = 0 then
@@ -175,7 +175,7 @@ let unsigned_integer =
         String.sub str off (l - off)
     in
     let str' = strip0 0 in
-    if String.length str' = 0 || string_get_uint8 str' 0 > 0x7F then
+    if String.length str' = 0 || String.get_uint8 str' 0 > 0x7F then
       "\x00" ^ str'
     else
       str'
@@ -198,7 +198,7 @@ and bit_string_octets =
   | 0, buf -> buf
   | clip, buf ->
       let n = String.length buf in
-      let last = string_get_uint8 buf (n - 1) in
+      let last = String.get_uint8 buf (n - 1) in
       let buf' = Bytes.of_string buf
       and last = last land (lnot (1 lsl clip - 1)) in
       Bytes.set_uint8 buf' (n - 1) last;

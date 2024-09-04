@@ -11,10 +11,11 @@ build: [ ["dune" "subst"] {dev}
          ["dune" "build" "-p" name "-j" jobs ]
          ["dune" "runtest" "-p" name "-j" jobs] {with-test} ]
 depends: [
-  "ocaml" {>="4.08.0"}
+  "ocaml" {>="4.13.0"}
   "dune" {>= "1.2.0"}
   "ptime" {>= "0.8.6"}
   "alcotest" {with-test & >= "0.8.1"}
+  "ohex" {with-test & >= "0.2.0"}
 ]
 description: """
 asn1-combinators is a library for expressing ASN.1 in OCaml. Skip the notation

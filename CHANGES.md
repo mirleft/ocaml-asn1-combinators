@@ -1,3 +1,6 @@
+## v0.3.2 (2024-09-04)
+* Drop OCaml < 4.13 support (#45 @hannesm)
+
 ## v0.3.1 (2024-05-08)
 * Introduce Asn.S.unsigned_integer - useful for e.g. ECDSA signatures where the
   user code expects an unsigned integer and shouldn't worry about the ASN.1

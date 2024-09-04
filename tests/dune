@@ -6,7 +6,7 @@
 (test
   (name test)
   (modules test)
-  (libraries x509 alcotest))
+  (libraries x509 alcotest ohex))
 
 (executable
   (name bench)

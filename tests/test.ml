@@ -1,23 +1,7 @@
 (* Copyright (c) 2014-2019 David Kaloper Meršinjak. All rights reserved.
    See LICENSE.md. *)
 
-(* Once OCaml 4.13 is lower bound, revise *)
-let string_get_uint8 s idx =
-  Bytes.get_uint8 (Bytes.unsafe_of_string s) idx
-
-let pp_hex ppf =
-  let pp ppf = String.iter @@ fun c ->
-    Format.fprintf ppf "%02x@ " (Char.code c) in
-  Format.fprintf ppf "@[%a@]" pp
-
-let x s =
-  let rec go buf sb =
-    match Scanf.bscanf sb " %02x" Char.chr with
-      b -> Buffer.add_char buf b; go buf sb
-    | exception End_of_file -> Buffer.contents buf in
-  go (Buffer.create 17) (Scanf.Scanning.from_string s)
-
-let octets = Alcotest.testable pp_hex String.equal
+let octets = Alcotest.testable Ohex.pp String.equal
 let err = Alcotest.testable Asn.pp_error (fun (`Parse _) (`Parse _) -> true)
 let dec t = Alcotest.(result (pair t octets) err)
 let testable ?(pp = fun ppf _ -> Fmt.pf ppf "*shrug*") ?(cmp = (=)) () =
@@ -25,7 +9,7 @@ let testable ?(pp = fun ppf _ -> Fmt.pf ppf "*shrug*") ?(cmp = (=)) () =
 
 let pp_e ppf = function
   | #Asn.error as e -> Asn.pp_error ppf e
-  | `Leftover b     -> Format.fprintf ppf "Leftover: %a" pp_hex b
+  | `Leftover b     -> Format.fprintf ppf "Leftover: %a" Ohex.pp b
 
 type 'a cmp = 'a -> 'a -> bool
 
@@ -44,7 +28,7 @@ let accepts_eq name enc cases =
     let codec = Asn.codec enc asn
     and t = dec alc in
     let f () = xs |> List.iter @@ fun (exp, s) ->
-      Alcotest.check t name (Ok (exp, "")) (Asn.decode codec (x s)) in
+      Alcotest.check t name (Ok (exp, "")) (Asn.decode codec (Ohex.decode s)) in
     (name, `Quick, f) in
   (name, tests)
 
@@ -53,14 +37,15 @@ let rejects name enc cases =
     let codec = Asn.codec enc asn
     and t = dec (testable ()) in
     let f () = ss |> List.iter @@ fun s ->
-      Alcotest.check t name (Error (`Parse "...")) (Asn.decode codec (x s)) in
+      Alcotest.check t name (Error (`Parse "..."))
+        (Asn.decode codec (Ohex.decode s)) in
     (name, `Quick, f) in
   (name, tests)
 
 let accepts name enc cases =
   let tests = cases |> List.map @@ fun (C (name, asn, ss)) ->
     let f () = ss |> List.iter @@ fun s ->
-      match Asn.(decode (codec enc asn)) (x s) with
+      match Asn.(decode (codec enc asn)) (Ohex.decode s) with
         Ok (_, t) ->
           Alcotest.check octets "no remainder" "" t
       | Error e ->
@@ -91,7 +76,7 @@ let cases = [
     true , "0101ff"
   ];
 
-  case_eq "integer" ~pp:pp_hex ~cmp:String.equal Asn.S.integer [
+  case_eq "integer" ~pp:Ohex.pp ~cmp:String.equal Asn.S.integer [
 
     "\x00", "0201 00";
     "\x7f", "0201 7f";
@@ -121,7 +106,7 @@ let cases = [
     "\xff\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", "020c ff7fffff ffffffff ffffffff";
   ];
 
-  case_eq "unsigned_integer" ~pp:pp_hex ~cmp:String.equal Asn.S.unsigned_integer [
+  case_eq "unsigned_integer" ~pp:Ohex.pp ~cmp:String.equal Asn.S.unsigned_integer [
     "", "0201 00";
     "\x01", "0201 01";
     "\x80", "0202 0080";
@@ -314,9 +299,9 @@ let cases = [
     ] );
 
   case_eq "octets" Asn.S.octet_string [
-    x "0123456789abcdef", "0408 0123456789abcdef" ;
-    x "0123456789abcdef", "048108 0123456789abcdef";
-    x "0123456789abcdef", "240c 040401234567 040489abcdef" ];
+    Ohex.decode "0123456789abcdef", "0408 0123456789abcdef" ;
+    Ohex.decode "0123456789abcdef", "048108 0123456789abcdef";
+    Ohex.decode "0123456789abcdef", "240c 040401234567 040489abcdef" ];
 
   case_eq "utc time" ~cmp:Ptime.equal ~pp:Ptime.pp Asn.S.utc_time [
 
@@ -417,7 +402,7 @@ let der_anticases = [
 
   case "redundant length" Asn.S.octet_string
   [ "048200ff" ^
-    Format.asprintf "%a" pp_hex (String.init 0xff (fun _ -> '\xaa')) ];
+    Format.asprintf "%a" Ohex.pp (String.init 0xff (fun _ -> '\xaa')) ];
 ]
 
 let certs = List.map (fun s -> case "cert" X509.certificate [s]) X509.examples

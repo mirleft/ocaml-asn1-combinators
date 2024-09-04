@@ -64,7 +64,7 @@ module Boolean : Prim with type t = bool = struct
   let of_octets buf =
     if String.length buf = 1 then
       (* XXX DER check *)
-      string_get_uint8 buf 0 <> 0x00
+      String.get_uint8 buf 0 <> 0x00
     else parse_error "BOOLEAN: %a" pp_octets buf
 
   let to_writer b = Writer.of_byte (if b then 0xff else 0x00)
@@ -94,7 +94,7 @@ module Integer : Prim_s with type t = string = struct
     | 0 -> parse_error "INTEGER: length 0"
     | 1 -> buf
     | _ ->
-        let w0 = string_get_uint16_be buf 0 in
+        let w0 = String.get_uint16_be buf 0 in
         match w0 land 0xff80 with
         | 0x0000 | 0xff80 -> parse_error "INTEGER: redundant form"
         | _ -> buf
@@ -109,7 +109,7 @@ module Integer : Prim_s with type t = string = struct
       | 0 -> one ()
       | 1 -> buf
       | _ ->
-        match string_get_uint16_be buf 0 land 0xff80 with
+        match String.get_uint16_be buf 0 land 0xff80 with
         | 0x0000 | 0xff80 -> one ()
         | _ -> buf
     in
@@ -167,7 +167,7 @@ struct
   let of_octets buf =
     let n = String.length buf in
     if n = 0 then parse_error "BITS" else
-    let unused = string_get_uint8 buf 0 in
+    let unused = String.get_uint8 buf 0 in
     if n = 1 && unused > 0 || unused > 7 then parse_error "BITS" else
     unused, Octets.of_octets (String.sub buf 1 (String.length buf - 1))
 
@@ -180,7 +180,7 @@ struct
 
   let to_array (unused, cs) =
     Array.init (String.length cs * 8 - unused) @@ fun i ->
-      let byte = (string_get_uint8 cs (i / 8)) lsl (i mod 8) in
+      let byte = (String.get_uint8 cs (i / 8)) lsl (i mod 8) in
       byte land 0x80 = 0x80
 
   let (|<) n = function
@@ -226,7 +226,7 @@ module OID = struct
     let rec go acc buf i = function
       0 -> parse_error "OID: unterminated component"
     | n ->
-        match string_get_uint8 buf i with
+        match String.get_uint8 buf i with
           0x80 when acc = 0L -> parse_error "OID: redundant form"
         | b ->
             let lo  = b land 0x7f in
